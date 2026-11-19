@@ -102,6 +102,33 @@ it is a bug even if the tests pass on your machine.
 - No "temporary" writes outside `refs/ilvuno/*`, `.ilvuno/**`, or `docs/ilvuno/tasks/`.
 - No rewriting another agent's branch history.
 
+### 4.4 Commits
+
+Commit only a **coherent, reviewable change**: one logical unit of work per commit, complete enough
+that its checks pass on that commit. Do not split work just to increase the commit count, and do not
+bundle unrelated cleanup, refactoring, or formatting into it.
+
+Before committing:
+
+1. Inspect the full staged diff (`git diff --cached`). Confirm every file is inside the task's
+   "Allowed file scope" (§7, §10.2).
+2. Confirm nothing temporary, generated, or scratch is staged: build output, coverage files, editor
+   backups, local notes, `.worktrees/`, `.ilvuno/`. Unstage them. Do not commit them.
+3. Run the checks the task spec names, from the task's worktree (§7). If a named check does not exist
+   yet, record it as a blocker. Do not substitute another check, and do not report it as passed (§12).
+
+Message format: Conventional Commits, scoped to the package, with the task ID in the subject:
+
+    feat(engine): add candidate merge-order report (T-NNNN)
+
+Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`. The subject is imperative and
+says what changed. Add a body only when the reason is not obvious from the diff.
+
+After committing, report: the commit SHA(s), the files touched, each check run with its exact command
+and result (or the blocker), and the worktree path.
+
+Do not push. Wait for explicit human review of the commit(s) before pushing the branch (§8).
+
 ---
 
 ## 5. Testing requirements
@@ -155,8 +182,8 @@ file or `CLAUDE.md`. If you find yourself explaining a subsystem in a commit mes
 ```
 1. git worktree add .worktrees/<agent>-<task-id> -b feat/<task-id>   (from origin/main)
 2. work only inside that worktree and inside the task's "Allowed file scope"
-3. commit in small, reviewable steps: <area>: <what> (T-NNNN)
-4. push the branch, open a PR; squash-merge with the task ID in the subject
+3. commit one coherent, reviewable change at a time, in the format and with the checks in §4.4
+4. after human review of the commits, push the branch and open a PR; squash-merge with the task ID in the subject
 5. delete the worktree after merge
 ```
 

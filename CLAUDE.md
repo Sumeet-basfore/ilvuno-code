@@ -105,6 +105,10 @@ to integrate than they save — that is the product's own thesis, applied to its
 - Never edit a test to match buggy behaviour without flagging it explicitly in the PR body.
 - Never disable a benchmark, gate check, or lint rule to make a change pass. If a threshold is
   wrong, escalate — that is a policy change, not a fix.
+- Commit only a coherent, reviewable change, after inspecting `git diff --cached` and running the
+  task's checks. The commit rules in `AGENTS.md` §4.4 are authoritative; this bullet is a reminder.
+- After committing, report the SHA(s), the checks with their output (or the blocker), and the files
+  touched. Do not push until the human has reviewed the commit.
 
 ---
 
