@@ -275,7 +275,7 @@ dangling ref flagged with the fetch command.
 
 ## J-7 Refusal: unsafe input
 
-**Requirements:** ORC-101, INT-102, INT-104, INT-110, REC-102.
+**Requirements:** ORQ-101, INT-102, INT-104, INT-110, REC-102.
 
 ```
 $ ilvuno integrate --base main --source .
@@ -316,7 +316,7 @@ trustworthy than a silent re-run that might double-apply a merge.
 
 ## J-8 The platform team runs it in CI
 
-**Persona:** Dana, Marco. **Requirements:** ORC-106, VER-105, EVD-106, SEC-101, NFR-107.
+**Persona:** Dana, Marco. **Requirements:** ORQ-106, VER-105, EVD-106, SEC-101, NFR-107.
 
 ```yaml
 # .github/workflows/integration.yml (added by Dana)
@@ -341,7 +341,8 @@ $ ilvuno integrate ... --json
   working across minor releases (`VER-105`).
 - The evidence bundle is the CI artifact. Reviewers download one file, not a log haystack.
 - No service account, no token, no network call to Ilvuno (`XDC-101`, `OSS-102`).
-- `sun` on failure is a *report*, not a blocked merge: Dana decides policy, not the tool.
+- A red result on failure is a *report*, not a blocked merge: Dana decides policy, not
+the tool.
 
 **Failure branches:** artifact upload fails → the run is still valid locally but the
 evidence is lost; the report says `evidence_write_failed` rather than pretending success.
@@ -360,8 +361,8 @@ Concurrent CI runs on the same repo → distinct run ids, no shared mutable stat
 | J-4 | INT-306, INT-210, EVD-107 | yes |
 | J-5 | INT-501–506 | yes |
 | J-6 | TSK-101–112 | yes |
-| J-7 | ORC-101, REC-102, REC-103 | yes |
-| J-8 | ORC-106, VER-105, EVD-106 | yes |
+| J-7 | ORQ-101, REC-102, REC-103 | yes |
+| J-8 | ORQ-106, VER-105, EVD-106 | yes |
 
 Gaps deliberately deferred: multi-machine task viewing (XDC-102 is P0 but its *journey*
 depends on rung 2 transport, post-MVP), mobile approval (J7 persona job, `XDC-103` is the

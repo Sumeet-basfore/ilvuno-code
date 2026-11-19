@@ -156,7 +156,7 @@ more credible to the person it *is* for.
 | Priya | J1, J2 | INT-101, INT-105, INT-108, INT-210, INT-301, INT-306 | Slower than her manual workaround → never used twice |
 | Marco | J3 | EVD-102, EVD-103, EVD-106, EVD-107, VER-101, INT-605 | Report reads as marketing → trust never earned |
 | Dana | J6, policy | SEC-101…106, OSS-102, NFR-103, XDC-101 | Any mandatory service → disqualified for the org |
-| Jonas | J1 (inbound) | INT-101, ORC-102, ORC-103 | Needs multi-repo, which is P2 |
+| Jonas | J1 (inbound) | INT-101, ORQ-102, ORQ-103 | Needs multi-repo, which is P2 |
 | Sam | — | none (anti-persona) | Roadmap drift toward dispatch/chat |
 
 ## 7. Anti-persona guardrail

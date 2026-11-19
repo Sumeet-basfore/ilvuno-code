@@ -346,20 +346,20 @@ manual/observational method is named.
 | INT-604 | Landing is out of scope: print the exact git commands for the developer to run, plus a PR body draft. | P0 | J6 | INT-601 | Tool performs no push/merge/PR creation | Assert no network writes in an instrumented run |
 | INT-605 | Report is diffable and stable: same inputs → byte-identical report except timestamps/durations. | P1 | J3 | INT-601 | Normalized comparison passes | Determinism test |
 
-### 10.7 Orchestration (`ORC-1xx`) — largely post-MVP
+### 10.7 Orchestration (`ORQ-1xx`) — largely post-MVP
 
 Ilvuno's MVP deliberately has no dispatch. It consumes the output of tools that dispatch.
 These requirements exist so the seam is designed, not built.
 
 | ID | Requirement | Pri | User value | Deps | Acceptance criteria | Verification |
 |---|---|---|---|---|---|---|
-| ORC-101 | Never run two agent streams in one working tree; refuse if a source is a shared checkout. | P0 (seam) | J6 | INT-101 | A source that is the user's working tree is refused with `shared_workspace` | Test with the repo root as source |
-| ORC-102 | Accept a machine-readable stream manifest (yaml) describing N planned streams: objective, base, file ownership hints, agent, worktree. | P1 | J1 | INT-101 | Manifest validated; unknown fields rejected (strict) | Schema tests |
-| ORC-103 | Emit a stream manifest from an existing run so integration is reproducible without the originating tool. | P1 | J4 | ORC-102 | Manifest + pinned SHAs reproduce the integration on a clean clone | Clean-clone reproduction test |
-| ORC-104 | Detect overlapping declared file ownership in a manifest at plan time (the C3 pre-flight, MVP-C style) without requiring merges. | P2 | J1 | ORC-102 | Overlap report produced from manifest alone | Manifest fixture |
-| ORC-105 | Dispatch (starting agents) is explicitly out of MVP scope; if added, it must reuse the same isolation and evidence primitives and must cap concurrency. | P2 | — | ORC-102 | n/a until scheduled | Design review gate |
-| ORC-106 | Expose the engine to host tools via a stable non-interactive interface (CLI JSON contract first; MCP tool later). | P1 | J6 | INT-208 | JSON schema versioned; breaking change requires major version | Contract test pinned in a schema file |
-| ORC-107 | Provide a plugin contract for workspaces (orca/t3code-style) to call integration as a step, without Ilvuno owning their state. | P2 | J6 | ORC-106 | A stub host can invoke, receive findings, and display them | Stub host integration test |
+| ORQ-101 | Never run two agent streams in one working tree; refuse if a source is a shared checkout. | P0 (seam) | J6 | INT-101 | A source that is the user's working tree is refused with `shared_workspace` | Test with the repo root as source |
+| ORQ-102 | Accept a machine-readable stream manifest (yaml) describing N planned streams: objective, base, file ownership hints, agent, worktree. | P1 | J1 | INT-101 | Manifest validated; unknown fields rejected (strict) | Schema tests |
+| ORQ-103 | Emit a stream manifest from an existing run so integration is reproducible without the originating tool. | P1 | J4 | ORQ-102 | Manifest + pinned SHAs reproduce the integration on a clean clone | Clean-clone reproduction test |
+| ORQ-104 | Detect overlapping declared file ownership in a manifest at plan time (the C3 pre-flight, MVP-C style) without requiring merges. | P2 | J1 | ORQ-102 | Overlap report produced from manifest alone | Manifest fixture |
+| ORQ-105 | Dispatch (starting agents) is explicitly out of MVP scope; if added, it must reuse the same isolation and evidence primitives and must cap concurrency. | P2 | — | ORQ-102 | n/a until scheduled | Design review gate |
+| ORQ-106 | Expose the engine to host tools via a stable non-interactive interface (CLI JSON contract first; MCP tool later). | P1 | J6 | INT-208 | JSON schema versioned; breaking change requires major version | Contract test pinned in a schema file |
+| ORQ-107 | Provide a plugin contract for workspaces (orca/t3code-style) to call integration as a step, without Ilvuno owning their state. | P2 | J6 | ORQ-106 | A stub host can invoke, receive findings, and display them | Stub host integration test |
 
 ### 10.8 Task Passport (`TSK-1xx`)
 
@@ -422,7 +422,7 @@ See §21.
 |---|---|---|---|---|---|---|
 | OSS-101 | Core is open source with an OSI-approved license; paid features live outside the core repo or behind a documented boundary. | P0 | J6 | — | License file present; no proprietary code in core paths | Repo audit |
 | OSS-102 | No feature that a P0 requirement needs may require a network service or a paid key. | P0 | J6 | OSS-101 | Capability test with all network blocked passes P0 suite | Offline CI job |
-| OSS-103 | Documented extension points (verification commands, symbol index, repair command, report schema) so third parties can extend without forking. | P1 | J6 | ORC-106 | A third-party adapter can be written using docs only | External integration test (dogfood) |
+| OSS-103 | Documented extension points (verification commands, symbol index, repair command, report schema) so third parties can extend without forking. | P1 | J6 | ORQ-106 | A third-party adapter can be written using docs only | External integration test (dogfood) |
 | OSS-104 | Contributions are testable without a proprietary harness: fixtures and golden files in-repo. | P1 | — | OSS-103 | `make test` green on a clean clone with no secrets | Clean-clone CI |
 
 ### 10.13 Nonfunctional requirements (`NFR-1xx`)
@@ -602,15 +602,9 @@ MVP position: **no dispatch.** Ilvuno is an integration layer that consumes arti
 This is a deliberate product decision, not a limitation to apologize for, and it is the
 research's recommended direction (research `06` §9).
 
-Requirements that still bind the MVP:
-
-| ID | Requirement | Why |
-|---|---|---|
-| ORC-101 | Never share a working tree between streams | Shared-folder parallelism is an open failure mode in all three products (T3-031, ORC-033, CR-024) |
-| ORC-102 | Stream manifest is the plan format, strict-validated | Reproducibility and cross-tool input |
-| ORC-103 | Manifest can be emitted from an existing run | Lets users adopt without changing tools |
-| ORC-106 | Stable non-interactive contract (JSON, schema-versioned) | Host tools call it; hosts own their own UX |
-| ORC-107 | Plugin contract, post-MVP | A workspace can add "integrate" as a step |
+Requirements are defined once, in §10.7 (`ORQ-101`–`ORQ-107`). The ones that bind the MVP
+are `ORQ-101` (no shared working tree), `ORQ-102`/`ORQ-103` (manifest in and out) and
+`ORQ-106` (stable machine contract). `ORQ-104`, `ORQ-105` and `ORQ-107` are post-MVP.
 
 When dispatch is eventually added (post-MVP, gated by metrics in §24), it must:
 - reuse the same isolation and evidence primitives, not a parallel implementation;
@@ -773,7 +767,7 @@ why" is more useful than a green badge.
 | `stale_approval` | inputs changed after approval | 3 | re-run and re-approve |
 | `evidence_write_failed` | disk/permissions | 2 | fix storage; run is invalid |
 
-Exit codes are part of the public contract (`ORC-106`), documented, and tested as a matrix.
+Exit codes are part of the public contract (`ORQ-106`), documented, and tested as a matrix.
 
 ### 19.4 Degradation ladder
 
@@ -884,7 +878,7 @@ written decision log. Contributor requirements are minimal: tests, fixtures, no 
 CI (`OSS-104`).
 
 **Ecosystem posture:** explicit third-party extension points (`OSS-103`) and a stable
-machine contract (`ORC-106`). The goal is for orca/t3code-style workspaces to call Ilvuno
+machine contract (`ORQ-106`). The goal is for orca/t3code-style workspaces to call Ilvuno
 as a step and for Clash/Grove-style predictors to feed it. Being a layer means surviving
 someone else's product churn.
 
@@ -1024,19 +1018,27 @@ not build it.
 
 ## Appendix B: Requirement count
 
+Counted from the requirement tables above; 97 requirements, 69 of them P0.
+
 | Domain | Count | P0 | P1 | P2 |
 |---|---|---|---|---|
 | INT-1xx (construction) | 11 | 9 | 2 | 0 |
-| INT-2xx (analysis) | 10 | 7 | 3 | 0 |
-| INT-3xx (verification) | 9 | 6 | 2 | 0 (1 gap: INT-309 unused) |
+| INT-2xx (analysis) | 10 | 5 | 4 | 0 |
+| INT-3xx (verification) | 9 | 7 | 2 | 0 |
 | INT-5xx (repair) | 6 | 6 | 0 | 0 |
 | INT-6xx (review/approval) | 5 | 4 | 1 | 0 |
-| EVD-1xx | 8 | 6 | 2 | 0 |
-| ORC-1xx | 7 | 2 | 3 | 2 |
+| EVD-1xx | 8 | 6 | 1 | 1 |
+| ORQ-1xx (orchestration) | 7 | 1 | 3 | 3 |
 | TSK-1xx | 13 | 11 | 1 | 1 |
 | VER-1xx | 6 | 4 | 2 | 0 |
-| REC-1xx | 7 | 7 | 0 | 0 |
+| REC-1xx | 7 | 6 | 1 | 0 |
 | XDC-1xx | 5 | 4 | 0 | 1 |
 | OSS-1xx | 4 | 2 | 2 | 0 |
 | SEC-1xx | 7 | 4 | 1 | 2 |
-| NFR-1xx | 10 | — | — | — |
+| **Total** | **97** | **69** | **20** | **8** |
+
+NFR-1xx is a non-prioritized quality contract (10 entries), not part of the count above.
+
+Requirement IDs use their own prefix space: `ORQ-` for Ilvuno orchestration requirements,
+distinct from `ORC-###` evidence IDs for the orca analysis. `ORQ-104` is P2 because manifest
+pre-flight is only useful once a manifest format exists.
