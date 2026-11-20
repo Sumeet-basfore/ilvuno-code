@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ilvuno Logo Refinements &amp; Slim Wordmark</title>
+  <style>
+    :root {
+      --bg: #0B1120;
+      --card: #111A2E;
+      --border: #1E2A44;
+      --text: #F1F5F9;
+      --muted: #94A3B8;
+      --accent: #38BDF8;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .header {
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+    .header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+      color: #FFFFFF;
+    }
+    .header p {
+      font-size: 13px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid var(--border);
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #FFFFFF;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .card-desc {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .previews {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid var(--border);
+    }
+    .preview-box {
+      padding: 32px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .preview-dark {
+      background: #0B1120;
+      color: #FFFFFF;
+    }
+    .preview-light {
+      background: #F8FAFC;
+      color: #0F172A;
+      border-left: 1px solid var(--border);
+    }
+    .preview-label {
+      position: absolute;
+      top: 8px;
+      left: 12px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      opacity: 0.6;
+    }
+    .logo-wrap {
+      width: 100%;
+      max-width: 260px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .logo-wrap svg {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .size-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 16px;
+      background: rgba(0, 0, 0, 0.25);
+    }
+    .size-title {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      margin-right: 8px;
+    }
+    .size-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .size-label {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+    }
+    .icon-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0B1120;
+      border: 1px solid #1E2A44;
+      border-radius: 3px;
+      color: #FFFFFF;
+    }
+    .icon-box svg {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Ilvuno Brand Identity &mdash; Refinements &amp; Slim Wordmark</h1>
+    <p>1. Refined IV Monogram &bull; 2. Simplified Single-Step Seam &bull; 3. New Slim Wordmark</p>
+  </div>
+
+  <div class="grid">
+    <!-- Refined C -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="badge">Refined C</span>
+          <span>Architectural IV Monogram</span>
+        </div>
+        <div class="card-desc">Left-to-Right IV Composition &bull; Proportional Height Alignment</div>
+      </div>
+      <div class="previews">
+        <div class="preview-box preview-dark">
+          <span class="preview-label">Dark Theme</span>
+          <div class="logo-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 80" fill="none">
+  <title>Ilvuno Logo — Refined Concept C (IV Monogram &amp; Wordmark)</title>
+  <desc>Refined lockup featuring the distinctive IV architectural monogram perfectly proportioned to the Ilvuno wordmark.</desc>
+  <!-- IV Monogram Symbol -->
+  <path d="M 16,23 L 23,16 L 28,16 L 28,64 L 16,64 Z M 36,16 L 47,16 L 55,44 L 63,16 L 69,16 L 74,21 L 60,64 L 50,64 Z" fill="currentColor" />
+  <!-- Ilvuno Wordmark -->
+  <path d="M 96,22 L 102,16 L 106,16 L 106,64 L 96,64 Z M 115,16 L 125,16 L 125,59 L 128,64 L 115,64 Z M 135,30 L 145,30 L 150,51 L 155,30 L 165,30 L 156,64 L 144,64 Z M 174,30 L 184,30 L 184,50 C 184,54 186,56 189,56 C 192,56 194,54 194,50 L 194,30 L 204,30 L 204,50 C 204,60 197,65 189,65 C 181,65 174,60 174,50 Z M 211,30 L 221,30 L 221,36 C 223,32 227,29 232,29 C 240,29 245,34 245,43 L 245,64 L 235,64 L 235,46 C 235,42 233,40 229,40 C 225,40 221,42 221,46 L 221,64 L 211,64 Z M 268,29 C 277,29 284,37 284,47 C 284,57 277,65 268,65 C 259,65 252,57 252,47 C 252,37 259,29 268,29 Z M 268,38 C 263,38 261,41 261,47 C 261,53 263,56 268,56 C 273,56 275,53 275,47 C 275,41 273,38 268,38 Z" fill="currentColor" />
+</svg></div>
+        </div>
+        <div class="preview-box preview-light">
+          <span class="preview-label">Light Theme</span>
+          <div class="logo-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 80" fill="none">
+  <title>Ilvuno Logo — Refined Concept C (IV Monogram &amp; Wordmark)</title>
+  <desc>Refined lockup featuring the distinctive IV architectural monogram perfectly proportioned to the Ilvuno wordmark.</desc>
+  <!-- IV Monogram Symbol -->
+  <path d="M 16,23 L 23,16 L 28,16 L 28,64 L 16,64 Z M 36,16 L 47,16 L 55,44 L 63,16 L 69,16 L 74,21 L 60,64 L 50,64 Z" fill="currentColor" />
+  <!-- Ilvuno Wordmark -->
+  <path d="M 96,22 L 102,16 L 106,16 L 106,64 L 96,64 Z M 115,16 L 125,16 L 125,59 L 128,64 L 115,64 Z M 135,30 L 145,30 L 150,51 L 155,30 L 165,30 L 156,64 L 144,64 Z M 174,30 L 184,30 L 184,50 C 184,54 186,56 189,56 C 192,56 194,54 194,50 L 194,30 L 204,30 L 204,50 C 204,60 197,65 189,65 C 181,65 174,60 174,50 Z M 211,30 L 221,30 L 221,36 C 223,32 227,29 232,29 C 240,29 245,34 245,43 L 245,64 L 235,64 L 235,46 C 235,42 233,40 229,40 C 225,40 221,42 221,46 L 221,64 L 211,64 Z M 268,29 C 277,29 284,37 284,47 C 284,57 277,65 268,65 C 259,65 252,57 252,47 C 252,37 259,29 268,29 Z M 268,38 C 263,38 261,41 261,47 C 261,53 263,56 268,56 C 273,56 275,53 275,47 C 275,41 273,38 268,38 Z" fill="currentColor" />
+</svg></div>
+        </div>
+      </div>
+      <div class="size-row">
+        <div class="size-title">Icon Micro-Scale:</div>
+        <div class="size-col">
+          <div class="icon-box" style="width:16px; height:16px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Refined Concept C (IV Monogram)</title>
+  <desc>Distinctive architectural IV monogram featuring an index-chamfered I pillar and grounded V chevron.</desc>
+  <path d="M 21,33 L 28,26 L 33,26 L 33,74 L 21,74 Z M 41,26 L 52,26 L 60,54 L 68,26 L 74,26 L 79,31 L 65,74 L 55,74 Z" fill="currentColor" />
+</svg></div>
+          <span class="size-label">16px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:24px; height:24px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Refined Concept C (IV Monogram)</title>
+  <desc>Distinctive architectural IV monogram featuring an index-chamfered I pillar and grounded V chevron.</desc>
+  <path d="M 21,33 L 28,26 L 33,26 L 33,74 L 21,74 Z M 41,26 L 52,26 L 60,54 L 68,26 L 74,26 L 79,31 L 65,74 L 55,74 Z" fill="currentColor" />
+</svg></div>
+          <span class="size-label">24px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:32px; height:32px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Refined Concept C (IV Monogram)</title>
+  <desc>Distinctive architectural IV monogram featuring an index-chamfered I pillar and grounded V chevron.</desc>
+  <path d="M 21,33 L 28,26 L 33,26 L 33,74 L 21,74 Z M 41,26 L 52,26 L 60,54 L 68,26 L 74,26 L 79,31 L 65,74 L 55,74 Z" fill="currentColor" />
+</svg></div>
+          <span class="size-label">32px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:48px; height:48px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Refined Concept C (IV Monogram)</title>
+  <desc>Distinctive architectural IV monogram featuring an index-chamfered I pillar and grounded V chevron.</desc>
+  <path d="M 21,33 L 28,26 L 33,26 L 33,74 L 21,74 Z M 41,26 L 52,26 L 60,54 L 68,26 L 74,26 L 79,31 L 65,74 L 55,74 Z" fill="currentColor" />
+</svg></div>
+          <span class="size-label">48px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:64px; height:64px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Refined Concept C (IV Monogram)</title>
+  <desc>Distinctive architectural IV monogram featuring an index-chamfered I pillar and grounded V chevron.</desc>
+  <path d="M 21,33 L 28,26 L 33,26 L 33,74 L 21,74 Z M 41,26 L 52,26 L 60,54 L 68,26 L 74,26 L 79,31 L 65,74 L 55,74 Z" fill="currentColor" />
+</svg></div>
+          <span class="size-label">64px</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Refined E -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="badge">Refined E</span>
+          <span>The Single-Step Seam</span>
+        </div>
+        <div class="card-desc">Simplified Single Orthogonal Step &bull; Pure Solid Monochrome</div>
+      </div>
+      <div class="previews">
+        <div class="preview-box preview-dark">
+          <span class="preview-label">Dark Theme</span>
+          <div class="logo-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 296 80" fill="none">
+  <title>Ilvuno Logo — Refined Concept E (Single-Step Seam)</title>
+  <desc>Monochrome identity featuring a solid square monolith split by a single orthogonal stepped seam paired with the Ilvuno wordmark.</desc>
+  <g fill="currentColor">
+    <path d="M 22,14 C 18.7,14 16,16.7 16,20 L 16,60 C 16,63.3 18.7,66 22,66 L 43.5,66 L 43.5,37.5 L 35.5,37.5 L 35.5,14 Z" />
+    <path d="M 62,14 C 65.3,14 68,16.7 68,20 L 68,60 C 68,63.3 65.3,66 62,66 L 48.5,66 L 48.5,42.5 L 40.5,42.5 L 40.5,14 Z" />
+    <path d="M 92,22 L 98,16 L 102,16 L 102,64 L 92,64 Z M 111,16 L 121,16 L 121,59 L 124,64 L 111,64 Z M 131,30 L 141,30 L 146,51 L 151,30 L 161,30 L 152,64 L 140,64 Z M 170,30 L 180,30 L 180,50 C 180,54 182,56 185,56 C 188,56 190,54 190,50 L 190,30 L 200,30 L 200,50 C 200,60 193,65 185,65 C 177,65 170,60 170,50 Z M 207,30 L 217,30 L 217,36 C 219,32 223,29 228,29 C 236,29 241,34 241,43 L 241,64 L 231,64 L 231,46 C 231,42 229,40 225,40 C 221,40 217,42 217,46 L 217,64 L 207,64 Z M 264,29 C 273,29 280,37 280,47 C 280,57 273,65 264,65 C 255,65 248,57 248,47 C 248,37 255,29 264,29 Z M 264,38 C 259,38 257,41 257,47 C 257,53 259,56 264,56 C 269,56 271,53 271,47 C 271,41 269,38 264,38 Z" />
+  </g>
+</svg></div>
+        </div>
+        <div class="preview-box preview-light">
+          <span class="preview-label">Light Theme</span>
+          <div class="logo-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 296 80" fill="none">
+  <title>Ilvuno Logo — Refined Concept E (Single-Step Seam)</title>
+  <desc>Monochrome identity featuring a solid square monolith split by a single orthogonal stepped seam paired with the Ilvuno wordmark.</desc>
+  <g fill="currentColor">
+    <path d="M 22,14 C 18.7,14 16,16.7 16,20 L 16,60 C 16,63.3 18.7,66 22,66 L 43.5,66 L 43.5,37.5 L 35.5,37.5 L 35.5,14 Z" />
+    <path d="M 62,14 C 65.3,14 68,16.7 68,20 L 68,60 C 68,63.3 65.3,66 62,66 L 48.5,66 L 48.5,42.5 L 40.5,42.5 L 40.5,14 Z" />
+    <path d="M 92,22 L 98,16 L 102,16 L 102,64 L 92,64 Z M 111,16 L 121,16 L 121,59 L 124,64 L 111,64 Z M 131,30 L 141,30 L 146,51 L 151,30 L 161,30 L 152,64 L 140,64 Z M 170,30 L 180,30 L 180,50 C 180,54 182,56 185,56 C 188,56 190,54 190,50 L 190,30 L 200,30 L 200,50 C 200,60 193,65 185,65 C 177,65 170,60 170,50 Z M 207,30 L 217,30 L 217,36 C 219,32 223,29 228,29 C 236,29 241,34 241,43 L 241,64 L 231,64 L 231,46 C 231,42 229,40 225,40 C 221,40 217,42 217,46 L 217,64 L 207,64 Z M 264,29 C 273,29 280,37 280,47 C 280,57 273,65 264,65 C 255,65 248,57 248,47 C 248,37 255,29 264,29 Z M 264,38 C 259,38 257,41 257,47 C 257,53 259,56 264,56 C 269,56 271,53 271,47 C 271,41 269,38 264,38 Z" />
+  </g>
+</svg></div>
+        </div>
+      </div>
+      <div class="size-row">
+        <div class="size-title">Icon Micro-Scale:</div>
+        <div class="size-col">
+          <div class="icon-box" style="width:16px; height:16px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Refined Concept E (Single-Step Seam)</title>
+  <desc>Solid single-color square monolith split by a single orthogonal stepped seam representing two interlocking verified units.</desc>
+  <path d="M 28,22 C 24.7,22 22,24.7 22,28 L 22,72 C 22,75.3 24.7,78 28,78 L 51.5,78 L 51.5,47.5 L 43.5,47.5 L 43.5,22 Z" fill="currentColor" />
+  <path d="M 72,22 C 75.3,22 78,24.7 78,28 L 78,72 C 78,75.3 75.3,78 72,78 L 56.5,78 L 56.5,52.5 L 48.5,52.5 L 48.5,22 Z" fill="currentColor" />
+</svg></div>
+          <span class="size-label">16px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:24px; height:24px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Refined Concept E (Single-Step Seam)</title>
+  <desc>Solid single-color square monolith split by a single orthogonal stepped seam representing two interlocking verified units.</desc>
+  <path d="M 28,22 C 24.7,22 22,24.7 22,28 L 22,72 C 22,75.3 24.7,78 28,78 L 51.5,78 L 51.5,47.5 L 43.5,47.5 L 43.5,22 Z" fill="currentColor" />
+  <path d="M 72,22 C 75.3,22 78,24.7 78,28 L 78,72 C 78,75.3 75.3,78 72,78 L 56.5,78 L 56.5,52.5 L 48.5,52.5 L 48.5,22 Z" fill="currentColor" />
+</svg></div>
+          <span class="size-label">24px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:32px; height:32px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Refined Concept E (Single-Step Seam)</title>
+  <desc>Solid single-color square monolith split by a single orthogonal stepped seam representing two interlocking verified units.</desc>
+  <path d="M 28,22 C 24.7,22 22,24.7 22,28 L 22,72 C 22,75.3 24.7,78 28,78 L 51.5,78 L 51.5,47.5 L 43.5,47.5 L 43.5,22 Z" fill="currentColor" />
+  <path d="M 72,22 C 75.3,22 78,24.7 78,28 L 78,72 C 78,75.3 75.3,78 72,78 L 56.5,78 L 56.5,52.5 L 48.5,52.5 L 48.5,22 Z" fill="currentColor" />
+</svg></div>
+          <span class="size-label">32px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:48px; height:48px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Refined Concept E (Single-Step Seam)</title>
+  <desc>Solid single-color square monolith split by a single orthogonal stepped seam representing two interlocking verified units.</desc>
+  <path d="M 28,22 C 24.7,22 22,24.7 22,28 L 22,72 C 22,75.3 24.7,78 28,78 L 51.5,78 L 51.5,47.5 L 43.5,47.5 L 43.5,22 Z" fill="currentColor" />
+  <path d="M 72,22 C 75.3,22 78,24.7 78,28 L 78,72 C 78,75.3 75.3,78 72,78 L 56.5,78 L 56.5,52.5 L 48.5,52.5 L 48.5,22 Z" fill="currentColor" />
+</svg></div>
+          <span class="size-label">48px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:64px; height:64px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Refined Concept E (Single-Step Seam)</title>
+  <desc>Solid single-color square monolith split by a single orthogonal stepped seam representing two interlocking verified units.</desc>
+  <path d="M 28,22 C 24.7,22 22,24.7 22,28 L 22,72 C 22,75.3 24.7,78 28,78 L 51.5,78 L 51.5,47.5 L 43.5,47.5 L 43.5,22 Z" fill="currentColor" />
+  <path d="M 72,22 C 75.3,22 78,24.7 78,28 L 78,72 C 78,75.3 75.3,78 72,78 L 56.5,78 L 56.5,52.5 L 48.5,52.5 L 48.5,22 Z" fill="currentColor" />
+</svg></div>
+          <span class="size-label">64px</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- New Typography-Led Wordmark -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="badge">New Direction</span>
+          <span>Slim Custom Ilvuno Wordmark</span>
+        </div>
+        <div class="card-desc">Standalone Typography-First &bull; Slim Medium Weight &bull; Generous Spacing</div>
+      </div>
+      <div class="previews">
+        <div class="preview-box preview-dark">
+          <span class="preview-label">Dark Theme</span>
+          <div class="logo-wrap" style="max-width: 280px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 88" fill="none">
+  <title>Ilvuno Wordmark — Typography-Led Identity</title>
+  <desc>Slim, carefully spaced custom Ilvuno wordmark with micro-chamfered I and baseline-stabilized l terminal.</desc>
+  <path d="M 20,24.5 L 24.5,20 L 27,20 L 27,68 L 20,68 Z M 43,20 L 50,20 L 50,63.5 L 54.5,68 L 43,68 Z M 69,34 L 76,34 L 84,58 L 92,34 L 99,34 L 86.5,68 L 81.5,68 Z M 114,34 L 121,34 L 121,55 C 121,59 124,61.5 128,61.5 C 132,61.5 135,59 135,55 L 135,34 L 142,34 L 142,55 C 142,63.5 136,68.5 128,68.5 C 120,68.5 114,63.5 114,55 Z M 156,34 L 163,34 L 163,39 C 165,35.5 169,33.5 174,33.5 C 181,33.5 184,37.5 184,45 L 184,68 L 177,68 L 177,47 C 177,42.5 175,40 171,40 C 167,40 163,42.5 163,47 L 163,68 L 156,68 Z M 213,33.5 C 221.3,33.5 228,41.3 228,51 C 228,60.7 221.3,68.5 213,68.5 C 204.7,68.5 198,60.7 198,51 C 198,41.3 204.7,33.5 213,33.5 Z M 213,40.5 C 208.6,40.5 205,45.2 205,51 C 205,56.8 208.6,61.5 213,61.5 C 217.4,61.5 221,56.8 221,51 C 221,45.2 217.4,40.5 213,40.5 Z" fill="currentColor" />
+</svg></div>
+        </div>
+        <div class="preview-box preview-light">
+          <span class="preview-label">Light Theme</span>
+          <div class="logo-wrap" style="max-width: 280px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 88" fill="none">
+  <title>Ilvuno Wordmark — Typography-Led Identity</title>
+  <desc>Slim, carefully spaced custom Ilvuno wordmark with micro-chamfered I and baseline-stabilized l terminal.</desc>
+  <path d="M 20,24.5 L 24.5,20 L 27,20 L 27,68 L 20,68 Z M 43,20 L 50,20 L 50,63.5 L 54.5,68 L 43,68 Z M 69,34 L 76,34 L 84,58 L 92,34 L 99,34 L 86.5,68 L 81.5,68 Z M 114,34 L 121,34 L 121,55 C 121,59 124,61.5 128,61.5 C 132,61.5 135,59 135,55 L 135,34 L 142,34 L 142,55 C 142,63.5 136,68.5 128,68.5 C 120,68.5 114,63.5 114,55 Z M 156,34 L 163,34 L 163,39 C 165,35.5 169,33.5 174,33.5 C 181,33.5 184,37.5 184,45 L 184,68 L 177,68 L 177,47 C 177,42.5 175,40 171,40 C 167,40 163,42.5 163,47 L 163,68 L 156,68 Z M 213,33.5 C 221.3,33.5 228,41.3 228,51 C 228,60.7 221.3,68.5 213,68.5 C 204.7,68.5 198,60.7 198,51 C 198,41.3 204.7,33.5 213,33.5 Z M 213,40.5 C 208.6,40.5 205,45.2 205,51 C 205,56.8 208.6,61.5 213,61.5 C 217.4,61.5 221,56.8 221,51 C 221,45.2 217.4,40.5 213,40.5 Z" fill="currentColor" />
+</svg></div>
+        </div>
+      </div>
+      <div class="size-row">
+        <div class="size-title">Typographic Monogram Icon:</div>
+        <div class="size-col">
+          <div class="icon-box" style="width:16px; height:16px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Typography-Led Il Monogram</title>
+  <desc>Minimalist typographic monogram icon derived from the slim Ilvuno wordmark.</desc>
+  <path d="M 28,26 L 34,20 L 38,20 L 38,80 L 28,80 Z M 54,20 L 64,20 L 64,74 L 70,80 L 54,80 Z" fill="currentColor" />
+</svg></div>
+          <span class="size-label">16px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:24px; height:24px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Typography-Led Il Monogram</title>
+  <desc>Minimalist typographic monogram icon derived from the slim Ilvuno wordmark.</desc>
+  <path d="M 28,26 L 34,20 L 38,20 L 38,80 L 28,80 Z M 54,20 L 64,20 L 64,74 L 70,80 L 54,80 Z" fill="currentColor" />
+</svg></div>
+          <span class="size-label">24px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:32px; height:32px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Typography-Led Il Monogram</title>
+  <desc>Minimalist typographic monogram icon derived from the slim Ilvuno wordmark.</desc>
+  <path d="M 28,26 L 34,20 L 38,20 L 38,80 L 28,80 Z M 54,20 L 64,20 L 64,74 L 70,80 L 54,80 Z" fill="currentColor" />
+</svg></div>
+          <span class="size-label">32px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:48px; height:48px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Typography-Led Il Monogram</title>
+  <desc>Minimalist typographic monogram icon derived from the slim Ilvuno wordmark.</desc>
+  <path d="M 28,26 L 34,20 L 38,20 L 38,80 L 28,80 Z M 54,20 L 64,20 L 64,74 L 70,80 L 54,80 Z" fill="currentColor" />
+</svg></div>
+          <span class="size-label">48px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:64px; height:64px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Typography-Led Il Monogram</title>
+  <desc>Minimalist typographic monogram icon derived from the slim Ilvuno wordmark.</desc>
+  <path d="M 28,26 L 34,20 L 38,20 L 38,80 L 28,80 Z M 54,20 L 64,20 L 64,74 L 70,80 L 54,80 Z" fill="currentColor" />
+</svg></div>
+          <span class="size-label">64px</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

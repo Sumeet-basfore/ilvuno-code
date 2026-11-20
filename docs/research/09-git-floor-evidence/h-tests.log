@@ -1,0 +1,97 @@
+PASS  P0.1 label traversal rejected
+PASS  P0.2 safe_rmrf outside root refused
+PASS  P0.3 symlinked child refused
+PASS  P0.3b sentinel survived
+PASS  P0.4 symlinked scratch parent refused
+PASS  P0.5 scratch inside work tree refused
+PASS  P0.6 harness runs with SP1_VER set
+PASS  P0.6b traversal sentinel intact
+PASS  P0.6m mutant check detects deletion
+PASS  P0.7 no writes inside script directory
+PASS  P0.8 parent sentinels preserved
+PASS  P0.8b parent got an exclusive child
+PASS  M0 valid manifest parses
+PASS  M1 shell payload in manifest refused
+PASS  M1b payload not executed
+PASS  M2 unknown manifest key rejected
+PASS  M2b duplicate key rejected
+PASS  M2c short OID rejected
+PASS  M2d missing BASE rejected
+PASS  M2e duplicate source rejected
+PASS  M2f single source rejected
+PASS  M3 unregistered repository refused
+PASS  SG-1 hooks do not execute
+PASS  SG-2 runtime GIT_CONFIG injection stripped
+PASS  SG-2b child env sanitised
+PASS  SG-3 merge.default refused
+PASS  SG-3b driver did not run
+PASS  SG-4 late-attribute source refused
+PASS  SG-4b driver did not run
+PASS  SG-4c refused run pins the amended source
+PASS  SG-4m pin assertion detects wrong pin
+PASS  SG-5 attributesFile driver refused
+PASS  SG-5b driver did not run
+PASS  SG-6 info/attributes driver refused
+PASS  SG-6b driver did not run
+PASS  SG-7 filter refused
+PASS  SG-7b filter did not run
+PASS  SG-8 outside target untouched
+PASS  SG-8b repo .ilvuno not used
+PASS  SG-9 tampered candidate check refused
+PASS  SG-9b tampered check did not run
+PASS  SG-10 submodule not initialised
+PASS  SG-11 cleanup failure reported
+PASS  C-4 F10 path and content match independent oracle
+PASS  C-5 newline/quote/tab/non-UTF8/empty blobs preserved
+PASS  R1 pre-existing refs/ilvuno kept
+PASS  R1b pre-existing run ref kept
+PASS  R1c result reports no leftover harness refs
+PASS  R2 fingerprint includes refs/ilvuno changes
+PASS  P4 repeated invocation succeeds
+PASS  P4b no worktrees left
+PASS  P4c no refs left
+PASS  P1.4 the real matrix passes
+PASS  P1.1 missing row fails
+PASS  P1.2 malformed JSON fails
+PASS  P1.2b update refuses malformed input
+PASS  P1.3 wrong candidate fails
+PASS  E1 candidate SHA detected
+PASS  E2 tree SHA detected
+PASS  E3 blob hash detected
+PASS  E4 input pin detected
+PASS  E5 source order detected
+PASS  E6 verdict detected
+PASS  E7 conflict path detected
+PASS  E8 cleanup state detected
+PASS  E9 git version detected
+PASS  E10 merge policy detected
+PASS  E11 commit metadata detected
+PASS  N1a oracle refuses configured driver
+PASS  N1b driver marker absent
+PASS  N1c refusal recorded, no candidates
+PASS  N1d unregistered fixture refused
+PASS  N1e no output on refusal
+PASS  N1f invalid ownership marker refused
+PASS  N1g no output on bad marker
+PASS  N1h external repository refused
+PASS  N1i oracle hooks do not execute
+PASS  N2.1 blank line rejected
+PASS  N2.2 malformed line rejected
+PASS  N2.3 unknown key rejected
+PASS  N2.4 duplicate key rejected
+PASS  N2.5 short OID rejected
+PASS  N2.6 missing BASE rejected
+PASS  N2.7 duplicate source rejected
+PASS  N2.8 source equals base rejected
+PASS  N2.9 single source rejected
+PASS  E12 cross-labelled supported version detected
+PASS  N3.1b wrong run-env version is rejected
+PASS  N3.2 missing run-env fails
+PASS  N4.1 invalid command exits nonzero
+PASS  N4.2 run child removed
+PASS  N4.3 parent sentinel preserved
+PASS  N4.4 cleanup refuses wrong run id
+PASS  N4.5 refused cleanup keeps the root
+PASS  N4.6 cleanup failure is reported
+
+95 passed, 0 failed

@@ -1,0 +1,26 @@
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+
+Sending build context to Docker daemon  4.096kB
+Step 1/5 : FROM alpine:3.17@sha256:8fc3dacfb6d69da8d44e42390de777e48577085db99aa4e4af35f483eb08b989
+ ---> 8fc3dacfb6d6
+Step 2/5 : ARG GIT_URL=https://www.kernel.org/pub/software/scm/git/git-2.38.1.tar.xz
+ ---> Running in 596ddbb82fab
+ ---> Removed intermediate container 596ddbb82fab
+ ---> a7f120197940
+Step 3/5 : ARG GIT_SHA256=97ddf8ea58a2b9e0fbc2508e245028ca75911bd38d1551616b148c1aa5740ad9
+ ---> Running in fdb0fba4bb2e
+ ---> Removed intermediate container fdb0fba4bb2e
+ ---> ed4fb459b2f4
+Step 4/5 : RUN apk add --no-cache bash coreutils findutils curl python3 build-base openssl-dev curl-dev       expat-dev zlib-dev perl linux-headers ca-certificates >/dev/null  && curl -sSLo /tmp/git.tar.xz "$GIT_URL"  && echo "$GIT_SHA256  /tmp/git.tar.xz" | sha256sum -c -  && tar xf /tmp/git.tar.xz -C /tmp  && make -C /tmp/git-2.38.1 -j"$(nproc)" NO_TCLTK=1 NO_GETTEXT=1 NO_DOCS=1 NO_PERL=1 NO_PYTHON=1 NO_REGEX=YesPlease prefix=/usr/local >/dev/null 2>&1  && make -C /tmp/git-2.38.1 NO_TCLTK=1 NO_GETTEXT=1 NO_DOCS=1 NO_PERL=1 NO_PYTHON=1 NO_REGEX=YesPlease prefix=/usr/local install >/dev/null 2>&1  && rm -rf /tmp/git-2.38.1 /tmp/git.tar.xz
+ ---> Running in 3bf5cd156523
+/tmp/git.tar.xz: OK
+ ---> Removed intermediate container 3bf5cd156523
+ ---> 49eb3c79dece
+Step 5/5 : CMD ["git","--version"]
+ ---> Running in e4c499fa9c8b
+ ---> Removed intermediate container e4c499fa9c8b
+ ---> 1044b988f915
+Successfully built 1044b988f915
+Successfully tagged ilvuno-git238r:rebuild-2026-11-20
