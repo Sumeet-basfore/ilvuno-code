@@ -112,14 +112,18 @@ persisted file and one exported bundle (X-07).
 
 ## 6. Evidence assurance levels (MED-03)
 
-Digests prove consistency, not authorship or execution environment. Three levels, used verbatim in
-docs, report footers and the approval UI:
+Digests prove **internal consistency**, not authorship, execution environment, or survival of a
+wholesale replacement. Three levels, used verbatim in docs, report footers and the approval UI:
 
 | Level | Guarantee | Requires | Test |
 |---|---|---|---|
-| **integrity** | the bundle has not changed since sealing | digests + manifest | tamper one byte, recompute, delete a file, add a file |
+| **integrity** | the bundle is internally consistent: the manifest matches the files it lists. Without a trusted external anchor this does **not** prove the bundle is unchanged since sealing — an actor can replace the bundle and recompute its manifest and digests | digests + self-contained manifest | tamper one byte without recomputing → detected; tamper and recompute the manifest → **not** detected (expected, see note) |
 | **attributed** | a specific key approved this exact `(candidate_sha, evidence_digest)` | Ed25519 approval, local record, passport ref | sign, verify, rotate/revoke, copy across runs |
 | **provenanced** | a trusted executor ran it in a known environment | **not offered** | — |
+
+A stronger integrity claim requires a trusted external digest or signature — the digest recorded
+somewhere the bundle cannot rewrite (approval record, passport, CI log) — or the `attributed` level.
+Self-contained bundles alone cannot distinguish "unchanged" from "replaced and re-sealed".
 
 Rules: unsigned approvals are always rendered `integrity only`; team/cross-user use requires
 `attributed`; no document may use "verified" for anything above integrity unless the signature

@@ -1,8 +1,9 @@
 # 02 — Milestones
 
 Every milestone has the same eleven sections so reviews can be mechanical. M0–M6 are the **proposed**
-MVP scope. None is authorized yet (authorization: `docs/readiness/06-m0-readiness-checklist.md` §7;
-reconciliation: `docs/readiness/07-m0-reconciliation.md`). M7–M12 are **provisional** and carry no dates
+MVP scope. **M0 is authorized for T-0001…T-0005**; **M1–M6 are not authorized.** Authorization and
+reconciliation: `docs/readiness/06-m0-readiness-checklist.md` §7 and
+`docs/readiness/07-m0-reconciliation.md`. M7–M12 are **provisional** and carry no dates
 (see `01-master-roadmap.md` §3).
 
 Requirement IDs → `docs/product/02-prd.md`. ADRs → `docs/adr/`. Task IDs → `docs/tasks/`.
@@ -29,7 +30,7 @@ that passes its own tests and fails in the real world.
 7. **Safety fingerprint** helper (`internal/testkit/safety`): refs + tree + index + stashes + config.
 8. SP-1R3 reference harness imported as the M0 reference oracle (`testdata/reference/`), with its conformance note (`docs/research/09-git-floor.md`). The merge-tree E-1 spike is withdrawn.
 
-**Dependencies.** Owner decisions D-02 (standalone CLI, A-1), D-03 (Apache-2.0, A-2), D-04 (Go, A-3), D-05 (Linux-first, macOS tested in CI, Git ≥ 2.38.1; A-4 Windows excluded from V1, decided 2026-11-20) and D-06 (committed `ilvuno.toml`, A-9). All are DECIDED 2026-11-20 (`docs/decisions/open-questions.md` §0). M0 is not authorized (`docs/readiness/06` §7). The SP-1R3 matrix passes on 2.38.1 (Linux container) and 2.55.0 (Linux host). macOS has no evidence yet.
+**Dependencies.** Owner decisions D-02 (standalone CLI, A-1), D-03 (Apache-2.0, A-2), D-04 (Go, A-3), D-05 (Linux-first, macOS tested in CI, Git ≥ 2.38.1; A-4 Windows excluded from V1, decided 2026-11-20) and D-06 (committed `ilvuno.toml`, A-9). All are DECIDED 2026-11-20 (`docs/decisions/open-questions.md` §0). **M0 is authorized for T-0001…T-0005** by `docs/readiness/06` §7; **M1 and later are not authorized.** The SP-1R3 matrix passes on 2.38.1 (Linux container) and 2.55.0 (Linux host). macOS has no evidence yet.
 
 **Explicit scope exclusions.**
 - No `ilvuno` subcommands beyond `--version`.

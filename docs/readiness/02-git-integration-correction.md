@@ -250,14 +250,22 @@ Detection, fail-closed:
 
 ```
 1. configured = git config --get-regexp '^merge\..*\.driver$'
-   ignore values that are builtins: `true`, `:`, `binary`, `text`, `union`, `ours`, `theirs`
-2. if configured is empty → allow
-3. selection = for each changed path, `git check-attr merge --source=<sha> -- <path>`
+   every value here is a command (or command list) that Git executes; none is a built-in
+   identifier. `true` and `:` are commands that succeed, so they are NOT safe built-ins.
+2. builtin behaviour is selected by attributes, not by this config: `binary`, `text` and
+   `union` are merge *attribute* values handled inside Git. They never appear as
+   `merge.<name>.driver` commands, and the driver config cannot select them.
+3. if configured is empty → allow
+4. selection = for each changed path, `git check-attr merge --source=<sha> -- <path>`
    (capability-probed; if --source is unsupported, scan `.gitattributes` blobs in the merged
     trees plus `.git/info/attributes` and `core.attributesFile`)
-4. if any selected name matches a configured non-builtin driver → refuse
+5. if any selected name matches a configured driver → refuse
    `custom_merge_driver (name, command, paths)` and exit 2
 ```
+
+A configured command must never be treated as safe because it looks inert: `true` succeeds and
+discards the merge, `:` is equivalent, and either can corrupt content silently. Unapproved
+configured commands are refused; approval is per command, not per name.
 
 Consent path `--allow-merge-drivers`:
 

@@ -199,6 +199,8 @@ Date: 2026-11-20
 
 ## 8. Post-M0 state (so this does not get re-litigated at G1)
 
-After G0 passes, the project may start **M1 only**. M2 still requires D-07, D-09, D-10 (ref model,
+After G0 passes, **M1 may start only after a separate owner signature of the M1 readiness checklist**
+(D-01: the owner signs the checklist before each milestone). G0 passing is necessary but not
+sufficient. M2 still requires D-07, D-09, D-10 (ref model,
 write classes, determinism scope) because those are design decisions the M2 code encodes. No
 milestone beyond the next one is ever authorized by a single signature.

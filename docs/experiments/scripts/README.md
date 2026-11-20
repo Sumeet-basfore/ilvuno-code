@@ -5,6 +5,12 @@ caller-supplied repositories**: every repository is created by the invocation th
 
 ## Commands
 
+> **Historical commands.** The `./sp1.sh` and `./tests.sh` invocations below are the historical
+> SP-1R2 harness entry points. They are **not available in a clean checkout of the current governance
+> HEAD**: this directory holds only this README at that revision. The reference harness lands with
+> **T-0005**, as `testdata/reference/**`; use those commands there. This note changes no historical
+> record and adds no script.
+
 ```bash
 ./sp1.sh fixtures        # 10 fixtures under the run-owned scratch root
 ./sp1.sh matrix          # 28 asserted cases; exits 1 on any missing/mismatched row

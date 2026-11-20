@@ -1,8 +1,7 @@
 # 01 — Master Roadmap
 
-Status: proposed plan, awaiting M0 approval. Phase 4 output. No production code exists.
-Authorization: none. Decided 2026-11-20: D-01…D-06 (`docs/decisions/open-questions.md` §0); all other decisions OPEN. Milestone authorization →
-`docs/readiness/06-m0-readiness-checklist.md` §7 (unsigned). Reconciliation and entry-gate results →
+Status: approved plan for M0 delivery. Phase 4 output. No production code is committed in this governance revision.
+Authorization: **M0 is authorized for T-0001…T-0005** by `docs/readiness/06-m0-readiness-checklist.md` §7 (signed 2026-11-20); **M1 and later are not authorized**; **G0 is not passed**. Decided 2026-11-20: D-01…D-06 (`docs/decisions/open-questions.md` §0); all other decisions OPEN. Reconciliation and entry-gate results →
 `docs/readiness/07-m0-reconciliation.md`. The merge-tree E-1 spike named in §9 is withdrawn (`07` §3).
 Sources: `docs/product/` (scope), `docs/architecture/` (design), `docs/adr/` (decisions).
 
@@ -221,7 +220,7 @@ Proceed to M0 **after** B-1 is answered and B-3 is checked. Run B-2 (E-1) as M0'
 as a prerequisite — it is the milestone's own proof, and if it fails we want to fail inside M0
 with three days spent, not before M0 with a plan to rewrite.
 
-**Status 2026-11-20:** D-01…D-06 and planning items A-4, S-1…S-4, C-5 and C-7 decided. B-1 is resolved. M0 is still not authorized. Entry-gate result: `docs/readiness/07-m0-reconciliation.md` §4 (7 PASS · 3 OPEN · 0 FAIL). The E-1 spike named in this section is withdrawn; the SP-1R3 reference harness replaces it.
+**Status 2026-11-20:** D-01…D-06 and planning items A-4, S-1…S-4, C-5 and C-7 decided. B-1 is resolved. **M0 is authorized for T-0001…T-0005** by `docs/readiness/06` §7 (signed 2026-11-20); **M1 and later are not authorized**. Current entry gate: **10 PASS · 0 OPEN · 0 FAIL** (`06` §1); the tables in `07` §4 are superseded historical snapshots. **G0 is not passed.** The E-1 spike named in this section is withdrawn; the SP-1R3 reference harness replaces it.
 
 **Requested approval:**
 
