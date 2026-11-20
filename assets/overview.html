@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ilvuno — Brand Identity Exploration Overview</title>
+  <style>
+    :root {
+      --bg: #0B1120;
+      --card: #111A2E;
+      --border: #1E2A44;
+      --text: #F1F5F9;
+      --muted: #94A3B8;
+      --accent: #38BDF8;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .header-block {
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+    .header-block h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+      color: #FFFFFF;
+    }
+    .header-block p {
+      font-size: 13px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    .concept-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .concept-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .concept-title {
+      font-size: 15px;
+      font-weight: 600;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      color: #FFFFFF;
+    }
+
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .concept-desc {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .previews {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .preview-box {
+      padding: 32px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .preview-dark {
+      background: #0B1120;
+      color: #FFFFFF;
+    }
+
+    .preview-light {
+      background: #F8FAFC;
+      color: #0F172A;
+      border-left: 1px solid var(--border);
+    }
+
+    .preview-label {
+      position: absolute;
+      top: 8px;
+      left: 12px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      opacity: 0.6;
+    }
+
+    .logo-wrapper {
+      width: 100%;
+      max-width: 250px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .logo-wrapper svg {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .size-test-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 16px;
+      background: rgba(0, 0, 0, 0.25);
+    }
+
+    .size-test-title {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      margin-right: 8px;
+    }
+
+    .size-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .size-label {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+    }
+
+    .icon-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0B1120;
+      border: 1px solid #1E2A44;
+      border-radius: 3px;
+      color: #FFFFFF;
+    }
+    .icon-box svg {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="header-block">
+    <h1>Ilvuno &mdash; Logo Identity Concept Explorations</h1>
+    <p>5 distinct, production-grade vector identities &bull; Tested across dark/light palettes and micro-scales</p>
+  </div>
+
+  <div class="grid">
+    
+    <div class="concept-card">
+      <div class="concept-header">
+        <div class="concept-title">
+          <span class="badge">Concept A</span>
+          <span>The Engineered Wordmark</span>
+        </div>
+        <div class="concept-desc">Typography-First Identity</div>
+      </div>
+      
+      <div class="previews">
+        <div class="preview-box preview-dark">
+          <span class="preview-label">Dark Theme (#0B1120)</span>
+          <div class="logo-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100" fill="none">
+  <title>Ilvuno Logo — Concept A (Engineered Wordmark)</title>
+  <desc>Custom vector wordmark featuring precision terminals, a chamfered index marker on the capital I, and baseline-stabilized apexes.</desc>
+  <path d="M 0,31 L 7,24 L 12,24 L 12,80 L 0,80 Z M 22,24 L 34,24 L 34,74 L 38,80 L 22,80 Z M 46,40 L 58,40 L 64,65 L 70,40 L 82,40 L 71,80 L 57,80 Z M 92,40 L 104,40 L 104,64 C 104,69 107,71 110,71 C 113,71 116,69 116,64 L 116,40 L 128,40 L 128,64 C 128,75 120,81 110,81 C 100,81 92,75 92,64 Z M 136,40 L 148,40 L 148,47 C 151,42 156,39 162,39 C 172,39 178,45 178,56 L 178,80 L 166,80 L 166,58 C 166,53 163,50 159,50 C 154,50 148,53 148,58 L 148,80 L 136,80 Z M 205,39 C 216,39 224,48 224,60 C 224,72 216,81 205,81 C 194,81 186,72 186,60 C 186,48 194,39 205,39 Z M 205,50 C 199,50 197,54 197,60 C 197,66 199,70 205,70 C 211,70 213,66 213,60 C 213,54 211,50 205,50 Z" fill="currentColor" transform="translate(28, 0)" />
+</svg>
+          </div>
+        </div>
+        <div class="preview-box preview-light">
+          <span class="preview-label">Light Theme (#F8FAFC)</span>
+          <div class="logo-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100" fill="none">
+  <title>Ilvuno Logo — Concept A (Engineered Wordmark)</title>
+  <desc>Custom vector wordmark featuring precision terminals, a chamfered index marker on the capital I, and baseline-stabilized apexes.</desc>
+  <path d="M 0,31 L 7,24 L 12,24 L 12,80 L 0,80 Z M 22,24 L 34,24 L 34,74 L 38,80 L 22,80 Z M 46,40 L 58,40 L 64,65 L 70,40 L 82,40 L 71,80 L 57,80 Z M 92,40 L 104,40 L 104,64 C 104,69 107,71 110,71 C 113,71 116,69 116,64 L 116,40 L 128,40 L 128,64 C 128,75 120,81 110,81 C 100,81 92,75 92,64 Z M 136,40 L 148,40 L 148,47 C 151,42 156,39 162,39 C 172,39 178,45 178,56 L 178,80 L 166,80 L 166,58 C 166,53 163,50 159,50 C 154,50 148,53 148,58 L 148,80 L 136,80 Z M 205,39 C 216,39 224,48 224,60 C 224,72 216,81 205,81 C 194,81 186,72 186,60 C 186,48 194,39 205,39 Z M 205,50 C 199,50 197,54 197,60 C 197,66 199,70 205,70 C 211,70 213,66 213,60 C 213,54 211,50 205,50 Z" fill="currentColor" transform="translate(28, 0)" />
+</svg>
+          </div>
+        </div>
+      </div>
+      
+      <div class="size-test-row">
+        <div class="size-test-title">Icon Micro-Scale Legibility:</div>
+        <div class="size-col">
+          <div class="icon-box" style="width:16px; height:16px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept A (Il Typographic Monogram)</title>
+  <desc>Typographic monogram badge pairing the chamfered index capital I with the foundation-spurred lowercase l.</desc>
+  <path d="M 24,28 L 34,18 L 42,18 L 42,82 L 24,82 Z M 54,18 L 68,18 L 68,74 L 76,82 L 54,82 Z" fill="currentColor" />
+</svg>
+          </div>
+          <span class="size-label">16px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:24px; height:24px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept A (Il Typographic Monogram)</title>
+  <desc>Typographic monogram badge pairing the chamfered index capital I with the foundation-spurred lowercase l.</desc>
+  <path d="M 24,28 L 34,18 L 42,18 L 42,82 L 24,82 Z M 54,18 L 68,18 L 68,74 L 76,82 L 54,82 Z" fill="currentColor" />
+</svg>
+          </div>
+          <span class="size-label">24px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:32px; height:32px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept A (Il Typographic Monogram)</title>
+  <desc>Typographic monogram badge pairing the chamfered index capital I with the foundation-spurred lowercase l.</desc>
+  <path d="M 24,28 L 34,18 L 42,18 L 42,82 L 24,82 Z M 54,18 L 68,18 L 68,74 L 76,82 L 54,82 Z" fill="currentColor" />
+</svg>
+          </div>
+          <span class="size-label">32px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:48px; height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept A (Il Typographic Monogram)</title>
+  <desc>Typographic monogram badge pairing the chamfered index capital I with the foundation-spurred lowercase l.</desc>
+  <path d="M 24,28 L 34,18 L 42,18 L 42,82 L 24,82 Z M 54,18 L 68,18 L 68,74 L 76,82 L 54,82 Z" fill="currentColor" />
+</svg>
+          </div>
+          <span class="size-label">48px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:64px; height:64px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept A (Il Typographic Monogram)</title>
+  <desc>Typographic monogram badge pairing the chamfered index capital I with the foundation-spurred lowercase l.</desc>
+  <path d="M 24,28 L 34,18 L 42,18 L 42,82 L 24,82 Z M 54,18 L 68,18 L 68,74 L 76,82 L 54,82 Z" fill="currentColor" />
+</svg>
+          </div>
+          <span class="size-label">64px</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="concept-card">
+      <div class="concept-header">
+        <div class="concept-title">
+          <span class="badge">Concept B</span>
+          <span>The Convergent Keel</span>
+        </div>
+        <div class="concept-desc">Abstract Geometric Convergence</div>
+      </div>
+      
+      <div class="previews">
+        <div class="preview-box preview-dark">
+          <span class="preview-label">Dark Theme (#0B1120)</span>
+          <div class="logo-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 100" fill="none">
+  <title>Ilvuno Logo — Concept B (The Convergent Keel)</title>
+  <desc>The Convergent Keel emblem paired with the custom Ilvuno wordmark.</desc>
+  <g transform="translate(10, 0)">
+    <path d="M 16,20 L 32,20 L 46,34 L 46,46 L 36,46 L 16,26 Z" fill="currentColor" />
+  <path d="M 84,20 L 68,20 L 54,34 L 54,46 L 64,46 L 84,26 Z" fill="currentColor" />
+  <path d="M 44,54 L 56,54 L 56,84 L 50,90 L 44,84 Z" fill="currentColor" />
+  </g>
+  <path d="M 0,31 L 7,24 L 12,24 L 12,80 L 0,80 Z M 22,24 L 34,24 L 34,74 L 38,80 L 22,80 Z M 46,40 L 58,40 L 64,65 L 70,40 L 82,40 L 71,80 L 57,80 Z M 92,40 L 104,40 L 104,64 C 104,69 107,71 110,71 C 113,71 116,69 116,64 L 116,40 L 128,40 L 128,64 C 128,75 120,81 110,81 C 100,81 92,75 92,64 Z M 136,40 L 148,40 L 148,47 C 151,42 156,39 162,39 C 172,39 178,45 178,56 L 178,80 L 166,80 L 166,58 C 166,53 163,50 159,50 C 154,50 148,53 148,58 L 148,80 L 136,80 Z M 205,39 C 216,39 224,48 224,60 C 224,72 216,81 205,81 C 194,81 186,72 186,60 C 186,48 194,39 205,39 Z M 205,50 C 199,50 197,54 197,60 C 197,66 199,70 205,70 C 211,70 213,66 213,60 C 213,54 211,50 205,50 Z" fill="currentColor" transform="translate(110, 0)" />
+</svg>
+          </div>
+        </div>
+        <div class="preview-box preview-light">
+          <span class="preview-label">Light Theme (#F8FAFC)</span>
+          <div class="logo-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 100" fill="none">
+  <title>Ilvuno Logo — Concept B (The Convergent Keel)</title>
+  <desc>The Convergent Keel emblem paired with the custom Ilvuno wordmark.</desc>
+  <g transform="translate(10, 0)">
+    <path d="M 16,20 L 32,20 L 46,34 L 46,46 L 36,46 L 16,26 Z" fill="currentColor" />
+  <path d="M 84,20 L 68,20 L 54,34 L 54,46 L 64,46 L 84,26 Z" fill="currentColor" />
+  <path d="M 44,54 L 56,54 L 56,84 L 50,90 L 44,84 Z" fill="currentColor" />
+  </g>
+  <path d="M 0,31 L 7,24 L 12,24 L 12,80 L 0,80 Z M 22,24 L 34,24 L 34,74 L 38,80 L 22,80 Z M 46,40 L 58,40 L 64,65 L 70,40 L 82,40 L 71,80 L 57,80 Z M 92,40 L 104,40 L 104,64 C 104,69 107,71 110,71 C 113,71 116,69 116,64 L 116,40 L 128,40 L 128,64 C 128,75 120,81 110,81 C 100,81 92,75 92,64 Z M 136,40 L 148,40 L 148,47 C 151,42 156,39 162,39 C 172,39 178,45 178,56 L 178,80 L 166,80 L 166,58 C 166,53 163,50 159,50 C 154,50 148,53 148,58 L 148,80 L 136,80 Z M 205,39 C 216,39 224,48 224,60 C 224,72 216,81 205,81 C 194,81 186,72 186,60 C 186,48 194,39 205,39 Z M 205,50 C 199,50 197,54 197,60 C 197,66 199,70 205,70 C 211,70 213,66 213,60 C 213,54 211,50 205,50 Z" fill="currentColor" transform="translate(110, 0)" />
+</svg>
+          </div>
+        </div>
+      </div>
+      
+      <div class="size-test-row">
+        <div class="size-test-title">Icon Micro-Scale Legibility:</div>
+        <div class="size-col">
+          <div class="icon-box" style="width:16px; height:16px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept B (The Convergent Keel)</title>
+  <desc>Abstract geometric symbol representing parallel agent work converging into a unified vertical keel.</desc>
+  <path d="M 16,20 L 32,20 L 46,34 L 46,46 L 36,46 L 16,26 Z" fill="currentColor" />
+  <path d="M 84,20 L 68,20 L 54,34 L 54,46 L 64,46 L 84,26 Z" fill="currentColor" />
+  <path d="M 44,54 L 56,54 L 56,84 L 50,90 L 44,84 Z" fill="currentColor" />
+</svg>
+          </div>
+          <span class="size-label">16px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:24px; height:24px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept B (The Convergent Keel)</title>
+  <desc>Abstract geometric symbol representing parallel agent work converging into a unified vertical keel.</desc>
+  <path d="M 16,20 L 32,20 L 46,34 L 46,46 L 36,46 L 16,26 Z" fill="currentColor" />
+  <path d="M 84,20 L 68,20 L 54,34 L 54,46 L 64,46 L 84,26 Z" fill="currentColor" />
+  <path d="M 44,54 L 56,54 L 56,84 L 50,90 L 44,84 Z" fill="currentColor" />
+</svg>
+          </div>
+          <span class="size-label">24px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:32px; height:32px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept B (The Convergent Keel)</title>
+  <desc>Abstract geometric symbol representing parallel agent work converging into a unified vertical keel.</desc>
+  <path d="M 16,20 L 32,20 L 46,34 L 46,46 L 36,46 L 16,26 Z" fill="currentColor" />
+  <path d="M 84,20 L 68,20 L 54,34 L 54,46 L 64,46 L 84,26 Z" fill="currentColor" />
+  <path d="M 44,54 L 56,54 L 56,84 L 50,90 L 44,84 Z" fill="currentColor" />
+</svg>
+          </div>
+          <span class="size-label">32px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:48px; height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept B (The Convergent Keel)</title>
+  <desc>Abstract geometric symbol representing parallel agent work converging into a unified vertical keel.</desc>
+  <path d="M 16,20 L 32,20 L 46,34 L 46,46 L 36,46 L 16,26 Z" fill="currentColor" />
+  <path d="M 84,20 L 68,20 L 54,34 L 54,46 L 64,46 L 84,26 Z" fill="currentColor" />
+  <path d="M 44,54 L 56,54 L 56,84 L 50,90 L 44,84 Z" fill="currentColor" />
+</svg>
+          </div>
+          <span class="size-label">48px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:64px; height:64px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept B (The Convergent Keel)</title>
+  <desc>Abstract geometric symbol representing parallel agent work converging into a unified vertical keel.</desc>
+  <path d="M 16,20 L 32,20 L 46,34 L 46,46 L 36,46 L 16,26 Z" fill="currentColor" />
+  <path d="M 84,20 L 68,20 L 54,34 L 54,46 L 64,46 L 84,26 Z" fill="currentColor" />
+  <path d="M 44,54 L 56,54 L 56,84 L 50,90 L 44,84 Z" fill="currentColor" />
+</svg>
+          </div>
+          <span class="size-label">64px</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="concept-card">
+      <div class="concept-header">
+        <div class="concept-title">
+          <span class="badge">Concept C</span>
+          <span>The IV Dovetail Joint</span>
+        </div>
+        <div class="concept-desc">Letterform Monogram</div>
+      </div>
+      
+      <div class="previews">
+        <div class="preview-box preview-dark">
+          <span class="preview-label">Dark Theme (#0B1120)</span>
+          <div class="logo-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 100" fill="none">
+  <title>Ilvuno Logo — Concept C (The IV Dovetail)</title>
+  <desc>The IV mechanical dovetail monogram paired with the custom Ilvuno wordmark.</desc>
+  <g transform="translate(10, 0)">
+    <path d="M 12,24 L 28,24 L 50,62 L 72,24 L 88,24 L 56,84 L 44,84 Z" fill="currentColor" />
+  <path d="M 45,14 L 55,14 L 55,42 L 50,48 L 45,42 Z" fill="currentColor" />
+  </g>
+  <path d="M 0,31 L 7,24 L 12,24 L 12,80 L 0,80 Z M 22,24 L 34,24 L 34,74 L 38,80 L 22,80 Z M 46,40 L 58,40 L 64,65 L 70,40 L 82,40 L 71,80 L 57,80 Z M 92,40 L 104,40 L 104,64 C 104,69 107,71 110,71 C 113,71 116,69 116,64 L 116,40 L 128,40 L 128,64 C 128,75 120,81 110,81 C 100,81 92,75 92,64 Z M 136,40 L 148,40 L 148,47 C 151,42 156,39 162,39 C 172,39 178,45 178,56 L 178,80 L 166,80 L 166,58 C 166,53 163,50 159,50 C 154,50 148,53 148,58 L 148,80 L 136,80 Z M 205,39 C 216,39 224,48 224,60 C 224,72 216,81 205,81 C 194,81 186,72 186,60 C 186,48 194,39 205,39 Z M 205,50 C 199,50 197,54 197,60 C 197,66 199,70 205,70 C 211,70 213,66 213,60 C 213,54 211,50 205,50 Z" fill="currentColor" transform="translate(110, 0)" />
+</svg>
+          </div>
+        </div>
+        <div class="preview-box preview-light">
+          <span class="preview-label">Light Theme (#F8FAFC)</span>
+          <div class="logo-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 100" fill="none">
+  <title>Ilvuno Logo — Concept C (The IV Dovetail)</title>
+  <desc>The IV mechanical dovetail monogram paired with the custom Ilvuno wordmark.</desc>
+  <g transform="translate(10, 0)">
+    <path d="M 12,24 L 28,24 L 50,62 L 72,24 L 88,24 L 56,84 L 44,84 Z" fill="currentColor" />
+  <path d="M 45,14 L 55,14 L 55,42 L 50,48 L 45,42 Z" fill="currentColor" />
+  </g>
+  <path d="M 0,31 L 7,24 L 12,24 L 12,80 L 0,80 Z M 22,24 L 34,24 L 34,74 L 38,80 L 22,80 Z M 46,40 L 58,40 L 64,65 L 70,40 L 82,40 L 71,80 L 57,80 Z M 92,40 L 104,40 L 104,64 C 104,69 107,71 110,71 C 113,71 116,69 116,64 L 116,40 L 128,40 L 128,64 C 128,75 120,81 110,81 C 100,81 92,75 92,64 Z M 136,40 L 148,40 L 148,47 C 151,42 156,39 162,39 C 172,39 178,45 178,56 L 178,80 L 166,80 L 166,58 C 166,53 163,50 159,50 C 154,50 148,53 148,58 L 148,80 L 136,80 Z M 205,39 C 216,39 224,48 224,60 C 224,72 216,81 205,81 C 194,81 186,72 186,60 C 186,48 194,39 205,39 Z M 205,50 C 199,50 197,54 197,60 C 197,66 199,70 205,70 C 211,70 213,66 213,60 C 213,54 211,50 205,50 Z" fill="currentColor" transform="translate(110, 0)" />
+</svg>
+          </div>
+        </div>
+      </div>
+      
+      <div class="size-test-row">
+        <div class="size-test-title">Icon Micro-Scale Legibility:</div>
+        <div class="size-col">
+          <div class="icon-box" style="width:16px; height:16px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept C (The IV Dovetail Joint)</title>
+  <desc>Monogram combining the vertical I plumb-line and the angled V cradle, forming a precision verification joint.</desc>
+  <path d="M 12,24 L 28,24 L 50,62 L 72,24 L 88,24 L 56,84 L 44,84 Z" fill="currentColor" />
+  <path d="M 45,14 L 55,14 L 55,42 L 50,48 L 45,42 Z" fill="currentColor" />
+</svg>
+          </div>
+          <span class="size-label">16px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:24px; height:24px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept C (The IV Dovetail Joint)</title>
+  <desc>Monogram combining the vertical I plumb-line and the angled V cradle, forming a precision verification joint.</desc>
+  <path d="M 12,24 L 28,24 L 50,62 L 72,24 L 88,24 L 56,84 L 44,84 Z" fill="currentColor" />
+  <path d="M 45,14 L 55,14 L 55,42 L 50,48 L 45,42 Z" fill="currentColor" />
+</svg>
+          </div>
+          <span class="size-label">24px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:32px; height:32px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept C (The IV Dovetail Joint)</title>
+  <desc>Monogram combining the vertical I plumb-line and the angled V cradle, forming a precision verification joint.</desc>
+  <path d="M 12,24 L 28,24 L 50,62 L 72,24 L 88,24 L 56,84 L 44,84 Z" fill="currentColor" />
+  <path d="M 45,14 L 55,14 L 55,42 L 50,48 L 45,42 Z" fill="currentColor" />
+</svg>
+          </div>
+          <span class="size-label">32px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:48px; height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept C (The IV Dovetail Joint)</title>
+  <desc>Monogram combining the vertical I plumb-line and the angled V cradle, forming a precision verification joint.</desc>
+  <path d="M 12,24 L 28,24 L 50,62 L 72,24 L 88,24 L 56,84 L 44,84 Z" fill="currentColor" />
+  <path d="M 45,14 L 55,14 L 55,42 L 50,48 L 45,42 Z" fill="currentColor" />
+</svg>
+          </div>
+          <span class="size-label">48px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:64px; height:64px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept C (The IV Dovetail Joint)</title>
+  <desc>Monogram combining the vertical I plumb-line and the angled V cradle, forming a precision verification joint.</desc>
+  <path d="M 12,24 L 28,24 L 50,62 L 72,24 L 88,24 L 56,84 L 44,84 Z" fill="currentColor" />
+  <path d="M 45,14 L 55,14 L 55,42 L 50,48 L 45,42 Z" fill="currentColor" />
+</svg>
+          </div>
+          <span class="size-label">64px</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="concept-card">
+      <div class="concept-header">
+        <div class="concept-title">
+          <span class="badge">Concept D</span>
+          <span>The Integration Pylon</span>
+        </div>
+        <div class="concept-desc">Technical / Architectural Identity</div>
+      </div>
+      
+      <div class="previews">
+        <div class="preview-box preview-dark">
+          <span class="preview-label">Dark Theme (#0B1120)</span>
+          <div class="logo-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 100" fill="none">
+  <title>Ilvuno Logo — Concept D (The Integration Pylon)</title>
+  <desc>The Integration Pylon mark paired with the custom Ilvuno wordmark.</desc>
+  <path d="M 24,16 L 44,16 L 44,48 L 50,54 L 56,48 L 56,24 L 76,24 L 76,82 L 24,82 Z M 36,66 L 64,66 L 64,70 L 36,70 Z" fill="currentColor" fill-rule="evenodd" transform="translate(10, 0)" />
+  <path d="M 0,31 L 7,24 L 12,24 L 12,80 L 0,80 Z M 22,24 L 34,24 L 34,74 L 38,80 L 22,80 Z M 46,40 L 58,40 L 64,65 L 70,40 L 82,40 L 71,80 L 57,80 Z M 92,40 L 104,40 L 104,64 C 104,69 107,71 110,71 C 113,71 116,69 116,64 L 116,40 L 128,40 L 128,64 C 128,75 120,81 110,81 C 100,81 92,75 92,64 Z M 136,40 L 148,40 L 148,47 C 151,42 156,39 162,39 C 172,39 178,45 178,56 L 178,80 L 166,80 L 166,58 C 166,53 163,50 159,50 C 154,50 148,53 148,58 L 148,80 L 136,80 Z M 205,39 C 216,39 224,48 224,60 C 224,72 216,81 205,81 C 194,81 186,72 186,60 C 186,48 194,39 205,39 Z M 205,50 C 199,50 197,54 197,60 C 197,66 199,70 205,70 C 211,70 213,66 213,60 C 213,54 211,50 205,50 Z" fill="currentColor" transform="translate(110, 0)" />
+</svg>
+          </div>
+        </div>
+        <div class="preview-box preview-light">
+          <span class="preview-label">Light Theme (#F8FAFC)</span>
+          <div class="logo-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 100" fill="none">
+  <title>Ilvuno Logo — Concept D (The Integration Pylon)</title>
+  <desc>The Integration Pylon mark paired with the custom Ilvuno wordmark.</desc>
+  <path d="M 24,16 L 44,16 L 44,48 L 50,54 L 56,48 L 56,24 L 76,24 L 76,82 L 24,82 Z M 36,66 L 64,66 L 64,70 L 36,70 Z" fill="currentColor" fill-rule="evenodd" transform="translate(10, 0)" />
+  <path d="M 0,31 L 7,24 L 12,24 L 12,80 L 0,80 Z M 22,24 L 34,24 L 34,74 L 38,80 L 22,80 Z M 46,40 L 58,40 L 64,65 L 70,40 L 82,40 L 71,80 L 57,80 Z M 92,40 L 104,40 L 104,64 C 104,69 107,71 110,71 C 113,71 116,69 116,64 L 116,40 L 128,40 L 128,64 C 128,75 120,81 110,81 C 100,81 92,75 92,64 Z M 136,40 L 148,40 L 148,47 C 151,42 156,39 162,39 C 172,39 178,45 178,56 L 178,80 L 166,80 L 166,58 C 166,53 163,50 159,50 C 154,50 148,53 148,58 L 148,80 L 136,80 Z M 205,39 C 216,39 224,48 224,60 C 224,72 216,81 205,81 C 194,81 186,72 186,60 C 186,48 194,39 205,39 Z M 205,50 C 199,50 197,54 197,60 C 197,66 199,70 205,70 C 211,70 213,66 213,60 C 213,54 211,50 205,50 Z" fill="currentColor" transform="translate(110, 0)" />
+</svg>
+          </div>
+        </div>
+      </div>
+      
+      <div class="size-test-row">
+        <div class="size-test-title">Icon Micro-Scale Legibility:</div>
+        <div class="size-col">
+          <div class="icon-box" style="width:16px; height:16px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept D (The Integration Pylon)</title>
+  <desc>Architectural identity showing dual parallel execution streams converging into a monolithic verified baseline with a transparent datum slit.</desc>
+  <path d="M 24,16 L 44,16 L 44,48 L 50,54 L 56,48 L 56,24 L 76,24 L 76,82 L 24,82 Z M 36,66 L 64,66 L 64,70 L 36,70 Z" fill="currentColor" fill-rule="evenodd" />
+</svg>
+          </div>
+          <span class="size-label">16px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:24px; height:24px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept D (The Integration Pylon)</title>
+  <desc>Architectural identity showing dual parallel execution streams converging into a monolithic verified baseline with a transparent datum slit.</desc>
+  <path d="M 24,16 L 44,16 L 44,48 L 50,54 L 56,48 L 56,24 L 76,24 L 76,82 L 24,82 Z M 36,66 L 64,66 L 64,70 L 36,70 Z" fill="currentColor" fill-rule="evenodd" />
+</svg>
+          </div>
+          <span class="size-label">24px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:32px; height:32px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept D (The Integration Pylon)</title>
+  <desc>Architectural identity showing dual parallel execution streams converging into a monolithic verified baseline with a transparent datum slit.</desc>
+  <path d="M 24,16 L 44,16 L 44,48 L 50,54 L 56,48 L 56,24 L 76,24 L 76,82 L 24,82 Z M 36,66 L 64,66 L 64,70 L 36,70 Z" fill="currentColor" fill-rule="evenodd" />
+</svg>
+          </div>
+          <span class="size-label">32px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:48px; height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept D (The Integration Pylon)</title>
+  <desc>Architectural identity showing dual parallel execution streams converging into a monolithic verified baseline with a transparent datum slit.</desc>
+  <path d="M 24,16 L 44,16 L 44,48 L 50,54 L 56,48 L 56,24 L 76,24 L 76,82 L 24,82 Z M 36,66 L 64,66 L 64,70 L 36,70 Z" fill="currentColor" fill-rule="evenodd" />
+</svg>
+          </div>
+          <span class="size-label">48px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:64px; height:64px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept D (The Integration Pylon)</title>
+  <desc>Architectural identity showing dual parallel execution streams converging into a monolithic verified baseline with a transparent datum slit.</desc>
+  <path d="M 24,16 L 44,16 L 44,48 L 50,54 L 56,48 L 56,24 L 76,24 L 76,82 L 24,82 Z M 36,66 L 64,66 L 64,70 L 36,70 Z" fill="currentColor" fill-rule="evenodd" />
+</svg>
+          </div>
+          <span class="size-label">64px</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="concept-card">
+      <div class="concept-header">
+        <div class="concept-title">
+          <span class="badge">Concept E</span>
+          <span>The Tally Seam</span>
+        </div>
+        <div class="concept-desc">Unexpected Minimalist Direction</div>
+      </div>
+      
+      <div class="previews">
+        <div class="preview-box preview-dark">
+          <span class="preview-label">Dark Theme (#0B1120)</span>
+          <div class="logo-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 100" fill="none">
+  <title>Ilvuno Logo — Concept E (The Tally Seam)</title>
+  <desc>The Tally Seam interlocking identity paired with the custom Ilvuno wordmark.</desc>
+  <g transform="translate(10, 0)">
+    <path d="M 24,20 C 21.8,20 20,21.8 20,24 L 20,76 C 20,78.2 21.8,80 24,80 L 47,80 L 47,55 L 57,55 L 57,39 L 47,39 L 47,20 Z" fill="currentColor" />
+    <path d="M 76,20 C 78.2,20 80,21.8 80,24 L 80,76 C 80,78.2 78.2,80 76,80 L 53,80 L 53,61 L 63,61 L 63,45 L 53,45 L 53,20 Z" fill="currentColor" fill-opacity="0.82" />
+  </g>
+  <path d="M 0,31 L 7,24 L 12,24 L 12,80 L 0,80 Z M 22,24 L 34,24 L 34,74 L 38,80 L 22,80 Z M 46,40 L 58,40 L 64,65 L 70,40 L 82,40 L 71,80 L 57,80 Z M 92,40 L 104,40 L 104,64 C 104,69 107,71 110,71 C 113,71 116,69 116,64 L 116,40 L 128,40 L 128,64 C 128,75 120,81 110,81 C 100,81 92,75 92,64 Z M 136,40 L 148,40 L 148,47 C 151,42 156,39 162,39 C 172,39 178,45 178,56 L 178,80 L 166,80 L 166,58 C 166,53 163,50 159,50 C 154,50 148,53 148,58 L 148,80 L 136,80 Z M 205,39 C 216,39 224,48 224,60 C 224,72 216,81 205,81 C 194,81 186,72 186,60 C 186,48 194,39 205,39 Z M 205,50 C 199,50 197,54 197,60 C 197,66 199,70 205,70 C 211,70 213,66 213,60 C 213,54 211,50 205,50 Z" fill="currentColor" transform="translate(110, 0)" />
+</svg>
+          </div>
+        </div>
+        <div class="preview-box preview-light">
+          <span class="preview-label">Light Theme (#F8FAFC)</span>
+          <div class="logo-wrapper">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 100" fill="none">
+  <title>Ilvuno Logo — Concept E (The Tally Seam)</title>
+  <desc>The Tally Seam interlocking identity paired with the custom Ilvuno wordmark.</desc>
+  <g transform="translate(10, 0)">
+    <path d="M 24,20 C 21.8,20 20,21.8 20,24 L 20,76 C 20,78.2 21.8,80 24,80 L 47,80 L 47,55 L 57,55 L 57,39 L 47,39 L 47,20 Z" fill="currentColor" />
+    <path d="M 76,20 C 78.2,20 80,21.8 80,24 L 80,76 C 80,78.2 78.2,80 76,80 L 53,80 L 53,61 L 63,61 L 63,45 L 53,45 L 53,20 Z" fill="currentColor" fill-opacity="0.82" />
+  </g>
+  <path d="M 0,31 L 7,24 L 12,24 L 12,80 L 0,80 Z M 22,24 L 34,24 L 34,74 L 38,80 L 22,80 Z M 46,40 L 58,40 L 64,65 L 70,40 L 82,40 L 71,80 L 57,80 Z M 92,40 L 104,40 L 104,64 C 104,69 107,71 110,71 C 113,71 116,69 116,64 L 116,40 L 128,40 L 128,64 C 128,75 120,81 110,81 C 100,81 92,75 92,64 Z M 136,40 L 148,40 L 148,47 C 151,42 156,39 162,39 C 172,39 178,45 178,56 L 178,80 L 166,80 L 166,58 C 166,53 163,50 159,50 C 154,50 148,53 148,58 L 148,80 L 136,80 Z M 205,39 C 216,39 224,48 224,60 C 224,72 216,81 205,81 C 194,81 186,72 186,60 C 186,48 194,39 205,39 Z M 205,50 C 199,50 197,54 197,60 C 197,66 199,70 205,70 C 211,70 213,66 213,60 C 213,54 211,50 205,50 Z" fill="currentColor" transform="translate(110, 0)" />
+</svg>
+          </div>
+        </div>
+      </div>
+      
+      <div class="size-test-row">
+        <div class="size-test-title">Icon Micro-Scale Legibility:</div>
+        <div class="size-col">
+          <div class="icon-box" style="width:16px; height:16px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept E (The Tally Seam)</title>
+  <desc>Minimalist interlocking monolith split by an orthogonal stepped seam, derived from cryptographic tally verification.</desc>
+  <path d="M 24,20 C 21.8,20 20,21.8 20,24 L 20,76 C 20,78.2 21.8,80 24,80 L 47,80 L 47,55 L 57,55 L 57,39 L 47,39 L 47,20 Z" fill="currentColor" />
+  <path d="M 76,20 C 78.2,20 80,21.8 80,24 L 80,76 C 80,78.2 78.2,80 76,80 L 53,80 L 53,61 L 63,61 L 63,45 L 53,45 L 53,20 Z" fill="currentColor" fill-opacity="0.82" />
+</svg>
+          </div>
+          <span class="size-label">16px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:24px; height:24px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept E (The Tally Seam)</title>
+  <desc>Minimalist interlocking monolith split by an orthogonal stepped seam, derived from cryptographic tally verification.</desc>
+  <path d="M 24,20 C 21.8,20 20,21.8 20,24 L 20,76 C 20,78.2 21.8,80 24,80 L 47,80 L 47,55 L 57,55 L 57,39 L 47,39 L 47,20 Z" fill="currentColor" />
+  <path d="M 76,20 C 78.2,20 80,21.8 80,24 L 80,76 C 80,78.2 78.2,80 76,80 L 53,80 L 53,61 L 63,61 L 63,45 L 53,45 L 53,20 Z" fill="currentColor" fill-opacity="0.82" />
+</svg>
+          </div>
+          <span class="size-label">24px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:32px; height:32px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept E (The Tally Seam)</title>
+  <desc>Minimalist interlocking monolith split by an orthogonal stepped seam, derived from cryptographic tally verification.</desc>
+  <path d="M 24,20 C 21.8,20 20,21.8 20,24 L 20,76 C 20,78.2 21.8,80 24,80 L 47,80 L 47,55 L 57,55 L 57,39 L 47,39 L 47,20 Z" fill="currentColor" />
+  <path d="M 76,20 C 78.2,20 80,21.8 80,24 L 80,76 C 80,78.2 78.2,80 76,80 L 53,80 L 53,61 L 63,61 L 63,45 L 53,45 L 53,20 Z" fill="currentColor" fill-opacity="0.82" />
+</svg>
+          </div>
+          <span class="size-label">32px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:48px; height:48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept E (The Tally Seam)</title>
+  <desc>Minimalist interlocking monolith split by an orthogonal stepped seam, derived from cryptographic tally verification.</desc>
+  <path d="M 24,20 C 21.8,20 20,21.8 20,24 L 20,76 C 20,78.2 21.8,80 24,80 L 47,80 L 47,55 L 57,55 L 57,39 L 47,39 L 47,20 Z" fill="currentColor" />
+  <path d="M 76,20 C 78.2,20 80,21.8 80,24 L 80,76 C 80,78.2 78.2,80 76,80 L 53,80 L 53,61 L 63,61 L 63,45 L 53,45 L 53,20 Z" fill="currentColor" fill-opacity="0.82" />
+</svg>
+          </div>
+          <span class="size-label">48px</span>
+        </div>
+        <div class="size-col">
+          <div class="icon-box" style="width:64px; height:64px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <title>Ilvuno Icon — Concept E (The Tally Seam)</title>
+  <desc>Minimalist interlocking monolith split by an orthogonal stepped seam, derived from cryptographic tally verification.</desc>
+  <path d="M 24,20 C 21.8,20 20,21.8 20,24 L 20,76 C 20,78.2 21.8,80 24,80 L 47,80 L 47,55 L 57,55 L 57,39 L 47,39 L 47,20 Z" fill="currentColor" />
+  <path d="M 76,20 C 78.2,20 80,21.8 80,24 L 80,76 C 80,78.2 78.2,80 76,80 L 53,80 L 53,61 L 63,61 L 63,45 L 53,45 L 53,20 Z" fill="currentColor" fill-opacity="0.82" />
+</svg>
+          </div>
+          <span class="size-label">64px</span>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+</body>
+</html>

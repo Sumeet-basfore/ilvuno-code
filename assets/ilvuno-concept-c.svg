@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 80" fill="none">
+  <title>Ilvuno Logo — Refined Concept C (IV Monogram &amp; Wordmark)</title>
+  <desc>Refined lockup featuring the distinctive IV architectural monogram perfectly proportioned to the Ilvuno wordmark.</desc>
+  <!-- IV Monogram Symbol -->
+  <path d="M 16,23 L 23,16 L 28,16 L 28,64 L 16,64 Z M 36,16 L 47,16 L 55,44 L 63,16 L 69,16 L 74,21 L 60,64 L 50,64 Z" fill="currentColor" />
+  <!-- Ilvuno Wordmark -->
+  <path d="M 96,22 L 102,16 L 106,16 L 106,64 L 96,64 Z M 115,16 L 125,16 L 125,59 L 128,64 L 115,64 Z M 135,30 L 145,30 L 150,51 L 155,30 L 165,30 L 156,64 L 144,64 Z M 174,30 L 184,30 L 184,50 C 184,54 186,56 189,56 C 192,56 194,54 194,50 L 194,30 L 204,30 L 204,50 C 204,60 197,65 189,65 C 181,65 174,60 174,50 Z M 211,30 L 221,30 L 221,36 C 223,32 227,29 232,29 C 240,29 245,34 245,43 L 245,64 L 235,64 L 235,46 C 235,42 233,40 229,40 C 225,40 221,42 221,46 L 221,64 L 211,64 Z M 268,29 C 277,29 284,37 284,47 C 284,57 277,65 268,65 C 259,65 252,57 252,47 C 252,37 259,29 268,29 Z M 268,38 C 263,38 261,41 261,47 C 261,53 263,56 268,56 C 273,56 275,53 275,47 C 275,41 273,38 268,38 Z" fill="currentColor" />
+</svg>

@@ -1,0 +1,174 @@
+# T-0001 CI: build, test and lint on Linux and macOS, with the Git floor check.
+# T-0005 adds the reference-harness jobs to this file under its own review.
+# Reviewed before merge (AGENTS §10.2; S-4). The only action used is actions/checkout.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.27.0"
+  GIT_FLOOR: "2.38.1"
+
+jobs:
+  build-test-lint:
+    name: build, test, lint (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      GIT_CONFIG_GLOBAL: /dev/null
+      GIT_CONFIG_NOSYSTEM: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Print and check the Git version (floor ${{ env.GIT_FLOOR }})
+        shell: bash
+        run: |
+          set -euo pipefail
+          git --version
+          v=$(git --version | awk '{print $3}')
+          lowest=$(printf '%s\n%s\n' "$GIT_FLOOR" "$v" | sort -V | head -n1)
+          if [ "$lowest" != "$GIT_FLOOR" ]; then
+            echo "Git $v is below the floor $GIT_FLOOR"
+            exit 1
+          fi
+
+      - name: Install the pinned Go release (SHA-256 checked)
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$RUNNER_OS-$RUNNER_ARCH" in
+            Linux-X64)
+              file=go1.27.0.linux-amd64.tar.gz
+              sha=675c26c449cbb18fc24b74650de1eabbae6e16f64326fd85a283fb3b58280685 ;;
+            macOS-ARM64)
+              file=go1.27.0.darwin-arm64.tar.gz
+              sha=90493b3bbd5e10f91d12153198bf1994fd756399b4fec93b49b0c6e2acdeeb3e ;;
+            *)
+              echo "unsupported runner $RUNNER_OS-$RUNNER_ARCH"
+              exit 1 ;;
+          esac
+          curl -sSfL -o "$RUNNER_TEMP/go.tgz" "https://go.dev/dl/$file"
+          echo "$sha  $RUNNER_TEMP/go.tgz" | shasum -a 256 -c -
+          mkdir -p "$HOME/sdk"
+          tar -C "$HOME/sdk" -xzf "$RUNNER_TEMP/go.tgz"
+          echo "$HOME/sdk/go/bin" >> "$GITHUB_PATH"
+
+      - name: Verify the Go version
+        shell: bash
+        run: |
+          set -euo pipefail
+          go version
+          test "$(go env GOVERSION)" = "go${GO_VERSION}"
+
+      - name: Build
+        run: make build
+
+      - name: Check the binary's linkage (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=$(ldd ./ilvuno 2>&1 || true)
+          echo "$out"
+          case "$out" in
+            *"not a dynamic executable"*) ;;
+            *) echo "unexpected dynamic linkage"; exit 1 ;;
+          esac
+
+      - name: Check the binary's linkage (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          otool -L ./ilvuno
+          bad=$(otool -L ./ilvuno | tail -n +2 | awk '{print $1}' | grep -v -E '^(/usr/lib/|/System/)' || true)
+          if [ -n "$bad" ]; then echo "non-system libraries: $bad"; exit 1; fi
+
+      - name: Test
+        run: make test
+
+      - name: Lint
+        run: make lint
+
+      - name: Docs check
+        run: make docs-check
+
+  # T-0005: the reference harness on the pinned Git 2.38.1 image. The wrapper runs in the container
+  # as the runner's own uid, so the private roots it creates are owned by that uid (R3-1).
+  reference-git-2-38-1:
+    name: reference matrix and tests on Git 2.38.1 (pinned image)
+    runs-on: ubuntu-latest
+    env:
+      GIT_CONFIG_GLOBAL: /dev/null
+      GIT_CONFIG_NOSYSTEM: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the pinned Git 2.38.1 image (SHA-256 checks run inside the Dockerfile)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ctx=$(mktemp -d)
+          docker build --no-cache -f testdata/reference/Dockerfile.git238 -t ilvuno-git238r:ci "$ctx"
+          docker image inspect ilvuno-git238r:ci --format 'image {{.Id}}'
+          docker run --rm ilvuno-git238r:ci git --version
+
+      - name: Negative tests, matrix and tests.sh inside the image
+        shell: bash
+        run: |
+          set -euo pipefail
+          scratch=$(mktemp -d)
+          scratch=$(cd -P "$scratch" && pwd -P)
+          chmod 700 "$scratch"
+          docker run --rm -u "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/src:ro" -v "$scratch:/scratch" -w /src \
+            -e TMPDIR=/scratch -e SP1_GIT_BIN=/usr/local/bin/git \
+            ilvuno-git238r:ci bash -c '
+              set -euo pipefail
+              bash testdata/reference/check-reference-test.sh
+              testdata/reference/check-reference.sh matrix
+              testdata/reference/check-reference.sh tests'
+          rm -rf "$scratch"
+
+  # T-0005 AC-3: a failing git must make the matrix fail.
+  reference-failing-git:
+    name: matrix fails when git fails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The matrix must exit nonzero with a failing git
+        shell: bash
+        run: |
+          set -uo pipefail
+          if SP1_GIT_BIN=/bin/false make reference-matrix; then
+            echo "matrix passed with a failing git"
+            exit 1
+          fi
+          echo "matrix refused a failing git, as required"
+
+  # T-0005: the host-side negative tests and tests.sh on the runner's own git.
+  reference-host-tests:
+    name: reference negative tests and tests.sh (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      GIT_CONFIG_GLOBAL: /dev/null
+      GIT_CONFIG_NOSYSTEM: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print the host git version
+        run: git --version
+      - name: Reference negative tests and tests.sh
+        run: make reference-tests

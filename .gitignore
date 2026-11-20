@@ -1,0 +1,9 @@
+# Local-only content — never published to GitHub
+marketing/
+.commandcode/
+gemini_red.md
+# M0 build outputs
+/ilvuno
+*.out
+coverage.*
+.ilvuno/

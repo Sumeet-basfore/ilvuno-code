@@ -1,0 +1,269 @@
+{
+  "cases": {
+    "F1-two-clean|object|index-lock": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "removed",
+      "conflict_paths_from": "none",
+      "exit": 0,
+      "verdict": "ok",
+      "worktrees_left": 0
+    },
+    "F1-two-clean|object|plain": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "removed",
+      "conflict_paths_from": "none",
+      "exit": 0,
+      "verdict": "ok",
+      "worktrees_left": 0
+    },
+    "F1-two-clean|worktree|index-lock": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "removed",
+      "conflict_paths_from": "none",
+      "exit": 0,
+      "verdict": "ok",
+      "worktrees_left": 0
+    },
+    "F1-two-clean|worktree|plain": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "removed",
+      "conflict_paths_from": "none",
+      "exit": 0,
+      "verdict": "ok",
+      "worktrees_left": 0
+    },
+    "F10-newline-path|object|plain": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "ok",
+      "conflict_paths_from": "oracle",
+      "exit": 3,
+      "verdict": "conflict",
+      "worktrees_left": 0
+    },
+    "F10-newline-path|worktree|plain": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "ok",
+      "conflict_paths_from": "oracle",
+      "exit": 3,
+      "verdict": "conflict",
+      "worktrees_left": 1
+    },
+    "F2-three-clean|object|plain": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "removed",
+      "conflict_paths_from": "none",
+      "exit": 0,
+      "verdict": "ok",
+      "worktrees_left": 0
+    },
+    "F2-three-clean|object|stop-after1": {
+      "candidate_from": "stop1",
+      "check_rc": -1,
+      "cleanup": "ok",
+      "conflict_paths_from": "none",
+      "exit": 9,
+      "verdict": "stopped",
+      "worktrees_left": 0
+    },
+    "F2-three-clean|worktree|plain": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "removed",
+      "conflict_paths_from": "none",
+      "exit": 0,
+      "verdict": "ok",
+      "worktrees_left": 0
+    },
+    "F2-three-clean|worktree|stop-after1": {
+      "candidate_from": "stop1",
+      "check_rc": -1,
+      "cleanup": "ok",
+      "conflict_paths_from": "none",
+      "exit": 9,
+      "verdict": "stopped",
+      "worktrees_left": 1
+    },
+    "F3-direct-conflict|object|keep-conflict": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "ok",
+      "conflict_paths_from": "oracle",
+      "exit": 3,
+      "verdict": "conflict",
+      "worktrees_left": 0
+    },
+    "F3-direct-conflict|object|plain": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "ok",
+      "conflict_paths_from": "oracle",
+      "exit": 3,
+      "verdict": "conflict",
+      "worktrees_left": 0
+    },
+    "F3-direct-conflict|worktree|keep-conflict": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "ok",
+      "conflict_paths_from": "oracle",
+      "exit": 3,
+      "verdict": "conflict",
+      "worktrees_left": 1
+    },
+    "F3-direct-conflict|worktree|plain": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "ok",
+      "conflict_paths_from": "oracle",
+      "exit": 3,
+      "verdict": "conflict",
+      "worktrees_left": 1
+    },
+    "F4-conflict-step2|object|plain": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "ok",
+      "conflict_paths_from": "oracle",
+      "exit": 3,
+      "verdict": "conflict",
+      "worktrees_left": 0
+    },
+    "F4-conflict-step2|worktree|plain": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "ok",
+      "conflict_paths_from": "oracle",
+      "exit": 3,
+      "verdict": "conflict",
+      "worktrees_left": 1
+    },
+    "F5-already-integrated|object|plain": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "removed",
+      "conflict_paths_from": "none",
+      "exit": 0,
+      "verdict": "ok",
+      "worktrees_left": 0
+    },
+    "F5-already-integrated|worktree|plain": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "removed",
+      "conflict_paths_from": "none",
+      "exit": 0,
+      "verdict": "ok",
+      "worktrees_left": 0
+    },
+    "F6-unrelated|object|plain": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "ok",
+      "conflict_paths_from": "none",
+      "exit": 3,
+      "verdict": "unrelated_histories",
+      "worktrees_left": 0
+    },
+    "F6-unrelated|worktree|plain": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "ok",
+      "conflict_paths_from": "none",
+      "exit": 3,
+      "verdict": "unrelated_histories",
+      "worktrees_left": 1
+    },
+    "F7-combined-build-failure|object|plain": {
+      "candidate_from": "plain",
+      "check_rc": 1,
+      "cleanup": "removed",
+      "conflict_paths_from": "none",
+      "exit": 1,
+      "verdict": "check_failed",
+      "worktrees_left": 0
+    },
+    "F7-combined-build-failure|worktree|plain": {
+      "candidate_from": "plain",
+      "check_rc": 1,
+      "cleanup": "removed",
+      "conflict_paths_from": "none",
+      "exit": 1,
+      "verdict": "check_failed",
+      "worktrees_left": 0
+    },
+    "F8-driver|object|plain": {
+      "candidate_from": "none",
+      "check_rc": -1,
+      "cleanup": "ok",
+      "conflict_paths_from": "none",
+      "exit": 4,
+      "verdict": "harness_refused",
+      "worktrees_left": 0
+    },
+    "F8-driver|worktree|plain": {
+      "candidate_from": "none",
+      "check_rc": -1,
+      "cleanup": "ok",
+      "conflict_paths_from": "none",
+      "exit": 4,
+      "verdict": "harness_refused",
+      "worktrees_left": 0
+    },
+    "F9-cleanup|object|fail-cleanup": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "orphaned_dir_removed",
+      "conflict_paths_from": "none",
+      "exit": 5,
+      "verdict": "ok",
+      "worktrees_left": 0
+    },
+    "F9-cleanup|object|plain": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "removed",
+      "conflict_paths_from": "none",
+      "exit": 0,
+      "verdict": "ok",
+      "worktrees_left": 0
+    },
+    "F9-cleanup|worktree|fail-cleanup": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "orphaned_dir_removed",
+      "conflict_paths_from": "none",
+      "exit": 5,
+      "verdict": "ok",
+      "worktrees_left": 0
+    },
+    "F9-cleanup|worktree|plain": {
+      "candidate_from": "plain",
+      "check_rc": -1,
+      "cleanup": "removed",
+      "conflict_paths_from": "none",
+      "exit": 0,
+      "verdict": "ok",
+      "worktrees_left": 0
+    }
+  },
+  "declared_case_count": 28,
+  "environment": {
+    "allowed_git_versions": [
+      "2.55.0",
+      "2.38.1"
+    ],
+    "merge_policy": "--no-ff --no-edit; hooks/attrs/signing/fsmonitor/submodules neutralised via -c",
+    "metadata": "ilvuno <ilvuno@localhost> @<base commit time>",
+    "os": [
+      "Linux"
+    ]
+  },
+  "schema": "ilvuno.dev/sp1-spec/v2"
+}
