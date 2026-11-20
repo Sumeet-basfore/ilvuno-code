@@ -95,6 +95,11 @@ Net fixture count stays at nine.
 
 ## 4. G0 exit criteria
 
+> **Provenance:** every `LOCAL PASS` row below records a run on the **uncommitted M0 working tree** on
+> 2026-11-20. No M0 code is committed at the governance HEAD (`docs/commit-rules`), so these results are
+> not reproducible from a clone of it; they become reproducible when PR-2 lands and CI runs. G0 is not
+> passed.
+
 | # | Criterion | Evidence | Status |
 |---|---|---|---|
 | G0-1 | `make test` green on a clean clone, `GIT_CONFIG_GLOBAL=/dev/null`, no network | CI run link | PENDING CI. Local `make test` exit 0. A clean-clone run and the CI run are not done (no push). |

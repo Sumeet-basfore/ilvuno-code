@@ -19,7 +19,7 @@ never here.
 | Phase              | M0 implementation, authorized 2026-11-20 (see Authorization). Research, PRD, architecture and roadmap are complete.                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Code today         | M0 code is being added by T-0001 to T-0005. Before T-0001 there was no `go.mod`, `Makefile` or CI.                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Authorization      | **M0 authorized 2026-11-20** by the project owner (`docs/readiness/06-m0-readiness-checklist.md` §7), for tasks T-0001 to T-0005 only. Gate G0 is not yet passed. **M1 and later milestones are not authorized.** Decision status: `docs/decisions/open-questions.md`. Reconciliation and entry-gate results: `docs/readiness/07-m0-reconciliation.md`.                                                                                                                                                                                                             |
-| Decided 2026-11-20 | D-01…D-06 (`docs/decisions/open-questions.md` §0): the owner signs the readiness checklist before each milestone; V1 is a standalone CLI; Apache-2.0; Go; Linux-first with macOS tested in CI, Git ≥ 2.38.1; repository-committed `ilvuno.toml`. Planning items A-4 (Windows excluded from V1), S-1 to S-4, C-5 and C-7 are also decided (§0). D-16 (M0 lint: `gofmt`, `go vet`, import-rule test), D-17 (canonical repository and module path) and D-18 (Apache-2.0 LICENSE text) are recorded. All other decisions are OPEN. These approvals do not authorize M0. |
+| Decided 2026-11-20 | D-01…D-06 (`docs/decisions/open-questions.md` §0): the owner signs the readiness checklist before each milestone; V1 is a standalone CLI; Apache-2.0; Go; Linux-first with macOS tested in CI, Git ≥ 2.38.1; repository-committed `ilvuno.toml`. Planning items A-4 (Windows excluded from V1), S-1 to S-4, C-5 and C-7 are also decided (§0). D-16 (M0 lint: `gofmt`, `go vet`, import-rule test), D-17 (canonical repository and module path), D-18 (Apache-2.0 LICENSE text) and D-19 (M0 delivery shape: two PRs, T-0001/T-0005 scope amendments, deferrals and exclusions) are recorded. All other decisions are OPEN. These approvals do not authorize M0 on their own; M0 is authorized separately by the signed record in `docs/readiness/06` §7. |
 | Harness status     | SP-1R3 has **APPROVE WITH CONDITIONS** as a controlled M0 *reference harness* (`docs/reviews/sp1r3-final-independent-verdict.md`). That verdict covers the experimental harness only. It authorizes no milestone and no production code.                                                                                                                                                                                                                                                                                                                            |
 | Authoritative plan | `docs/planning/01-master-roadmap.md`, `docs/planning/02-milestones.md`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Task specs         | `docs/tasks/T-NNNN.md` — one file per task, with its own acceptance criteria                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -194,7 +194,9 @@ Do not use Ilvuno's own candidate worktrees (`.ilvuno/worktrees/`) for developme
 1. git worktree add .worktrees/<agent>-<task-id> -b feat/<task-id>   (from origin/main)
 2. work only inside that worktree and inside the task's "Allowed file scope"
 3. commit one coherent, reviewable change at a time, in the format and with the checks in §4.4
-4. after human review of the commits, push the branch and open a PR; squash-merge with the task ID in the subject
+4. after human review of the commits (self-review when the owner is the author) and a non-author
+   engineering assessment of the same commit SHA, push the branch and open a PR; squash-merge with
+   the task ID in the subject
 5. delete the worktree after merge
 ```
 
@@ -223,7 +225,7 @@ If the same file conflicts twice in one wave, escalate (§10).
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Assignment                   | One task per agent, delivered as a task ID plus its spec. No "improve the codebase".                                                                                                        |
 | Handoff artefact             | Diff + tests + updated spec + the 4-line self-review + an ambiguity note (`docs/planning/02-milestones.md` §11.3).                                                                          |
-| Review                       | A human reviews every diff. An agent may review another agent's diff for clarity and test quality, but **must not approve** `policy`, `redact`, `approval`, `journal`, or any release gate. |
+| Review                       | A human reviews every diff; where the author is the sole human, the owner's reading is recorded as self-review and a non-author AI engineering assessment supplies the independence — findings only, never approval. An agent may review another agent's diff for clarity and test quality, but **must not approve** `policy`, `redact`, `approval`, `journal`, or any release gate; it may record findings with a recommendation for the owner's decision. |
 | Ownership transfer           | Announced before a wave starts, never mid-task.                                                                                                                                             |
 | Disagreement on an interface | Escalate the same day; write the decision into the task spec. Do not "try both".                                                                                                            |
 | Parallelism                  | Only pairs marked eligible in `docs/planning/02-milestones.md` §11.4.                                                                                                                       |
@@ -378,13 +380,17 @@ stages"). Where this section and §§7–9 conflict on Git workflow, this sectio
 
 ### Independent review
 
-- Every PR is reviewed by a reviewer other than the implementation author. No author reviews or approves
-  its own change, and no agent may act as the sole reviewer for a change it wrote.
+- Every PR is examined by a reviewer other than the implementation author, who records an
+  assessment of the exact head SHA. An author does not supply the independent assessment of their own
+  change, and no agent may act as the sole reviewer for a change it wrote. Approval of policy,
+  governance and release-gate records is the owner's decision and a separate act.
 - The reviewer inspects the actual diff and the surrounding code, not the PR description alone.
 - The review records the **head commit SHA** it examined and evaluates correctness, regressions,
   security, repository safety (refs, worktrees, user data), scope compliance, and test evidence.
-- The verdict is one of **APPROVE**, **REQUEST CHANGES**, or **INSUFFICIENT EVIDENCE**. Blocking
-  findings name the file and line and the required fix. Silence or a summary is not approval.
+- For implementation changes, the verdict is one of **APPROVE**, **REQUEST CHANGES**, or
+  **INSUFFICIENT EVIDENCE**. Blocking findings name the file and line and the required fix. Silence or
+  a summary is not approval. For policy, governance and release-gate records the record is findings
+  with a recommendation, and the owner's decision is separate.
 - New commits after a review invalidate it. The reviewer re-reviews or explicitly reconfirms against
   the new head SHA; an approval of an older SHA does not approve later commits. A rebase, amend,
   force-push, or squash-rebase onto the target branch produces a new SHA and therefore a new review.
@@ -394,7 +400,8 @@ stages"). Where this section and §§7–9 conflict on Git workflow, this sectio
   never substitutes for a required human approval, and no agent may approve on the owner's behalf,
   dismiss a required review, or use an admin override.
 - For `policy`, `redact`, `approval`, `journal`, or any release gate (§9), an AI reviewer may report
-  findings but cannot be the approving reviewer; the owner decides.
+  findings but cannot be the approving reviewer; the owner decides. The required record in that case is
+  findings with a recommendation, not an APPROVE verdict.
 
 ### One review for both stages
 
@@ -403,12 +410,14 @@ the following hold:
 
 - The review examined the **exact commit** that was pushed, and that commit is still the PR head SHA.
   No commit, amend, rebase or cherry-pick exists between the review and the push.
-- The reviewer is not the author; for `policy`, `redact`, `approval`, `journal` or a release gate, the
-  approving reviewer is the owner (§9).
-- The reviewer is one the human review in §8 accepts. This consolidation removes a *duplicate* review,
-  not the human review: an AI review can stand in for the PR-side engineering review, never for the
-  pre-push human review. When no second human exists, the sole-maintainer rule below governs and the
-  completion report records "self-review only — no second reviewer available" (§11 item 6).
+- The assessment is by a reviewer who is not the author; for `policy`, `redact`, `approval`,
+  `journal` or a release gate, the approval decision is the owner's (§9), recorded separately from the
+  assessment.
+- Independent review for the pre-push stage may be supplied before the PR exists: a non-author
+  engineering assessment of the exact local commit SHA, attached or reproduced in the PR afterwards and
+  reconfirmed at the same SHA, satisfies it. The human pre-push review in §8 is satisfied by the owner's
+  reading of the commits, recorded as self-review (§11 item 6) when the owner is the author; self-review
+  is never described as independent human review.
 - After the PR opens, the reviewer reconfirms the **same SHA** in the PR thread ("reconfirmed at
   `<sha>`"). That comment, not the pre-push note, is what the merge gate reads.
 - If the merge rewrites history, the owner confirms in the PR that the merged content contains nothing
@@ -424,12 +433,15 @@ REQUEST CHANGES or INSUFFICIENT EVIDENCE, or when a stack's layers were not each
 The project owner is currently the only human approver. "A reviewer other than the author" is therefore
 impossible by construction for owner-authored changes, and this policy does not pretend otherwise.
 
-- An **AI reviewer other than the implementing agent** may supply the engineering review. It records
-  its head SHA, its verdict, and that it is AI review.
+- An **AI reviewer other than the implementing agent** may supply the engineering assessment. It
+  records its head SHA and that it is AI review, and either a verdict (APPROVE / REQUEST CHANGES /
+  INSUFFICIENT EVIDENCE) for implementation changes, or findings with a recommendation for policy,
+  governance and release-gate records.
 - The standing sole-maintainer configuration is: PRs required for `main`, applicable CI required on
-  the head SHA, an independent SHA-bound engineering review recorded on the PR, and explicit owner
-  merge approval. This policy has no temporary branch-protection waiver, no admin override and no
-  per-PR settings change.
+  the head SHA, an independent SHA-bound engineering assessment recorded against the exact commit —
+  pre-push for implementation and for policy, governance and release-gate records, attached or
+  reproduced in the PR after push — and explicit owner merge approval. This policy has no temporary
+  branch-protection waiver, no admin override and no per-PR settings change.
 - AI engineering review is recorded evidence, never human approval. It does not satisfy a GitHub
   human-review requirement, and this policy does not claim that it does.
 - If the repository's GitHub settings require an approving review from a second human account, a sole
@@ -440,6 +452,61 @@ impossible by construction for owner-authored changes, and this policy does not 
   dismissal of a required review, no force-push to a protected branch, and no agent action on
   repository settings. If the gate cannot be met, the PR stays open.
 
+### Sole-maintainer authorization, assessment and approval (approved 2026-11-20)
+
+Four separate acts are required on a sole-maintainer PR, and none substitutes for another.
+
+1. **Owner authorization (§8, §10).** Policy and governance decisions, and every state-changing or
+   remote Git operation — branch creation, commit on a shared branch, push, PR creation, merge — are
+   authorized by the project owner in writing, naming the decision, branch or commit. Read-only
+   inspection needs no authorization: `git status`, `git diff`, `git log`, `git show`, `git rev-parse`
+   and equivalent queries remain permitted at any time. Authorization is permission, not review, and it
+   never implies that a review happened.
+2. **Pre-push independent engineering assessment.** Before a branch is pushed, a reviewer who is not the
+   author examines the **exact local commit SHA** and records, in the handoff or the PR: that SHA,
+   findings with file and line, and a recommendation. This runs locally and requires no GitHub PR. For
+   ordinary implementation changes the record is a verdict — APPROVE, REQUEST CHANGES, or INSUFFICIENT
+   EVIDENCE. For owner-authored `policy`, `redact`, `approval`, `journal`, governance and release-gate
+   records the record is **findings with a recommendation, not an APPROVE verdict**, because §9 forbids
+   an AI reviewer from being the approving reviewer of those artefacts.
+3. **Post-push reconfirmation.** After the push, the assessment is attached to or reproduced in the PR,
+   states that the PR head SHA is the same local commit it examined, and is reconfirmed at that SHA. A
+   push that produces a different SHA invalidates the assessment and requires a new one.
+4. **Owner decision and GitHub approval.** For `policy`, `redact`, `approval`, `journal`, governance and
+   release-gate records, the owner reads the independent findings and records the decision themselves —
+   approval or rejection with reasons. No AI verdict is required, and none may be presented as that
+   approval. For ordinary implementation changes the gate requires an independent engineering APPROVE.
+   Independently of both, when branch protection or a ruleset requires a human approval, only an
+   eligible GitHub account can supply it: an AI assessment is not it, the owner's self-review is not it,
+   and a green CI run is not it.
+5. **What independence is not.** Where the owner wrote the change, the owner's pre-push reading is
+   recorded as self-review (§11 item 6). It is human, and it is never described as independent human
+   review. Independence is supplied only by a reviewer other than the author.
+
+**Resolution of the pre-push / policy-review deadlock.** §8 requires human review of the commits before
+push, §15 requires a non-author review, and §9 forbids an AI reviewer from approving policy. A sole
+maintainer satisfies all three as follows: the owner reads the commits before push and records that
+review as self-review; a non-author AI engineering assessment of the same local commit SHA supplies the
+independence; both records precede the push; after the push the assessment is attached or reproduced in
+the PR and reconfirmed at the unchanged head SHA. Where the owner is not the author, the owner's
+pre-push reading is itself the human review. For policy, governance and release-gate records the AI
+assessment stays findings-only, and the owner's written decision is the approval. This does not weaken
+§9: an AI review still cannot approve policy, and it never stands in for a human approval the platform
+requires.
+
+**Approval does not excuse blocking findings.** A finding recorded as blocking remains blocking until it
+is resolved, or until the owner records a written decision that resolves it as accepted risk, with the
+reason and the residual risk in the handoff. Owner authorization of a Git operation is not a resolution
+of a finding.
+
+**Prohibited in every case.** No admin override, no dismissal of a required review, no "merge without
+waiting", no force-push to a protected branch, no agent merging or approving its own work, and no
+repository-settings change made as part of a PR. When a required approval cannot be obtained, the PR
+stays open and the conflict is reported.
+
+**Unchanged.** Task ownership, worktree isolation (§7), the M0 authorized scope and the owner-only merge
+rule are unaffected by this clarification.
+
 ### Merge gate
 
 A PR may be merged only when all of the following hold for the **current** revision:
@@ -448,9 +515,12 @@ A PR may be merged only when all of the following hold for the **current** revis
    target branch passes on the head SHA. Those rules, not the workflows present in the repository,
    determine what is required. The CI bootstrap exception below covers only the absence of a required
    check; it never adds to, replaces or waives one that protection already requires.
-2. An independent reviewer has recorded APPROVE for that head SHA. When that reviewer is an AI agent,
-   the record says so and counts as engineering evidence only; a human approval demanded by GitHub
-   settings is separate and is met only by an eligible human account.
+2. For implementation changes, an independent reviewer has recorded APPROVE for that head SHA; when
+   that reviewer is an AI agent, the record says so and counts as engineering evidence only. For
+   policy, redact, approval, journal, governance and release-gate records, an independent non-author
+   assessment of findings with a recommendation is recorded for that SHA and the owner's written
+   decision is recorded separately; no AI APPROVE is required or accepted. A human approval demanded
+   by GitHub settings is separate in both cases and is met only by an eligible human account.
 3. All blocking review findings are resolved.
 4. The change stays inside the authorized milestone and task scope; it does not change milestone
    status.

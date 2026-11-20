@@ -1,6 +1,6 @@
 # 05 — Owner Decision Register
 
-Status: **Mixed.** D-01…D-06 and D-16…D-18 are **DECIDED 2026-11-20** (record: `docs/decisions/open-questions.md` §0). D-16 (M0 lint), D-17 (canonical repository and module path) and D-18 (Apache-2.0 text) were approved directly and have no request row here. D-07…D-15 remain **OPEN**. This file is the request register. It does not record decisions, and its §8 sign-off block is unsigned.
+Status: **Mixed.** D-01…D-06, D-16…D-18 and D-19 are **DECIDED 2026-11-20** (record: `docs/decisions/open-questions.md` §0). D-16 (M0 lint), D-17 (canonical repository and module path), D-18 (Apache-2.0 text) and D-19 (M0 delivery shape: two PRs, T-0001/T-0005 scope amendments, deferrals and exclusions) were approved directly and have no request row here. D-07…D-15 remain **OPEN**. This file is the request register. It does not record decisions, and its §8 sign-off block is unsigned.
 
 This register exists because the review's second blocker (BLK-02) was not a documentation bug: it
 was that recommendations had been written in a tone that read like decisions. This file keeps them

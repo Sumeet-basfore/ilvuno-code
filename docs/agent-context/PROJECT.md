@@ -39,7 +39,7 @@ control; no credential custody; no default telemetry. [approved] (`docs/product/
 
 ## Decisions
 
-- **Decided:** D-01…D-06, D-16…D-18; planning A-4, S-1…S-4, C-5, C-7.
+- **Decided:** D-01…D-06, D-16…D-19; planning A-4, S-1…S-4, C-5, C-7.
   [approved] (`docs/decisions/open-questions.md` §0)
 - **Open and blocking M2+:** D-07 candidate refs, D-08 merge-driver policy, D-09 write-scope
   classes, D-10 determinism scope, D-11 V1/V2 split, D-12 requirement re-prioritisation,

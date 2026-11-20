@@ -1,7 +1,7 @@
 # SP-1 Independent Verification
 
-**Reviewer role:** independent Git systems and security review  
-**Scope:** SP-1 evidence and Pipeline B as a possible baseline  
+**Reviewer role:** independent Git systems and security review\
+**Scope:** SP-1 evidence and Pipeline B as a possible baseline\
 **Verdict:** APPROVE WITH CONDITIONS; Pipeline B is suitable as an M0 reference oracle in a controlled harness, not as an M0 production engine or an M2 production engine in its current form.
 
 ## Scope and method

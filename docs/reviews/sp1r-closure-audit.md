@@ -1,8 +1,8 @@
 # SP-1R Independent Closure Audit
 
-**Date:** 2026-11-20  
-**Scope:** SP-1R harness remediation only; no production engine review beyond its use by this harness.  
-**Final verdict:** **REJECT**  
+**Date:** 2026-11-20\
+**Scope:** SP-1R harness remediation only; no production engine review beyond its use by this harness.\
+**Final verdict:** **REJECT**\
 **Is SP-1R technically acceptable as a controlled M0 reference harness, assuming the owner separately authorizes M0?** **NO — not in its current form.**
 
 The fixture matrix, security controls, and Git 2.38.1/2.55.0 runs substantially improve SP-1. I reproduced the reported matrix and tests, and independently checked the clean candidate commits and conflict paths. The remaining M0 blockers are in the harness boundary and evidence: an exposed command executes shell from repository metadata and can destroy pre-existing Ilvuno refs; the newline fixture passes with an incorrect content hash; and the scratch directory can delete pre-existing files with matching harness paths. These do not require an M0 production sandbox to fix.

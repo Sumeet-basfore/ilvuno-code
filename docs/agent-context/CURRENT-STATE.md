@@ -60,7 +60,7 @@ other than the author signs the packet. **Merging M0 code does not pass G0.**
 
 ## Decisions
 
-- Decided: D-01…D-06, D-16…D-18; A-4, S-1…S-4, C-5, C-7.
+- Decided: D-01…D-06, D-16…D-19; A-4, S-1…S-4, C-5, C-7.
 - Open, M2-blocking: D-07 refs, D-08 drivers, D-09 write scopes, D-10 determinism.
 - Open, later: D-11…D-15; A-5…A-8, A-10.
 - Open product premise: Q-1 (real combined-failure rate), no owner/date.

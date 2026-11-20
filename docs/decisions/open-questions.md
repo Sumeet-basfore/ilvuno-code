@@ -10,7 +10,7 @@ Owner column: `U` = user (founder/maintainer), `E` = engineering, `PM` = product
 
 ## 0. Recorded decisions (owner-approved, 2026-11-20)
 
-Recorded from the project owner's explicit approvals: six decisions (D-01…D-06, first approval), seven planning items (A-4, S-1…S-4, C-5, C-7, second approval), and four M0 decisions (D-16…D-18, third approval; D-19, fourth approval). The owner's name is not in this repository and is not supplied here, so the approver is recorded as "project owner". All three approvals are recorded here. Every other decision in this file, and D-07…D-15 in `docs/readiness/05-owner-decision-register.md`, remains OPEN.
+Recorded from the project owner's explicit approvals: six decisions (D-01…D-06, first approval), seven planning items (A-4, S-1…S-4, C-5, C-7, second approval), and four M0 decisions (D-16…D-18, third approval; D-19, fourth approval). The owner's name is not in this repository and is not supplied here, so the approver is recorded as "project owner". All four approvals are recorded here. Every other decision in this file, and D-07…D-15 in `docs/readiness/05-owner-decision-register.md`, remains OPEN.
 
 | ID | Maps to | Selected option (as approved) | Status | Approved |
 |---|---|---|---|---|

@@ -1,8 +1,8 @@
 # SP-1R2 Final Independent Closure Verification
 
-**Date:** 2026-11-20  
-**Scope:** Independent verification of SP-1R2 against A-1 through A-9. This is a harness review, not a production architecture review.  
-**Final verdict:** **REJECT**  
+**Date:** 2026-11-20\
+**Scope:** Independent verification of SP-1R2 against A-1 through A-9. This is a harness review, not a production architecture review.\
+**Final verdict:** **REJECT**\
 **Is SP-1R2 acceptable as the controlled M0 reference harness?** **NO**
 
 The matrix and the 68-assertion suite pass on Git 2.55.0 and 2.38.1. The F10 newline path and blob hash are now correct, and the run-scoped refs and scratch child changes address the original data-loss cases under the stated private-root threat model. Acceptance is still blocked because the independent oracle can execute a configured merge driver from its input repository, accepts unregistered repositories when called directly, and accepts malformed manifest rows. The recorded Git version also is not compared exactly to the version for that run.
@@ -68,7 +68,7 @@ The direct Git operations are useful as an independent semantic reference for cl
 
 ### N1 — The independent oracle executes configured Git extensions
 
-**Severity:** Blocker  
+**Severity:** Blocker\
 **Required milestone:** M0 harness gate
 
 **Evidence and reproduction:** In the private copy, this command executed the configured F8 merge driver and created the marker:
@@ -87,7 +87,7 @@ Separately, I created a disposable repository under `fixtures-F8-driver/repo` wi
 
 ### N2 — Oracle accepts malformed fixture manifests
 
-**Severity:** High  
+**Severity:** High\
 **Required milestone:** M0 harness gate
 
 **Evidence and reproduction:** Append the line `NOT_A_KEY_VALUE_LINE` to `$AUDIT_ROOT/oracle-injected-input/fixtures-F8-driver/repo/.git/sp1-meta.env`, then run:
@@ -106,7 +106,7 @@ It exited 0 and emitted output because `manifest()` silently stores the malforme
 
 ### N3 — Version checker accepts a supported but incorrect version label
 
-**Severity:** Medium  
+**Severity:** Medium\
 **Required milestone:** M0 reproducibility gate
 
 **Evidence and reproduction:** On a 2.55.0 matrix, change one row's `git_version` to `2.38.1` and run `expected.py --check`. It returned 0 and passed all 28 rows. `expected.py` stores `2.55.0` in the expected row but intentionally skips comparing that field, accepting either profile version.

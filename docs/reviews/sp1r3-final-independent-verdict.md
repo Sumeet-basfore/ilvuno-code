@@ -1,8 +1,8 @@
 # SP-1R3 Targeted Final Closure Audit
 
-**Audit date:** 2026-11-20  
-**Scope:** N1 oracle boundary, N2 manifest validation, N3 Git-version binding, and scratch cleanup.  
-**Final verdict:** **APPROVE WITH CONDITIONS**  
+**Audit date:** 2026-11-20\
+**Scope:** N1 oracle boundary, N2 manifest validation, N3 Git-version binding, and scratch cleanup.\
+**Final verdict:** **APPROVE WITH CONDITIONS**\
 **Is SP-1R3 acceptable as a controlled M0 reference harness?** **YES**, under the stated M0 trust boundary and the conditions below.
 
 ## Summary
@@ -106,5 +106,5 @@ These are confirmed cleanup limitations, not hostile-filesystem escapes. Under t
 
 Use SP-1R3 as a **controlled M0 reference harness** only when the runner checks every command's exit status, uses fresh canonical private scratch, trusts the harness process and its sidecar/registry, and does not consume an oracle file after a failed run. The reproduced edge failures leave private residue or preserve prior output; they did not escape the fixture boundary or execute repository-configured commands.
 
-**YES — SP-1R3 is acceptable as a controlled M0 reference harness under those conditions.**  
+**YES — SP-1R3 is acceptable as a controlled M0 reference harness under those conditions.**\
 **Final verdict: APPROVE WITH CONDITIONS.**

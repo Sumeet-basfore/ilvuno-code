@@ -15,7 +15,7 @@
 | E-7 — status reconciliation | **PASS** | `AGENTS.md`, `CLAUDE.md`, roadmap, and milestones state M0 is proposed and not authorized, consistent with the unsigned [06 §7](../readiness/06-m0-readiness-checklist.md#7-sign-off). |
 | E-8 — T-0005 review | **OPEN** | [T-0005](../tasks/T-0005.md) is appropriately narrowed to test infrastructure, but its condition references and oracle-output steps are not executable as written; details below. |
 | E-9 — T-0001 review | **OPEN** | [T-0001](../tasks/T-0001.md) removes production package stubs, but still has unresolved toolchain, module-path, portability, and CI ownership criteria; details below. |
-| E-10 — Git floor evidence | **PASS, limited to stated scope** | [09 evidence](../research/09-git-floor.md) and raw logs support matching behavior on Linux Git 2.38.1 and 2.55.0, including the 28-row matrix and 95 assertions. Git 2.39 and macOS were not tested; `check-attr --source` is absent on 2.38.1 and remains an M2 capability-probe issue. macOS CI evidence is required before G0, not before E-10 closes. |
+| E-10 — Git floor evidence | **PASS, limited to stated scope** | `09 evidence` — pending artifact, not committed at the governance HEAD: `docs/research/09-git-floor.md` lands with T-0005 in PR-2. Raw logs support matching behavior on Linux Git 2.38.1 and 2.55.0, including the 28-row matrix and 95 assertions. Git 2.39 and macOS were not tested; `check-attr --source` is absent on 2.38.1 and remains an M2 capability-probe issue. macOS CI evidence is required before G0, not before E-10 closes. |
 
 ## Task and architecture findings
 
