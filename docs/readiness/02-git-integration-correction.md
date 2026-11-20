@@ -263,26 +263,47 @@ Detection, fail-closed:
 2. builtin behaviour is selected by attributes, not by this config: `binary`, `text` and
    `union` are merge *attribute* values handled inside Git. They never appear as
    `merge.<name>.driver` commands, and the driver config cannot select them.
-3. `merge.default` holds a driver *name*, not a command. If it names a driver whose
-   `merge.<name>.driver` command is configured, mark the run driver-affected: every path whose
-   `merge` attribute is unspecified can be merged by that command.
-4. if no drivers are configured and `merge.default` is unset → allow
+3. `merge.default` holds a driver *name*, not a command. Classify it:
+   - unset → no default driver;
+   - a recognized Git built-in driver name (`text`, `binary`, `union`) → built-in default;
+   - a name with a configured `merge.<name>.driver` command → configured custom default; mark the
+     run driver-affected, because every path whose `merge` attribute is unspecified can be merged
+     by that command;
+   - anything else → unrecognized default (refused at step 8).
+4. if no custom drivers are configured and `merge.default` is unset → allow
 5. selection = for each changed path, `git check-attr merge --source=<sha> -- <path>`
    (capability-probed; if --source is unsupported, scan `.gitattributes` blobs in the merged
     trees plus `.git/info/attributes` and `core.attributesFile`). Record both the selected name
    and whether the attribute was explicitly set or unspecified.
 6. if any selected name matches a configured driver → refuse
    `custom_merge_driver (name, command, paths)` and exit 2
-7. if any path's `merge` attribute is unspecified and `merge.default` names a configured driver
-   → refuse `custom_default_merge_driver (name, command, paths)` and exit 2
+7. if any path's `merge` attribute is unspecified and the default is a configured custom driver
+   → refuse `custom_default_merge_driver (name, command, paths)` and exit 2, unless that exact
+   command is approved (consent path below)
+8. if `merge.default` is set and its value is neither a recognized Git built-in driver nor a name
+   with a configured `merge.<name>.driver` command, refuse
+   `unrecognized_default_merge_driver (name)` and exit 2. Never silently allow an unclassified
+   default-driver selection.
 ```
+
+Outcomes the procedure must produce, one per configuration:
+
+| Configuration | Outcome |
+|---|---|
+| no configured custom drivers and no `merge.default` | **allow** (step 4) |
+| `merge.default` is a recognized built-in driver (`text`, `binary`, `union`) | **allow** only when step 6 finds no attribute-selected custom driver; unspecified paths use Git's built-in behaviour. The built-in default never exempts a path whose `merge` attribute names a configured driver. |
+| `merge.default` names a configured custom driver | driver-affected: consent only — `custom_default_merge_driver` refusal unless that exact command is approved (step 7) |
+| `merge.default` is unrecognized (not built-in, no configured command) | **refuse** `unrecognized_default_merge_driver (name)`, exit 2 (step 8) |
+| any path's attribute selects a configured custom driver | **refuse** `custom_merge_driver (name, command, paths)`, exit 2 (step 6, unchanged) |
 
 Attribute inspection alone is insufficient: a path that sets no `merge` attribute inherits the
 `merge.default` driver, so a configured default can execute without appearing in `git check-attr`
-output. A `merge.default` name with no configured `merge.<name>.driver` is inert — Git falls back
-to its built-in text behaviour — so the refusal is keyed on the effective *(name, command)* pair,
-never on the name alone. A configured command is never presented as, or treated as, a built-in
-driver.
+output. `merge.default` selects a merge-driver name for paths whose `merge` attribute is
+unspecified. Git also provides built-in drivers such as `text`, `binary`, and `union`. The absence
+of a matching `merge.<name>.driver` command does not, by itself, prove that text merging will
+occur. The proposed detection procedure must distinguish recognized built-in drivers, configured
+custom commands, and unrecognized names; ambiguous selections must not be treated as proven safe.
+A configured command is never presented as, or treated as, a built-in driver.
 
 **Limits.** This is a conservative detection and refusal procedure, not a sandbox. It does not
 bound merge behaviour from hooks, aliases, `merge.*` options outside the driver keys, attribute
