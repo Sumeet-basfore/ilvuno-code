@@ -1,0 +1,102 @@
+# T-0001 CI: build, test and lint on Linux and macOS, with the Git floor check.
+# Reviewed before merge (AGENTS §10.2; S-4). The only action used is actions/checkout.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.27.0"
+  GIT_FLOOR: "2.38.1"
+
+jobs:
+  build-test-lint:
+    name: build, test, lint (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      GIT_CONFIG_GLOBAL: /dev/null
+      GIT_CONFIG_NOSYSTEM: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Print and check the Git version (floor ${{ env.GIT_FLOOR }})
+        shell: bash
+        run: |
+          set -euo pipefail
+          git --version
+          v=$(git --version | awk '{print $3}')
+          lowest=$(printf '%s\n%s\n' "$GIT_FLOOR" "$v" | sort -V | head -n1)
+          if [ "$lowest" != "$GIT_FLOOR" ]; then
+            echo "Git $v is below the floor $GIT_FLOOR"
+            exit 1
+          fi
+
+      - name: Install the pinned Go release (SHA-256 checked)
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$RUNNER_OS-$RUNNER_ARCH" in
+            Linux-X64)
+              file=go1.27.0.linux-amd64.tar.gz
+              sha=675c26c449cbb18fc24b74650de1eabbae6e16f64326fd85a283fb3b58280685 ;;
+            macOS-ARM64)
+              file=go1.27.0.darwin-arm64.tar.gz
+              sha=90493b3bbd5e10f91d12153198bf1994fd756399b4fec93b49b0c6e2acdeeb3e ;;
+            *)
+              echo "unsupported runner $RUNNER_OS-$RUNNER_ARCH"
+              exit 1 ;;
+          esac
+          curl -sSfL -o "$RUNNER_TEMP/go.tgz" "https://go.dev/dl/$file"
+          echo "$sha  $RUNNER_TEMP/go.tgz" | shasum -a 256 -c -
+          mkdir -p "$HOME/sdk"
+          tar -C "$HOME/sdk" -xzf "$RUNNER_TEMP/go.tgz"
+          echo "$HOME/sdk/go/bin" >> "$GITHUB_PATH"
+
+      - name: Verify the Go version
+        shell: bash
+        run: |
+          set -euo pipefail
+          go version
+          test "$(go env GOVERSION)" = "go${GO_VERSION}"
+
+      - name: Build
+        run: make build
+
+      - name: Check the binary's linkage (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=$(ldd ./ilvuno 2>&1 || true)
+          echo "$out"
+          case "$out" in
+            *"not a dynamic executable"*) ;;
+            *) echo "unexpected dynamic linkage"; exit 1 ;;
+          esac
+
+      - name: Check the binary's linkage (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          otool -L ./ilvuno
+          bad=$(otool -L ./ilvuno | tail -n +2 | awk '{print $1}' | grep -v -E '^(/usr/lib/|/System/)' || true)
+          if [ -n "$bad" ]; then echo "non-system libraries: $bad"; exit 1; fi
+
+      - name: Test
+        run: make test
+
+      - name: Lint
+        run: make lint
+
+      - name: Docs check
+        run: make docs-check
