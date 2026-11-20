@@ -151,4 +151,6 @@ D-15  ☐ approved  ☐ amended: ____________________  ☐ deferred to: ________
 > form for D-01's signature convention; it is not the authorization record, and its blank state no
 > longer implies that M0 is unauthorized.
 
-**Until this block is filled, M0 is not authorized, and no implementation task may begin.**
+At the time this request template was created, M0 authorization was pending completion of this
+sign-off block. This condition is superseded by the owner's signed M0 authorization recorded in
+`docs/readiness/06-m0-readiness-checklist.md` §7 on 2026-11-20.
