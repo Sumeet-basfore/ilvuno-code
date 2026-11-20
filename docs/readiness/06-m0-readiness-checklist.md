@@ -32,7 +32,7 @@ alone; it is the visible consequence of D-01.
 
 ---
 
-## 2. Why M0 is currently blocked (review findings, mapped)
+## 2. Historical M0 entry blockers (resolved before authorization)
 
 | Review finding | Blocks | Closed by |
 |---|---|---|

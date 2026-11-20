@@ -4,7 +4,12 @@ Date: 2026-11-20 · Status: **M0 AUTHORIZED 2026-11-20 by the project owner (`06
 Approved: **D-01…D-06, D-16…D-19** and planning items **A-4, S-1…S-4, C-5, C-7** (`docs/decisions/open-questions.md` §0).
 Entry gate (`readiness/06` §1): **10 PASS · 0 OPEN · 0 FAIL.** Implementation evidence and G0 status: `readiness/06` §4 and `planning/gate-log.md`.
 
-Revision 6 (2026-11-20): owner authorization of M0 recorded; implementation evidence (T-0001 to T-0005) and G0 status recorded. Revision history: rev 1 (no decisions; NO-GO). rev 2 (D-01…D-06 recorded). rev 3 (planning approvals recorded, E-10 evidence produced, reference image rebuilt, C-5 verified, Apache-2.0 draft prepared, ADR-0003 and related Tauri references corrected). rev 4 (D-16…D-18 recorded, E-3 satisfied, T-0001/T-0005 corrected, independent review requested). rev 5 (this file): E-9 PASS on the independent Codex review; T-0005 adds path preflight and AC-12/AC-13; totals 9 PASS · 1 OPEN.
+**Authority.** The signed M0 authorization is `docs/readiness/06-m0-readiness-checklist.md` §7. This file
+reconciles records and does not authorize anything. The entry-gate table in §4 below is a
+**historical revision-5 snapshot** (E-8 OPEN, 9 PASS · 1 OPEN); the current evaluation is `readiness/06`
+§1 (10 PASS · 0 OPEN · 0 FAIL). G0 is not passed and M1 is not authorized, in both.
+
+Revision 6 (2026-11-20): owner authorization of M0 recorded; implementation evidence (T-0001 to T-0005) and G0 status recorded. Revision history: rev 1 (no decisions; NO-GO). rev 2 (D-01…D-06 recorded). rev 3 (planning approvals recorded, E-10 evidence produced, reference image rebuilt, C-5 verified, Apache-2.0 draft prepared, ADR-0003 and related Tauri references corrected). rev 4 (D-16…D-18 recorded, E-3 satisfied, T-0001/T-0005 corrected, independent review requested). rev 5 (E-9 PASS on the independent Codex review; T-0005 adds path preflight and AC-12/AC-13; totals 9 PASS · 1 OPEN — superseded by rev 6). rev 6 (this file): owner authorization recorded in `06` §7; E-8 closed by the revised T-0005 and its independent acceptance, so the entry gate reaches 10 PASS · 0 OPEN · 0 FAIL in `06` §1. G0 remains not passed.
 
 ---
 
@@ -115,7 +120,12 @@ All approvals are by the project owner, as stated in the conversation. No name i
 
 ---
 
-## 4. Entry-gate status (`readiness/06` §1)
+## 4. Entry-gate status (`readiness/06` §1) — historical revision-5 snapshot
+
+> **Historical, superseded 2026-11-20.** The table below records the evaluation from revision 5, when
+> E-8 was OPEN and the total was 9 PASS · 1 OPEN. It is preserved unchanged. The current evaluation is
+> `readiness/06` §1: **10 PASS · 0 OPEN · 0 FAIL**, with E-8 closed by the revised `T-0005` and its
+> independent acceptance. Either way, G0 is not passed.
 
 Definitions: **PASS**: the named evidence exists and was checked. **OPEN**: waiting on an owner act or an independent review. **FAIL**: named evidence is absent and engineering can produce it.
 
@@ -137,6 +147,10 @@ Definitions: **PASS**: the named evidence exists and was checked. **OPEN**: wait
 ---
 
 ## 5. Blockers and prerequisites for starting M0
+
+> **Historical (revision 5).** Both items in §5.1 were blocking before the owner's signature. They are
+> resolved: `06` §7 is signed (M0 authorized) and E-8 is **PASS** in `06` §1. The tables below are kept
+> for the record and are not a current blocker list. G0 remains not passed (see §4 and `06` §4).
 
 ### 5.1 Blocking the M0 start
 

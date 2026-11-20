@@ -1,5 +1,12 @@
 # M0 Final Task and License Review
 
+> **Supersession notice (2026-11-20).** This review records an assessment made **before** the owner's
+> signed M0 authorization. Its conclusions that the authorization is unsigned and that E-3, E-8 and
+> E-9 remain OPEN describe that earlier state, not the current one. Current state:
+> `docs/readiness/06-m0-readiness-checklist.md` §1 records **10 PASS · 0 OPEN · 0 FAIL**, and §7 is the
+> **signed M0 authorization**. E-8 was closed by the revised `T-0005` and its independent acceptance.
+> **G0 has not passed** and M1 is not authorized; nothing below is retracted or rewritten.
+
 **Review result:** M0 remains **NOT READY / NOT AUTHORIZED**. I reviewed the entry evidence and task specifications only; no implementation was started. No entry gate is a new FAIL, but E-3, E-8, and E-9 remain OPEN, and the owner authorization is unsigned.
 
 ## Entry gates
