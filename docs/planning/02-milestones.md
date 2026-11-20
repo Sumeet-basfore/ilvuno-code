@@ -1,7 +1,10 @@
 # 02 — Milestones
 
-Every milestone has the same eleven sections so reviews can be mechanical. M0–M6 are the approved
-MVP scope; M7–M12 are **provisional** and carry no dates (see `01-master-roadmap.md` §3).
+Every milestone has the same eleven sections so reviews can be mechanical. M0–M6 are the **proposed**
+MVP scope. **M0 is authorized for T-0001…T-0005**; **M1–M6 are not authorized.** Authorization and
+reconciliation: `docs/readiness/06-m0-readiness-checklist.md` §7 and
+`docs/readiness/07-m0-reconciliation.md`. M7–M12 are **provisional** and carry no dates
+(see `01-master-roadmap.md` §3).
 
 Requirement IDs → `docs/product/02-prd.md`. ADRs → `docs/adr/`. Task IDs → `docs/tasks/`.
 
@@ -23,17 +26,18 @@ that passes its own tests and fails in the real world.
 4. License (Apache-2.0), `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `.gitignore`.
 5. **Fixture forge** (`internal/testkit/forge`): deterministic repo construction with fixed
    identity, dates, `TZ=UTC`, `umask 022`, `GIT_CONFIG_GLOBAL=/dev/null`.
-6. The nine failure-class fixtures (architecture `11` §3) as forge specs.
+6. Failure-class fixtures as forge specs: the verified SP-1R3 corpus F1–F8 and F10 is ported, and F9 is retained as a fault-injection test (S-1, approved 2026-11-20). Other classes are deferred.
 7. **Safety fingerprint** helper (`internal/testkit/safety`): refs + tree + index + stashes + config.
-8. E-1 spike result recorded as an ADR amendment or a note in `docs/research/`.
+8. SP-1R3 reference harness imported as the M0 reference oracle (`testdata/reference/`), with its conformance note (`docs/research/09-git-floor.md`). The merge-tree E-1 spike is withdrawn.
 
-**Dependencies.** Approval of `A-1`/`A-3` (language), `A-2` (license), B-3 (git ≥ 2.38 check).
+**Dependencies.** Owner decisions D-02 (standalone CLI, A-1), D-03 (Apache-2.0, A-2), D-04 (Go, A-3), D-05 (Linux-first, macOS tested in CI, Git ≥ 2.38.1; A-4 Windows excluded from V1, decided 2026-11-20) and D-06 (committed `ilvuno.toml`, A-9). All are DECIDED 2026-11-20 (`docs/decisions/open-questions.md` §0). **M0 is authorized for T-0001…T-0005** by `docs/readiness/06` §7; **M1 and later are not authorized.** The SP-1R3 matrix passes on 2.38.1 (Linux container) and 2.55.0 (Linux host). macOS has no evidence yet.
 
 **Explicit scope exclusions.**
 - No `ilvuno` subcommands beyond `--version`.
 - No journal, no worktree creation, no config parsing.
 - No fixture that requires network, LFS, or submodules (refused paths only).
 - No benchmark harness yet (that lands with `T-0305`).
+- No production merge engine. The SP-1R3 sequential merge is a harness oracle only. Engine construction, and the choice between the object pipeline and the worktree pipeline (D-07), land in M2.
 
 **Development tasks.** `T-0001`…`T-0005` (see `docs/tasks/`).
 
@@ -42,10 +46,10 @@ that passes its own tests and fails in the real world.
 |---|---|
 | A1 | `make test` passes on a clean clone with no network and no global git config |
 | A2 | The forge produces byte-identical repo state across two runs on the same OS (refs + tree SHAs compared) |
-| A3 | All nine fixture classes exist and each fails/passes in the way its spec says |
+| A3 | The ported corpus F1–F8 and F10 each yield the verdict and exit recorded in `expected.json`. F9 is harness fault injection, not a corpus fixture |
 | A4 | `make forge-verify` reports the forge's own self-test green |
 | A5 | Safety fingerprint detects each of: ref move, dirty tree, staged change, stash creation, config edit |
-| A6 | E-1 result is recorded: does `merge-tree` see a triple-only conflict? (yes/no + evidence) |
+| A6 | Reference conformance: the SP-1R3 matrix reports 28/28 with exit 0 on each supported Git version, and the run-env sidecar matches each row. The merge-tree tuple question is withdrawn (`docs/readiness/02` X-02) |
 
 **Required tests.** `forge_test.go` self-tests; `safety_test.go`; fixture smoke tests asserting each
 fixture's expected shape (`git rev-list --count`, conflict presence, per-branch green/red).
@@ -423,7 +427,7 @@ format. Sessions are journaled per adapter so a removed adapter leaves readable 
 
 **Objective.** A shell for people who will not read a terminal.
 
-**Deliverables (sketch).** Tauri + React shell (ADR-0003); loopback WS daemon; `seq`-based event
+**Deliverables (sketch).** Desktop shell, candidate Tauri + React, not approved (ADR-0003); loopback WS daemon; `seq`-based event
 replay; report and diff rendering; approval UI; device-local state only.
 
 **Dependencies.** G6, ADR-0003 revisit trigger, and paid/design-partner demand.

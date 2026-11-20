@@ -1,7 +1,7 @@
 # ADR-0001 — Language and runtime: Go
 
-Status: proposed (supersedes the Phase 2 recommendation only in *justification*, not in choice;
-requires approval as `A-3`). Date: Phase 3.
+Status: accepted (2026-11-20, owner approval of D-04, which records A-3; see `docs/decisions/open-questions.md` §0).
+Supersedes the Phase 2 recommendation only in *justification*, not in choice. Date: Phase 3.
 
 ## Context
 
@@ -54,7 +54,7 @@ TypeScript/Node and Rust. This ADR evaluates all three honestly, then decides.
   machines would benefit from) and a stronger process-control story. It costs iteration speed on
   exactly the code that will churn most (the engine's state machine) and shrinks the maintainer
   pool. It becomes the right answer if (a) the team grows past 3 engineers, (b) the core becomes
-  CPU-heavy (large-scale semantic diffing), or (c) the desktop shell becomes Tauri.
+  CPU-heavy (large-scale semantic diffing), or (c) a desktop shell is approved and Tauri is chosen for it. Neither (c) nor any shell is approved (see ADR-0003).
 
 ## Consequences
 
@@ -62,7 +62,7 @@ Positive: one binary, trivial cross-compile, fast CI, small dependency tree (std
 which makes the "zero runtime deps" claim auditable.
 
 Negative: state-machine invariants are enforced by tests and constructors rather than the type
-system; the future Tauri desktop shell would introduce a Rust component alongside a Go core.
+system. A future desktop shell, if approved and built with Tauri, would introduce a Rust component alongside a Go core. Nothing in this ADR approves a shell.
 
 ## Risks
 
@@ -70,7 +70,7 @@ system; the future Tauri desktop shell would introduce a Rust component alongsid
 |---|---|
 | Invariant drift in a dynamically-shaped model | Constructor-only construction for entities; transition functions validated; property tests (`DET-3`, `JRN-2`) |
 | Panics in a CLI are ugly | `recover()` at the command boundary → typed `internal_error` + `explain`-able message; a panic test asserts the exit code |
-| Two-language future (Go core + Rust/Tauri shell) | Accepted for now; revisit trigger below |
+| Two-language future (Go core + Rust/Tauri shell) | Not approved. It arises only if a desktop shell is approved and Tauri is chosen. Revisit trigger below |
 
 ## Revisit conditions
 
