@@ -9,9 +9,9 @@ Format convention: `ADR-<number>-<slug>.md`, four-digit numbers.
 
 | ADR | Decision | Status | Supersedes |
 |---|---|---|---|
-| [0001](ADR-0001-language-and-runtime.md) | Go as language/runtime (vs TS/Node, Rust) | proposed | — |
+| [0001](ADR-0001-language-and-runtime.md) | Go as language/runtime (vs TS/Node, Rust) | accepted (D-04, 2026-11-20) | — |
 | [0002](ADR-0002-persistence-jsonl-not-sqlite.md) | Append-only JSONL + files; no DB, no queue | proposed | — |
-| [0003](ADR-0003-no-ui-in-mvp-tauri-later.md) | No UI in MVP; Tauri+React later; Electron rejected | proposed | — |
+| [0003](ADR-0003-no-ui-in-mvp-tauri-later.md) | No UI in V1; desktop shell not decided (Tauri+React candidate only); Electron rejected | accepted (D-02, 2026-11-20) | — |
 | [0004](ADR-0004-git-subprocess-not-a-library.md) | Git as subprocess, never a library | proposed | — |
 | [0005](ADR-0005-pin-to-shas-never-resolve-refs.md) | Pin to SHAs; resolve a ref exactly once | proposed | — |
 | [0006](ADR-0006-candidate-construction.md) | Sequential real merges in a disposable worktree | proposed | — |

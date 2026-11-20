@@ -43,23 +43,21 @@ A gate that cannot be re-run by someone else is not a gate.
 
 ## 3. G0 — Fixtures are trustworthy
 
-**Entry:** B-1 approvals recorded; git ≥ 2.38 confirmed; repo skeleton exists.
+**Entry:** B-1 approvals recorded; Git ≥ 2.38.1 confirmed (D-05); repo skeleton exists.
 
 **Exit criteria**
 | # | Criterion | Evidence |
 |---|---|---|
 | 1 | `make test` green on a clean clone, no network, `GIT_CONFIG_GLOBAL=/dev/null` | CI log |
 | 2 | Forge produces identical repo state across two runs (refs + tree SHAs) | `forge-verify` output |
-| 3 | All nine failure-class fixtures exist with asserted shapes | fixture list + smoke tests |
+| 3 | Fixtures F1–F8 and F10 exist with verdicts asserted from `expected.json`; F9 is retained as a fault-injection test (S-1, approved 2026-11-20) | fixture list + smoke tests + fault-injection test |
 | 4 | Safety fingerprint detects all five mutations (ref, tree, index, stash, config) | `safety` tests |
-| 5 | **E-1 answered**: does `merge-tree` see a triple-only conflict? | `docs/research/` note or ADR amendment |
+| 5 | **Sequential-integration reference conformance (S-3, approved 2026-11-20):** the SP-1R3 reference matrix passes 28/28 with exit 0 on Git 2.55.x and Git 2.38.1, and the four E-1′ cases (3 clean, conflict at step 2, ancestor, unrelated) pass on both approaches. The tuple-conflict question is withdrawn, because no preflight exists | reference conformance note (`docs/research/09-git-floor.md`; T-0005 AC-1, AC-8) |
 | 6 | CI matrix runs on linux + macOS | workflow run |
 
-**If E-1 is negative:** not a gate failure — a *plan change*. Preflight demotes to advisory, M2 is
-re-scoped (budget +2 days for "build then report"), and the report wording changes before any user
-sees it. The gate passes only with that decision recorded.
+**If reference conformance fails (S-3):** G0 does not pass. The candidate pipeline is re-examined under D-07 before any milestone that depends on it. The former merge-tree plan-change rule is withdrawn with the preflight it described.
 
-**Sign-off:** maintainer. **Artefacts:** `gate-G0.json`, forge self-test log, E-1 note.
+**Sign-off:** maintainer. **Artefacts:** `gate-G0.json`, forge self-test log, reference conformance note.
 
 ---
 

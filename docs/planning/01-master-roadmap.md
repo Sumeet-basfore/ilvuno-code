@@ -1,6 +1,9 @@
 # 01 — Master Roadmap
 
 Status: proposed plan, awaiting M0 approval. Phase 4 output. No production code exists.
+Authorization: none. Decided 2026-11-20: D-01…D-06 (`docs/decisions/open-questions.md` §0); all other decisions OPEN. Milestone authorization →
+`docs/readiness/06-m0-readiness-checklist.md` §7 (unsigned). Reconciliation and entry-gate results →
+`docs/readiness/07-m0-reconciliation.md`. The merge-tree E-1 spike named in §9 is withdrawn (`07` §3).
 Sources: `docs/product/` (scope), `docs/architecture/` (design), `docs/adr/` (decisions).
 
 ---
@@ -199,7 +202,7 @@ public release depends on.
 
 | # | Blocker | Why it blocks | Resolution | Time |
 |---|---|---|---|---|
-| **B-1** | `A-1`, `A-2`, `A-3`, `A-4`, `A-9` are unanswered | Language (Go), license (Apache-2.0), platform set (macOS+Linux), and config location (committed `ilvuno.toml`) determine the repo skeleton itself. Building on an unanswered decision means rebuilding | Approve the four ADR-linked recommendations, or amend them | < 1 h of decision, no engineering |
+| **B-1** | `A-1`, `A-2`, `A-3`, `A-4`, `A-9` **decided 2026-11-20** (D-02, D-03, D-04, A-4 excluded from V1, D-06). Resolved | Language (Go), license (Apache-2.0), platform set (macOS+Linux), and config location (committed `ilvuno.toml`) determine the repo skeleton itself. Building on an unanswered decision means rebuilding | Approve the four ADR-linked recommendations, or amend them | < 1 h of decision, no engineering |
 | **B-2** | No fixture forge proof-of-concept | The entire test strategy assumes the forge can produce deterministic repos with fixed identity/date and reproduce the nine failure classes. If it cannot, M0's gate is unachievable and the plan is wrong | Run **E-1** as a throwaway spike (2 days, no production code) | 2 days |
 | **B-3** | Git version floor untested on the target machines | ADR-0004 needs ≥2.38 for `merge-tree --write-tree`. If the maintainer's machine or CI image is older, the preflight design degrades on day one | `git --version` on dev + CI images; pin an image that has ≥2.38 | 15 min |
 
@@ -217,6 +220,8 @@ public release depends on.
 Proceed to M0 **after** B-1 is answered and B-3 is checked. Run B-2 (E-1) as M0's first task, not
 as a prerequisite — it is the milestone's own proof, and if it fails we want to fail inside M0
 with three days spent, not before M0 with a plan to rewrite.
+
+**Status 2026-11-20:** D-01…D-06 and planning items A-4, S-1…S-4, C-5 and C-7 decided. B-1 is resolved. M0 is still not authorized. Entry-gate result: `docs/readiness/07-m0-reconciliation.md` §4 (7 PASS · 3 OPEN · 0 FAIL). The E-1 spike named in this section is withdrawn; the SP-1R3 reference harness replaces it.
 
 **Requested approval:**
 

@@ -41,9 +41,9 @@ Task-specific review points, on top of `docs/planning/07-definition-of-done.md` 
 |---|---|---|---|
 | T-0001 | M0 | Repo skeleton, toolchain, CI, import-rule harness | 1 d |
 | T-0002 | M0 | Deterministic fixture forge | 2 d |
-| T-0003 | M0 | Failure-class fixture corpus (9 classes) | 1.5 d |
+| T-0003 | M0 | Failure-class fixture corpus (ported SP-1R3 F1–F10; 9-class scope pending S-1) | 1 d |
 | T-0004 | M0 | Safety fingerprint helper | 0.5 d |
-| T-0005 | M0 | E-1: merge-tree tuple-conflict spike | 1 d |
+| T-0005 | M0 | Reference-behaviour conformance (replaces E-1 merge-tree spike) | 0.5 d |
 | T-0101 | M1 | gitx exec wrapper + version probe | 1.5 d |
 | T-0102 | M1 | Repo discovery and refusals | 1 d |
 | T-0103 | M1 | Config load/validate | 1 d |

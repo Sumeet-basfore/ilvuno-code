@@ -1,8 +1,54 @@
 # Ilvuno — Open Questions and Decisions Requiring Approval
 
 Status: Phase 2 exit artifact. Nothing here is decided except where marked **Decided**.
+
+**Decision status, updated 2026-11-20:** DECIDED 10 decisions (D-01…D-06, D-16…D-19) and 7 planning items (A-4, S-1…S-4, C-5, C-7) · DEFERRED 0 · OPEN all other rows. Recorded in §0. Nothing else is decided. The SP-1R3 verdict (`docs/reviews/sp1r3-final-independent-verdict.md`) reviews the experimental harness and is not a decision on any row. Decision requests D-01…D-15 are in `docs/readiness/05-owner-decision-register.md`; D-16…D-19 were approved directly and are recorded only here. Mapping: A-1→D-02, A-2→D-03, A-3→D-04, A-4→D-05, A-9→D-06. Reconciliation: `docs/readiness/07-m0-reconciliation.md`.
 Owner column: `U` = user (founder/maintainer), `E` = engineering, `PM` = product.
 "Blocks" names the first phase or requirement that cannot proceed without an answer.
+
+---
+
+## 0. Recorded decisions (owner-approved, 2026-11-20)
+
+Recorded from the project owner's explicit approvals: six decisions (D-01…D-06, first approval), seven planning items (A-4, S-1…S-4, C-5, C-7, second approval), and four M0 decisions (D-16…D-18, third approval; D-19, fourth approval). The owner's name is not in this repository and is not supplied here, so the approver is recorded as "project owner". All three approvals are recorded here. Every other decision in this file, and D-07…D-15 in `docs/readiness/05-owner-decision-register.md`, remains OPEN.
+
+| ID | Maps to | Selected option (as approved) | Status | Approved |
+|---|---|---|---|---|
+| **D-01** | Milestone authorization | Owner signs the readiness checklist before each milestone (`docs/readiness/06` §7). | DECIDED | 2026-11-20, project owner |
+| **D-02** | A-1 product shape | V1 is a standalone CLI. | DECIDED | 2026-11-20, project owner |
+| **D-03** | A-2 license | Apache-2.0. | DECIDED | 2026-11-20, project owner |
+| **D-04** | A-3 implementation language | Go. | DECIDED | 2026-11-20, project owner |
+| **D-05** | A-4 platforms and Git floor | Linux-first; macOS tested in CI; Git ≥ 2.38.1 initially. Windows is handled by planning item A-4 (excluded from V1). | DECIDED | 2026-11-20, project owner |
+| **D-06** | A-9 verification config location | Repository-committed `ilvuno.toml`. | DECIDED | 2026-11-20, project owner |
+| **D-16** | M0 lint policy | `gofmt`, `go vet`, and the in-repository import-rule test only. `staticcheck` deferred until separately approved as a dependency; `golangci-lint` not used in M0. | DECIDED | 2026-11-20, project owner |
+| **D-17** | Canonical repository and Go module path | Repository `https://github.com/Sumeet-basfore/ilvuno-code`; Go module path `github.com/Sumeet-basfore/ilvuno-code`. No other path is approved. | DECIDED | 2026-11-20, project owner |
+| **D-18** | Apache-2.0 LICENSE text | The exact text in `docs/readiness/LICENSE-draft-Apache-2.0.txt` (sha256 `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30`, 11,358 bytes, identical to apache.org) is approved unmodified, including the appendix placeholders. | DECIDED | 2026-11-20, project owner |
+| **D-19** | M0 delivery shape | Two PRs: governance (`docs/commit-rules`) then implementation (`feat/T-0001`, five task commits). Includes: T-0001 scope → `cmd/ilvuno/**`; T-0005 scope → `docs/research/09-git-floor-evidence/**`; defer 20 superseded `docs/experiments/**` files; exclude 2 `.pyc` and 10 `ilvuno-concept-*.svg`; gate-log Option A (attributed evidence, original provenance and dates preserved). | DECIDED | 2026-11-20, project owner |
+
+**Rationale and documents updated.** The owner approved each selection. The rationale below is the basis already recorded in `docs/readiness/05` §2 and §5. The owner has not restated it.
+
+- **D-01.** Basis: one signature, one checklist, one log. Without it, contributors act on contradictory status (`05` §2). Documents: AGENTS.md §1; roadmap status line; `planning/02` status line; `readiness/05` header; `readiness/06` header and §7 note. CLAUDE.md §1.4 already matches and is unchanged.
+- **D-02.** Basis: CLI-only product shape (`docs/product/05` §2). A shell built before the claim is tested costs about 6× (`05` §2). Documents: AGENTS.md §1; T-0001 dependencies; roadmap B-1 row; ADR-0003 (status: accepted, since it records A-1).
+- **D-03.** Basis: a patent grant matters for CI use, AGPL inhibits enterprise adoption, and MIT has no patent grant (A-2). Documents: T-0001 (`LICENSE`). The exact text is approved by D-18; the root `LICENSE` is created by T-0001 from that text, so E-3 is satisfied.
+- **D-04.** Basis: single static binary, trivial cross-compile, cheap subprocess and concurrency. A rewrite after v0.1 is expensive (A-3). Documents: ADR-0001 (status: accepted); T-0001 (`go.mod`); AGENTS.md §4.1 (already states Go).
+- **D-05.** Basis: the floor-risk rationale in `05` §2 (a wrong floor breaks parsing on users' machines). The SP-1R3 matrix passed on 2.38.1 (Linux container) and 2.55.0 (Linux host); see `docs/readiness/07` §7. The approval says "initially", so the floor may move. Documents: T-0001 (CI floor and macOS leg); `readiness/06` E-5 and E-10; `planning/02` M0 dependencies.
+- **D-06.** Basis: a committed config makes verification a reviewable team decision (A-9). Documents: this file. No M0 document depends on it. Config loading is M1 (T-0103).
+
+- **D-16 (M0 lint).** Scope: `make lint` in M0 = `gofmt -l` over tracked Go files (fail on output), `go vet ./...`, and `go test ./internal/lint/importrule/...`. `staticcheck` remains the target quality bar but is deferred until separately approved as a tool dependency; AGENTS §4.1 preserves that requirement. `golangci-lint` is not added. This approves no tool installation and no dependency.
+- **D-17 (module path).** Scope: the `module` directive in `go.mod` and every import path. Base repository for CI, releases and clone instructions. Approval of the path does not approve the repository's visibility, creation, or any push.
+- **D-18 (LICENSE text).** Scope: the exact 11,358-byte Apache-2.0 text identified by the recorded SHA-256, with no copyright-holder line and the standard appendix placeholders. T-0001 copies it verbatim to root `LICENSE`; changing the text, adding a copyright line, or substituting another copy requires a new decision. This is the E-3 evidence, not M0 authorization.
+
+**Planning approvals (second approval, 2026-11-20, project owner).** Each row gives the approved selection, its basis, and the documents updated in this revision.
+
+| ID | Approved selection | Basis | Documents updated |
+|---|---|---|---|
+| **A-4** | Windows is excluded from V1. Inclusion in future versions remains OPEN. | The A-4 register row (scope and honest support claims; process-group semantics differ). | `open-questions` §1 note; `T-0001`; `readiness/06` E-5; `planning/01` B-1; `planning/02` M0 dependencies |
+| **S-1** | Port F1–F8 and F10 during M0. Retain F9 for fault-injection testing. Defer additional fixture classes. | F1–F10 are verified by SP-1R3 (28/28 on two Git versions). The other classes need product code before they can be asserted. | `T-0003`; `readiness/06` §3.1 and G0-3; `planning/05` G0 criterion 3; `planning/02` M0 deliverable 6 |
+| **S-2** | Python 3, Bash and Docker are permitted for development and test tooling only. Go remains the production CLI language. | D-04 (Go). The SP-1R3 harness is Python and Bash, and the 2.38.1 reference uses Docker. | `T-0005`; `AGENTS.md` §4.1 (policy file, for human review) |
+| **S-3** | Replace the obsolete merge-tree criterion (G0 criterion 5) with sequential-integration reference conformance, preserving meaningful acceptance coverage. | `readiness/02` X-02: `merge-tree` takes two commits only, so the tuple question has no preflight to decide. Reference conformance covers the four E-1′ cases on both approaches. | `planning/05` G0 criterion 5, entry line and sign-off artefact; `readiness/06` G0-6; `T-0005` AC-8 |
+| **S-4** | Approve the proposed Linux/macOS GitHub Actions CI scope, subject to review of the actual workflow before merge. | `AGENTS.md` §10.2 requires maintainer approval for `.github/`. Scope as proposed in `readiness/07` §6. | `T-0001` CI outline and AC-4. The workflow file is not created yet. |
+| **C-5** | Parameterize the hard-coded `/tmp/r3-cl` path in the harness test copy, preserving existing assertions. | The SP-1R3 runner condition. The patched copy changes three lines and passes 95/95 on Git 2.55.0 and 2.38.1 (`docs/research/09-git-floor.md` §5). | `T-0005` step 2; `readiness/07` §5.1 |
+| **C-7** | Rebuild the Git 2.38.1 reference environment from the pinned `Dockerfile.git238` and record the image digest. | The SP-1R3 verdict's "Release/future" item. Rebuilt 2026-11-20 with `--no-cache`. The Dockerfile's Git checksum check passed. Image ID `sha256:1044b988f91593334ab23b73b7b8ecbb308e49eda57c81ed86851677ef6fe859`. | `T-0005` step 5; `docs/research/09-git-floor.md` |
 
 ---
 
@@ -20,6 +66,10 @@ Owner column: `U` = user (founder/maintainer), `E` = engineering, `PM` = product
 | **A-8** | Telemetry | none / opt-in aggregate / default-on | **None by default; opt-in aggregate, counts only** | Trust precondition for Dana persona; changing later is a reputational event | U | NFR-109 |
 | **A-9** | Verification config location | committed `ilvuno.toml` / per-user / both | **Committed** | Makes verification a reviewable team decision, which is what reviewers want | PM | INT-301 |
 | **A-10** | Monetization gate | build paid now / gate on traction | **Gate: no paid feature before 20 weekly actives and M-1 ≥ 5%** | Prevents building infrastructure for an unmeasured problem | U | 06-monetization §6 |
+
+---
+
+**Status of §1 rows after §0.** A-1 → D-02 DECIDED. A-2 → D-03 DECIDED. A-3 → D-04 DECIDED. A-9 → D-06 DECIDED. **A-4: DECIDED for V1 (Windows excluded), 2026-11-20. Its inclusion in future versions remains OPEN.** D-05 covers platforms and does not address Windows; A-4 does. A-5, A-6, A-7, A-8 and A-10 remain OPEN. The §1 table is kept unchanged as the original request record.
 
 ---
 
@@ -120,4 +170,4 @@ Phase 2 is complete when:
 4. The banned-claims list (PRD Appendix A) is accepted as a release gate, not a style guide.
 
 Until then, no production code is written. Phase 3 begins with slice S1
-(`init`/`doctor`/`pin`/candidate) only after A-1, A-2, A-3, A-4, A-9 are answered.
+(`init`/`doctor`/`pin`/candidate) only after A-1, A-2, A-3, A-4, A-9 are answered. All five (A-1, A-2, A-3, A-4, A-9) are now DECIDED (§0).
