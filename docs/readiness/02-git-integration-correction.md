@@ -246,22 +246,50 @@ index lives under `.git/worktrees/<n>/index`, so the main checkout's index is un
 **Default: refuse.** Reasons: a driver is (a) arbitrary code with the user's privileges, (b) a
 determinism input that is invisible in a SHA, and (c) frequently not installed on other machines.
 
+**Status: proposed control (M2).** No code enforces this detection yet. The verified experiments
+(X-05, X-06) establish the risk — a driver can execute and write outside the repository — not the
+behaviour of the procedure below.
+
 Detection, fail-closed:
 
 ```
-1. configured = git config --get-regexp '^merge\..*\.driver$'
-   every value here is a command (or command list) that Git executes; none is a built-in
+1. read the configuration Git will actually use for this operation, in the same environment and
+   config sources as the merge itself (system, global, local/worktree, and any `-c` or
+   `GIT_CONFIG_*` overlay):
+     drivers = git config --get-regexp '^merge\..*\.driver$'
+     default = git config --get merge.default
+   every driver value is a command (or command list) Git executes; none is a built-in
    identifier. `true` and `:` are commands that succeed, so they are NOT safe built-ins.
 2. builtin behaviour is selected by attributes, not by this config: `binary`, `text` and
    `union` are merge *attribute* values handled inside Git. They never appear as
    `merge.<name>.driver` commands, and the driver config cannot select them.
-3. if configured is empty → allow
-4. selection = for each changed path, `git check-attr merge --source=<sha> -- <path>`
+3. `merge.default` holds a driver *name*, not a command. If it names a driver whose
+   `merge.<name>.driver` command is configured, mark the run driver-affected: every path whose
+   `merge` attribute is unspecified can be merged by that command.
+4. if no drivers are configured and `merge.default` is unset → allow
+5. selection = for each changed path, `git check-attr merge --source=<sha> -- <path>`
    (capability-probed; if --source is unsupported, scan `.gitattributes` blobs in the merged
-    trees plus `.git/info/attributes` and `core.attributesFile`)
-5. if any selected name matches a configured driver → refuse
+    trees plus `.git/info/attributes` and `core.attributesFile`). Record both the selected name
+   and whether the attribute was explicitly set or unspecified.
+6. if any selected name matches a configured driver → refuse
    `custom_merge_driver (name, command, paths)` and exit 2
+7. if any path's `merge` attribute is unspecified and `merge.default` names a configured driver
+   → refuse `custom_default_merge_driver (name, command, paths)` and exit 2
 ```
+
+Attribute inspection alone is insufficient: a path that sets no `merge` attribute inherits the
+`merge.default` driver, so a configured default can execute without appearing in `git check-attr`
+output. A `merge.default` name with no configured `merge.<name>.driver` is inert — Git falls back
+to its built-in text behaviour — so the refusal is keyed on the effective *(name, command)* pair,
+never on the name alone. A configured command is never presented as, or treated as, a built-in
+driver.
+
+**Limits.** This is a conservative detection and refusal procedure, not a sandbox. It does not
+bound merge behaviour from hooks, aliases, `merge.*` options outside the driver keys, attribute
+files read from outside the compared trees, environment variables, or a different Git binary than
+the one the check ran with; configuration can also change between the check and the merge. The run
+records the configuration fingerprint it acted on, and no complete protection against every possible
+Git configuration, hook or external environment is claimed.
 
 A configured command must never be treated as safe because it looks inert: `true` succeeds and
 discards the merge, `:` is equivalent, and either can corrupt content silently. Unapproved
@@ -269,8 +297,9 @@ configured commands are refused; approval is per command, not per name.
 
 Consent path `--allow-merge-drivers`:
 
-- prints the effective `merge.<name>.driver` commands and the affected paths, and requires
-  interactive confirmation (no `--yes`);
+- prints the effective `merge.<name>.driver` commands, the `merge.default` selection if any, and
+  the affected paths, and requires interactive confirmation (no `--yes`); approval is per command,
+  whether it was selected by an explicit attribute or by `merge.default`;
 - records `driver_used: true`, the driver names/commands digest, and the config fingerprint;
 - removes the run from the cross-machine reproducibility claim (`08` §1) and adds a warning to the
   report;
