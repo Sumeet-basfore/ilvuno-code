@@ -102,10 +102,12 @@ jobs:
           set -uo pipefail
           uptime
           sysctl -n hw.ncpu
-          go test -count=10 -run '^TestFingerprintMeetsTimingBudgetOn500Files$' -v ./internal/testkit/safety/ 2>&1 | tee "$RUNNER_TEMP/timing-isolated.log"
+          test_status=0
+          go test -count=10 -run '^TestFingerprintMeetsTimingBudgetOn500Files$' -v ./internal/testkit/safety/ 2>&1 | tee "$RUNNER_TEMP/timing-isolated.log" || test_status=$?
           grep 'worst of 5' "$RUNNER_TEMP/timing-isolated.log" || true
           uptime
-          python3 - "$RUNNER_TEMP" <<'PY'
+          measurement_status=0
+          python3 - "$RUNNER_TEMP" <<'PY' || measurement_status=$?
           import os, subprocess, sys, time, statistics
           base = sys.argv[1]
           repo = os.path.join(base, 'spawn-repo')
@@ -131,13 +133,15 @@ jobs:
               ts = []
               for _ in range(20):
                   t0 = time.perf_counter()
-                  subprocess.run(argv, cwd=repo, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                  subprocess.run(argv, cwd=repo, stdout=subprocess.DEVNULL, check=True)
                   ts.append((time.perf_counter() - t0) * 1000)
               print('%-30s median %7.2f ms  max %7.2f ms' % (name, statistics.median(ts), max(ts)))
               if not name.startswith('spawn'):
                   total += statistics.median(ts)
           print('sum of medians for one Take (7 git calls): %.1f ms' % total)
           PY
+          if [ "$measurement_status" -ne 0 ]; then exit "$measurement_status"; fi
+          exit "$test_status"
 
       - name: Test
         run: make test
@@ -177,6 +181,7 @@ jobs:
             -e TMPDIR=/scratch -e SP1_GIT_BIN=/usr/local/bin/git \
             ilvuno-git238r:ci bash -c '
               set -euo pipefail
+              export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
               bash testdata/reference/check-reference-test.sh
               testdata/reference/check-reference.sh matrix
               testdata/reference/check-reference.sh tests'
