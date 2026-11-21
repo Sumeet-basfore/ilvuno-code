@@ -1,0 +1,21 @@
+# PR #2 hosted CI, run 44797155359 (head a526c43, 2026-11-20). Extracted from gh run view --log-failed and --log.
+# Summarised, not copied: only the failing lines and each job's runner git version are kept.
+
+## Job 136499557093: reference negative tests and tests.sh (ubuntu-latest), conclusion FAILURE
+runner: 2026-11-20T18:54:29.0129037Z git version 2.56.1
+2026-11-20T18:54:34.1172497Z check-reference-test: 86 passed, 0 failed
+2026-11-20T18:55:00.8546900Z FAIL  P1.4 the real matrix passes  [python3 expected.py --check ... (paths elided)]
+2026-11-20T18:55:02.9853004Z 94 passed, 1 failed
+2026-11-20T18:55:02.9857252Z check-reference: tests.sh failed
+2026-11-20T18:55:03.1228799Z make: *** [Makefile:49: reference-tests] Error 1
+
+## Job 136499557095: reference negative tests and tests.sh (macos-latest), conclusion FAILURE
+runner: 2026-11-20T18:54:29.0638200Z git version 2.56.1
+2026-11-20T18:54:31.4235490Z FAIL  AC-9 cp failure names the injected step
+2026-11-20T18:54:31.4782080Z FAIL  AC-9 rm failure names the injected step
+2026-11-20T18:54:31.7122800Z FAIL  AC-12 mismatch is reported with a diff
+2026-11-20T18:54:32.2650620Z check-reference-test: 83 passed, 3 failed
+2026-11-20T18:54:32.2768110Z make: *** [reference-tests] Error 1
+
+## Other PR #2 jobs (reported by gh pr view 2): build, test, lint on ubuntu-latest and macos-latest: SUCCESS;
+## reference matrix and tests on Git 2.38.1 (pinned image): SUCCESS; matrix fails when git fails: SUCCESS.

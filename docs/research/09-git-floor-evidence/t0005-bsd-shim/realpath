@@ -1,0 +1,3 @@
+#!/bin/sh
+# Absent on the target platform.
+echo "realpath: command not found" >&2; exit 127

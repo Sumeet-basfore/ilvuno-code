@@ -1,0 +1,6 @@
+git version 2.38.1
+PASS: 28 cases, all fields match expectations
+matrix rc=0
+
+95 passed, 0 failed
+tests rc=0

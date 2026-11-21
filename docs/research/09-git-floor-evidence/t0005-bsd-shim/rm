@@ -1,0 +1,6 @@
+#!/bin/sh
+# BSD rm: no --version and no --one-file-system.
+for a in "$@"; do
+  case "$a" in --version|--one-file-system) echo "rm: illegal option -- -" >&2; exit 1 ;; esac
+done
+exec /usr/bin/rm "$@"

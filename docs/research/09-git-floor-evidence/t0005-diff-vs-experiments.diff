@@ -1,0 +1,420 @@
+# T-0005: testdata/reference (final) compared with docs/experiments/scripts at a526c43, 2026-11-21.
+# Files present only in testdata/reference are listed at the end (new in T-0005).
+--- a/docs/experiments/scripts/lib.sh
++++ b/testdata/reference/lib.sh
+@@ -6,6 +6,8 @@
+ # docs/experiments/sp1r2-closure-evidence.md. Production hostile-filesystem
+ # cleanup remains a later security gate.
+ set -uo pipefail
++# Never write .pyc files, so a direct run cannot add bytecode to this (tracked) directory.
++export PYTHONDONTWRITEBYTECODE=1
+ 
+ SP1_SELF=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+ SP1_LABEL_RE='^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$'
+@@ -13,6 +15,41 @@
+ 
+ die() { printf 'sp1r: %s\n' "$*" >&2; exit 2; }
+ 
++# ------------------------------------------------- portability (GNU and BSD userland) --
++# The harness runs on Linux (GNU userland) and macOS (BSD userland, bash 3.2). Each helper picks
++# the form that both accept. None of them changes what the oracle records.
++sha256_cmd() { # prints the SHA-256 command that works here: GNU sha256sum, or BSD shasum -a 256
++  if printf '' | sha256sum >/dev/null 2>&1; then echo sha256sum
++  elif printf '' | shasum -a 256 >/dev/null 2>&1; then echo "shasum -a 256"
++  else return 1; fi
++}
++sha256_of() { # sha256_of FILE: SHA-256 hex digest of FILE
++  local c; c=$(sha256_cmd) || die "no SHA-256 tool (sha256sum or shasum)"
++  $c "$1" | cut -d' ' -f1
++}
++sha256_stdin() { # SHA-256 hex digest of standard input
++  local c; c=$(sha256_cmd) || die "no SHA-256 tool (sha256sum or shasum)"
++  $c | cut -d' ' -f1
++}
++sed_inplace() { # sed_inplace SCRIPT FILE: in-place edit without a backup suffix (BSD sed needs one)
++  local s=$1 f=$2
++  sed -e "$s" "$f" > "$f.sed.$$" || { rm -f -- "$f.sed.$$"; return 1; }
++  cat "$f.sed.$$" > "$f" && rm -f -- "$f.sed.$$"
++}
++file_uid() { stat -c %u "$1" 2>/dev/null || stat -f %u "$1" 2>/dev/null; }   # GNU, then BSD
++canon_path() { # canon_path P: canonical absolute path of P; the parent of P must exist (no realpath -m)
++  local p=$1 d b
++  case "$p" in */*) ;; *) return 1 ;; esac
++  d=${p%/*}; b=${p##*/}
++  [ -n "$b" ] || return 1
++  [ -n "$d" ] || d=/
++  d=$(cd -P -- "$d" 2>/dev/null && pwd -P) || return 1
++  case "$d" in /) printf '/%s\n' "$b" ;; *) printf '%s/%s\n' "$d" "$b" ;; esac
++}
++rm_tree() { # rm_tree PATH: recursive delete; GNU rm also stays on one filesystem (BSD rm has no such option)
++  if rm --version >/dev/null 2>&1; then rm -rf --one-file-system -- "$1"; else rm -rf -- "$1"; fi
++}
++
+ # ------------------------------------------------------------------ scratch --
+ # A unique, private root per invocation. A caller-supplied path is treated as a
+ # PARENT: we create a new exclusive child and never delete or modify the parent
+@@ -32,7 +69,7 @@
+     [ -d "$parent" ] || die "SP1_SCRATCH parent is not a directory: $parent"
+     case "$parent" in /*) ;; *) die "SP1_SCRATCH must be absolute" ;; esac
+     [ -L "$parent" ] && die "SP1_SCRATCH parent must not be a symlink"
+-    [ "$(stat -c %u "$parent")" = "$(id -u)" ] || die "SP1_SCRATCH parent not owned by current user"
++    [ "$(file_uid "$parent")" = "$(id -u)" ] || die "SP1_SCRATCH parent not owned by current user"
+     real=$(cd "$parent" && pwd -P)
+     SP1_SCRATCH_IS_PARENT=1
+     child="$real/run-$id"
+@@ -92,7 +129,7 @@
+     unset IFS
+   fi
+   find -P "$root" -type d -exec chmod u+w {} + 2>/dev/null || true
+-  if rm -rf --one-file-system -- "$root"; then
++  if rm_tree "$root"; then
+     printf 'cleanup: removed %s\n' "$root" >&2
+     return 0
+   fi
+@@ -118,7 +155,7 @@
+ }
+ 
+ # ------------------------------------------------------------------- delete --
+-_owner_ok() { [ "$(stat -c %u "$1" 2>/dev/null)" = "$(id -u)" ]; }
++_owner_ok() { [ "$(file_uid "$1")" = "$(id -u)" ]; }
+ 
+ # The only recursive delete. Refuses anything not beneath the run-owned root.
+ # NOTE: check/use window exists; see the threat-model note at the top.
+@@ -128,7 +165,7 @@
+   case "$p" in /|.|..) die "safe_rmrf: refusing $p" ;; esac
+   case "$p" in "$SP1_SCRATCH"/*) ;; *) die "safe_rmrf: outside run-owned root: $p" ;; esac
+   [ -L "$p" ] && die "safe_rmrf: refusing symlink: $p"
+-  local real; real=$(realpath -m -- "$p") || die "safe_rmrf: realpath failed"
++  local real; real=$(canon_path "$p") || die "safe_rmrf: canonicalisation failed"
+   case "$real" in "$SP1_SCRATCH"/*) ;; *) die "safe_rmrf: escapes after resolve" ;; esac
+   local comp=$SP1_SCRATCH part
+   local rel=${real#"$SP1_SCRATCH"/}
+@@ -141,7 +178,7 @@
+   unset IFS
+   [ -e "$real" ] || return 0
+   find -P "$real" -type d -exec chmod u+w {} + 2>/dev/null || true
+-  rm -rf --one-file-system -- "$real"
++  rm_tree "$real"
+ }
+ 
+ # ------------------------------------------------------------ repo registry --
+@@ -261,14 +298,14 @@
+   local repo=$1; shift
+   { gitx -C "$repo" rev-parse HEAD 2>/dev/null || echo none
+     gitx -C "$repo" status --porcelain=v1 2>/dev/null
+-    gitx -C "$repo" ls-files -s 2>/dev/null | sha256sum
++    gitx -C "$repo" ls-files -s 2>/dev/null | sha256_stdin
+     gitx -C "$repo" stash list 2>/dev/null
+     refs_without "$repo" "$@"
+-    gitx -C "$repo" config --local --list 2>/dev/null | sha256sum
++    gitx -C "$repo" config --local --list 2>/dev/null | sha256_stdin
+     gitx -C "$repo" worktree list --porcelain 2>/dev/null \
+       | awk -v p="$SP1_SCRATCH" '/^worktree /{skip=(index($0,"worktree " p)==1)} !skip' || true
+     ls -1 "$repo/.git/hooks" 2>/dev/null || true
+-  } | sha256sum | cut -d' ' -f1
++  } | sha256_stdin
+ }
+ 
+ unmerged_paths() { # src.nul dest.nul
+@@ -348,4 +385,11 @@
+   for e in "$@"; do printf '%s\0' "$e" >> "$out/$key.nul"; done
+ }
+ 
+-read_nul() { local f=$1 name=$2; mapfile -d '' -t "$name" < "$f" 2>/dev/null || true; }
++# read_nul FILE NAME: fill array NAME with the NUL-terminated records of FILE. Written without mapfile -d,
++# which bash 3.2 (the macOS default) lacks. A missing file is an error, not an empty list.
++read_nul() {
++  local f=$1 name=$2 item
++  [ -f "$f" ] || die "read_nul: missing $f"
++  eval "$name=()"
++  while IFS= read -r -d '' item || [ -n "$item" ]; do eval "$name+=(\"\$item\")"; done < "$f"
++}
+# missing in testdata/reference: __pycache__
+--- a/docs/experiments/scripts/README.md
++++ b/testdata/reference/README.md
+@@ -1,24 +1,42 @@
+-# SP-1R2 harness scripts (throwaway)
++# SP-1R3 reference harness (testdata/reference)
++
++Reconciled against `docs/experiments/scripts/README.md` on `origin/main` (T-0005). The text below
++keeps that README, with the adaptations listed in **Adaptations in this copy**. Those changes are
++the only differences; the harness is the reference oracle for sequential two-way merges.
+ 
+ Remediated experiment harness for SP-1. Not production code. **It does not accept
+ caller-supplied repositories**: every repository is created by the invocation that uses it.
+ 
++This directory is the **reference behaviour** for sequential two-way merges. It is not
++`merge-tree` equivalence, and nothing here is compiled into the `ilvuno` binary.
++
++## Entry points (T-0005)
++
++```bash
++make reference-matrix    # check-reference.sh matrix on a fresh private root (R3-1)
++make reference-tests     # negative tests AC-9 to AC-13, then tests.sh (95 assertions)
++```
++
++`check-reference.sh oracle|matrix|tests` is the wrapper that enforces R3-1 to R3-3. It needs
++`TMPDIR` set to an absolute, canonical, existing, mode-700 directory, owned by you and outside the
++work tree. It copies this directory into a private root and runs the harness there.
++
++**Do not run `./sp1.sh oracle` in this directory.** It would overwrite the tracked `oracle.json`
++(R3-3). Use `check-reference.sh oracle`, which regenerates the oracle in a fresh copy and compares it
++with the tracked file.
++
+ ## Commands
+ 
+-> **Historical commands.** The `./sp1.sh` and `./tests.sh` invocations below are the historical
+-> SP-1R2 harness entry points. They are **not available in a clean checkout of the current governance
+-> HEAD**: this directory holds only this README at that revision. The reference harness lands with
+-> **T-0005**, as `testdata/reference/**`; use those commands there. This note changes no historical
+-> record and adds no script.
++Run from this directory, with `SP1_SCRATCH` set to a private directory outside the work tree.
+ 
+ ```bash
+ ./sp1.sh fixtures        # 10 fixtures under the run-owned scratch root
+ ./sp1.sh matrix          # 28 asserted cases; exits 1 on any missing/mismatched row
+-./sp1.sh oracle          # writes oracle.json from direct, Git-native merges
+-./sp1.sh matrix --update-expected   # rebuild expected.json from spec+oracle; refuses on disagreement
+ ./sp1.sh probes          # P1..P5 characterization (informational)
+ ./sp1.sh run F1-two-clean object plain
+ ./tests.sh               # 95 negative/security/evidence assertions
++# ./sp1.sh oracle        # do not run here: use check-reference.sh oracle (see above)
++# ./sp1.sh matrix --update-expected   # rebuild expected.json from spec+oracle; refuses on disagreement
+ ```
+ 
+ Case count: **10 fixtures × 2 approaches = 20 plain rows**, plus **4 variant pairs × 2 = 8 rows**,
+@@ -53,6 +71,10 @@
+     -c commit.gpgsign=false -c submodule.recurse=false ...
+ ```
+ 
++The fixture base commits use the identity `fixture <fixture@example.com>` and the date
++`2020-01-01T00:00:00Z`. Integration commits made by the harness use `ilvuno <ilvuno@localhost>`.
++The two are intentionally different: the base identity reproduces the oracle's base SHAs (T-0002 AC-7).
++
+ Before any write, and again before every merge step, a repository that configures an executable
+ feature is **refused** (verdict `harness_refused`, exit 4): `filter.*.smudge|clean|process`,
+ `merge.default`, non-builtin `merge.*.driver`, `diff.*.command|textconv`, enabled
+@@ -76,18 +98,18 @@
+ 
+ ## Docker: Git 2.38.1 floor
+ 
++The image pins the Alpine base digest and the Git tarball SHA-256 in `Dockerfile.git238`.
++CI builds it from an empty context; the wrapper and tests run inside it:
++
+ ```bash
+-docker build -f Dockerfile.git238 -t ilvuno-git238r .
+-docker run --rm -u "$(id -u)":"$(id -g)" -v "$PWD":/sp1r -w /sp1r \
+-  -e SP1_GIT_BIN=/usr/local/bin/git -e SP1_SCRATCH=/tmp/sp1-c \
+-  ilvuno-git238r bash -lc 'mkdir -m700 -p "$SP1_SCRATCH"; ./sp1.sh matrix && ./tests.sh'
++docker build --no-cache -f testdata/reference/Dockerfile.git238 -t ilvuno-git238r <empty-directory>
++docker run --rm -u "$(id -u)":"$(id -g)" -v "$PWD":/src:ro -v "$SCRATCH":/scratch -w /src \
++  -e TMPDIR=/scratch -e SP1_GIT_BIN=/usr/local/bin/git --entrypoint bash ilvuno-git238r -c \
++  'set -euo pipefail; bash testdata/reference/check-reference-test.sh; testdata/reference/check-reference.sh matrix; testdata/reference/check-reference.sh tests'
+ ```
+ 
+-`SP1_SCRATCH` must be outside the mount. Run as your own UID; ownership checks and the
+-permission-failure probe depend on it.
+-
+-The image pins the Alpine base digest and the Git source tarball SHA-256 (see
+-`sp1r-reproducibility.md`).
++`SCRATCH` is a private mode-700 directory outside the repository, and it is mounted read-write.
++Run as your own UID; ownership checks depend on it.
+ 
+ ## Fixtures
+ 
+@@ -110,3 +132,27 @@
+ `oracle.json` (independent Git-native candidate, tree, content, conflict step/paths). It is never
+ derived from the pipeline being tested. `--update` validates the observed run strictly and refuses
+ if it disagrees with the oracle.
++
++`tests.sh` (P1.4) asserts that the matrix ran on a supported Git (2.55.0 or 2.38.1). It therefore
++fails by design on any other Git, so run it only on those versions. CI runs it in the pinned image.
++
++## Adaptations in this copy (T-0005)
++
++| Change | Where | Why |
++|---|---|---|
++| Location: `docs/experiments/scripts/` to `testdata/reference/` | the whole directory | the approved T-0005 scope |
++| Historical-commands note removed; commands refer to this directory | this README | the note said the harness was absent from the checkout |
++| C-5: `/tmp/r3-cl` to `$T/r3-cl` (3 lines) | `tests.sh` | approved; `docs/research/09-git-floor.md` §5 |
++| `check-reference.sh`, `check-reference-test.sh` | new | the R3-1 to R3-3 wrapper and its AC-9 to AC-13 tests |
++| No `--` after an operand (`chmod`, `stat`) | wrapper, `lib.sh` | BSD `getopt` reads that `--` as a file name (macOS failure) |
++| SHA-256 through `sha256sum`, else `shasum -a 256` | `lib.sh`, `sp1.sh`, `tests.sh`, `check-reference-test.sh` | macOS has no `sha256sum` |
++| In-place edits without `sed -i` (helper `sed_inplace`) | `sp1.sh`, `tests.sh` | BSD `sed -i` takes the next argument as a backup suffix |
++| `stat -c` with a BSD `stat -f` fallback; no `realpath -m`; `rm --one-file-system` only where GNU `rm` is | `lib.sh`, `sp1.sh` | GNU-only options |
++| No `mapfile -d` (`read_nul` is a read loop) | `lib.sh` | bash 3.2, the macOS default, has no `mapfile -d` |
++| `read_nul` fails on a missing file (was silent); runners require their output directory | `lib.sh`, `sp1.sh` | a silent empty list hid missing output; the P4 test had relied on it |
++| P4 creates its output directories (`mkout`) | `tests.sh` | the test wrote into directories it never made |
++| `tests.sh` removes its `sp1r2-victim-<pid>` fixture on exit | `tests.sh` | R3-4 residue; the fixture is this process's own |
++
++The portability changes keep the output unchanged: the oracle regenerated in a fresh copy is
++byte-identical to the tracked `oracle.json` under both the GNU userland and the BSD-semantics shims
++(`docs/research/09-git-floor.md` §9).
+--- a/docs/experiments/scripts/sp1.sh
++++ b/testdata/reference/sp1.sh
+@@ -18,7 +18,7 @@
+ build_fixture() { # name dest
+   local name=$1 dest=$2
+   chmod -R u+w "$dest" 2>/dev/null || true
+-  rm -rf --one-file-system -- "$dest"
++  rm_tree "$dest"
+   mkdir -p "$dest"
+   ( cd "$dest" || exit 1
+     gitx init -q -b main .
+@@ -28,21 +28,21 @@
+     br() { gitx checkout -q main; gitx checkout -qB "$1" "$BASE"; }
+     cm() { gitx add -A; gitx commit -qm "$1"; gitx rev-parse HEAD; }
+     case "$name" in
+-      F1-two-clean)   br s1; sed -i '2s/.*/s1-line2/' shared.txt; echo one > s1.txt; S1=$(cm s1)
+-                      br s2; sed -i '10s/.*/s2-line10/' shared.txt; echo two > s2.txt; S2=$(cm s2); SRCS="$S1 $S2" ;;
+-      F2-three-clean) br s1; sed -i '2s/.*/s1-line2/' shared.txt; echo one > s1.txt; S1=$(cm s1)
+-                      br s2; sed -i '10s/.*/s2-line10/' shared.txt; echo two > s2.txt; S2=$(cm s2)
+-                      br s3; sed -i '6s/.*/s3-line6/' shared.txt; echo three > s3.txt; S3=$(cm s3)
++      F1-two-clean)   br s1; sed_inplace '2s/.*/s1-line2/' shared.txt; echo one > s1.txt; S1=$(cm s1)
++                      br s2; sed_inplace '10s/.*/s2-line10/' shared.txt; echo two > s2.txt; S2=$(cm s2); SRCS="$S1 $S2" ;;
++      F2-three-clean) br s1; sed_inplace '2s/.*/s1-line2/' shared.txt; echo one > s1.txt; S1=$(cm s1)
++                      br s2; sed_inplace '10s/.*/s2-line10/' shared.txt; echo two > s2.txt; S2=$(cm s2)
++                      br s3; sed_inplace '6s/.*/s3-line6/' shared.txt; echo three > s3.txt; S3=$(cm s3)
+                       SRCS="$S1 $S2 $S3" ;;
+-      F3-direct-conflict) br s1; sed -i '2s/.*/s1-wins/' shared.txt; S1=$(cm s1)
+-                      br s2; sed -i '2s/.*/s2-wins/' shared.txt; S2=$(cm s2); SRCS="$S1 $S2" ;;
+-      F4-conflict-step2) br s1; sed -i '2s/.*/s1-wins/' shared.txt; S1=$(cm s1)
+-                      br s2; sed -i '2s/.*/s2-wins/' shared.txt; S2=$(cm s2)
+-                      br s3; sed -i '11s/.*/s3-line11/' shared.txt; S3=$(cm s3); SRCS="$S1 $S2 $S3" ;;
+-      F5-already-integrated) br s1; sed -i '2s/.*/s1-line2/' shared.txt; S1=$(cm s1)
++      F3-direct-conflict) br s1; sed_inplace '2s/.*/s1-wins/' shared.txt; S1=$(cm s1)
++                      br s2; sed_inplace '2s/.*/s2-wins/' shared.txt; S2=$(cm s2); SRCS="$S1 $S2" ;;
++      F4-conflict-step2) br s1; sed_inplace '2s/.*/s1-wins/' shared.txt; S1=$(cm s1)
++                      br s2; sed_inplace '2s/.*/s2-wins/' shared.txt; S2=$(cm s2)
++                      br s3; sed_inplace '11s/.*/s3-line11/' shared.txt; S3=$(cm s3); SRCS="$S1 $S2 $S3" ;;
++      F5-already-integrated) br s1; sed_inplace '2s/.*/s1-line2/' shared.txt; S1=$(cm s1)
+                       gitx checkout -q main; gitx merge -q --no-ff -m "merge s1" "$S1"; BASE=$(gitx rev-parse HEAD)
+-                      br s2; sed -i '10s/.*/s2-line10/' shared.txt; S2=$(cm s2); SRCS="$S1 $S2" ;;
+-      F6-unrelated)   br s1; sed -i '2s/.*/s1-line2/' shared.txt; S1=$(cm s1)
++                      br s2; sed_inplace '10s/.*/s2-line10/' shared.txt; S2=$(cm s2); SRCS="$S1 $S2" ;;
++      F6-unrelated)   br s1; sed_inplace '2s/.*/s1-line2/' shared.txt; S1=$(cm s1)
+                       gitx checkout -q --orphan orphan; gitx rm -rqf .; echo unrelated > u.txt
+                       gitx add -A; gitx commit -qm orphan; S2=$(gitx rev-parse HEAD); gitx checkout -q main
+                       SRCS="$S1 $S2" ;;
+@@ -58,8 +58,8 @@
+                       gitx config merge.upper.driver "sh -c 'echo ran >> \"${DRIVER_MARKER:-/nonexistent}\"; tr a-z A-Z < %A > %A.tmp && mv %A.tmp %A'"
+                       br s1; printf 'hello from s1\n' > driverfile.txt; S1=$(cm s1)
+                       br s2; printf 'hello from s2\n' > driverfile.txt; S2=$(cm s2); SRCS="$S1 $S2" ;;
+-      F9-cleanup)     br s1; sed -i '2s/.*/s1-line2/' shared.txt; S1=$(cm s1)
+-                      br s2; sed -i '10s/.*/s2-line10/' shared.txt; S2=$(cm s2); SRCS="$S1 $S2" ;;
++      F9-cleanup)     br s1; sed_inplace '2s/.*/s1-line2/' shared.txt; S1=$(cm s1)
++                      br s2; sed_inplace '10s/.*/s2-line10/' shared.txt; S2=$(cm s2); SRCS="$S1 $S2" ;;
+       F10-newline-path) br s1; printf 'v1\n' > "line
+ break.txt"; S1=$(cm s1)
+                       br s2; printf 'v2\n' > "line
+@@ -70,7 +70,7 @@
+     {
+       printf 'FORMAT=1\nBASE=%s\n' "$BASE"
+       printf 'SRCS=%s\n' "$SRCS"
+-      if [ -f check.sh ]; then printf 'CHECK_SHA256=%s\n' "$(sha256sum check.sh | cut -d' ' -f1)"; fi
++      if [ -f check.sh ]; then printf 'CHECK_SHA256=%s\n' "$(sha256_of check.sh)"; fi
+     } > .git/sp1-meta.env
+   )
+   register_repo "$dest"
+@@ -80,6 +80,7 @@
+ run_object() { # repo out variant
+   local repo=$1 out=$2 variant=${3:-plain}
+   is_registered_repo "$repo" || die "unregistered repository"
++  [ -d "$out" ] || die "output directory missing (the caller must create it): $out"
+   read_manifest "$repo/.git/sp1-meta.env" || { printf 'bad manifest\n' >&2; emit_json "$out" approach object fixture "${SP1_FIXTURE:-?}" variant "$variant" verdict harness_refused exit 4 conflict_step 0 check_rc -1 cleanup ok user_state_unchanged no refs_left 0 worktrees_left 0 objects_before 0 objects_after 0 drivers_ran no git_version "$(gitx --version | awk '{print $3}')" os "$(uname -s)" base "" sources "" merge_policy "" metadata "" candidate "" tree ""; return 4; }
+   local acc=$M_BASE i=0 n steps="" cstep=0 verdict=ok exitc=0 check_rc=-1 cleanup=ok
+   local paths_file="$out/conflict_paths.nul"; : > "$paths_file"
+@@ -136,7 +137,7 @@
+       mkdir -p "$out/candidate"
+       if gitx -C "$repo" worktree add -q --detach "$out/candidate" "$acc" 2>"$out/wt.err"; then
+         if [ -f "$out/candidate/check.sh" ]; then
+-          local got; got=$(sha256sum "$out/candidate/check.sh" | cut -d' ' -f1)
++          local got; got=$(sha256_of "$out/candidate/check.sh")
+           if [ "${M_CHECK:-}" != "$got" ]; then verdict=harness_refused; exitc=4
+             printf 'check.sh digest mismatch\n' >> "$out/refusal.txt"
+           else ( cd "$out/candidate" && sh ./check.sh ) > "$out/check.log" 2>&1; check_rc=$?; fi
+@@ -181,6 +182,7 @@
+ run_worktree() { # repo out variant
+   local repo=$1 out=$2 variant=${3:-plain}
+   is_registered_repo "$repo" || die "unregistered repository"
++  [ -d "$out" ] || die "output directory missing (the caller must create it): $out"
+   read_manifest "$repo/.git/sp1-meta.env" || { emit_json "$out" approach worktree fixture "${SP1_FIXTURE:-?}" variant "$variant" verdict harness_refused exit 4 conflict_step 0 check_rc -1 cleanup ok user_state_unchanged no refs_left 0 worktrees_left 0 objects_before 0 objects_after 0 drivers_ran no git_version "$(gitx --version | awk '{print $3}')" os "$(uname -s)" base "" sources "" merge_policy "" metadata "" candidate "" tree ""; return 4; }
+   local wt="$out/candidate" i=0 n=${#M_SRCS[@]} steps="" cstep=0 verdict=ok exitc=0 check_rc=-1 cleanup=ok
+   local paths_file="$out/conflict_paths.nul"; : > "$paths_file"
+@@ -236,7 +238,7 @@
+       local blob; blob=$(gitx -C "$repo" hash-object -w "$out/meta.txt")
+       gitx -C "$repo" update-ref "$MREF" "$blob" "" || true
+       if [ -f "$wt/check.sh" ]; then
+-        local got; got=$(sha256sum "$wt/check.sh" | cut -d' ' -f1)
++        local got; got=$(sha256_of "$wt/check.sh")
+         if [ "${M_CHECK:-}" != "$got" ]; then verdict=harness_refused; exitc=4
+           printf 'check.sh digest mismatch\n' >> "$out/refusal.txt"
+         else ( cd "$wt" && sh ./check.sh ) > "$out/check.log" 2>&1; check_rc=$?; fi
+@@ -349,7 +351,7 @@
+   for mode in with-ignore without-ignore; do
+     local r="$SP1_SCRATCH/runs/probe-ignore-$mode"; mkdir -p "$r"
+     build_fixture F9-cleanup "$r/repo" >/dev/null 2>&1
+-    [ "$mode" = without-ignore ] && sed -i '/\.ilvuno/d' "$r/repo/.gitignore" && gitx -C "$r/repo" commit -qam "drop ignore"
++    [ "$mode" = without-ignore ] && sed_inplace '/\.ilvuno/d' "$r/repo/.gitignore" && gitx -C "$r/repo" commit -qam "drop ignore"
+     mkdir -p "$r/repo/.ilvuno/worktrees"
+     gitx -C "$r/repo" worktree add -q --detach "$r/repo/.ilvuno/worktrees/x" HEAD 2>/dev/null
+     local st; st=$(gitx -C "$r/repo" status --porcelain | head -3 | paste -sd'|')
+--- a/docs/experiments/scripts/tests.sh
++++ b/testdata/reference/tests.sh
+@@ -14,6 +14,9 @@
+ check() { local n=$1; shift; if "$@" >/dev/null 2>&1; then ok "$n"; else bad "$n" "$*"; fi; }
+ expect_fail() { local n=$1; shift; if ( "$@" ) >/dev/null 2>&1; then bad "$n" "unexpected success"; else ok "$n"; fi; }
+ victim="${TMPDIR:-/tmp}/sp1r2-victim-$$"; rm -rf "$victim"; mkdir -p "$victim"; echo sentinel > "$victim/sentinel"
++# The victim sits outside the run's scratch root on purpose (P0.2 and P0.6 check that nothing deletes it).
++# It is this process's own fixture, so it is removed on exit, and nothing is left in TMPDIR (AC-2).
++trap 'rm -rf -- "$victim"' EXIT
+ 
+ # ---------------------------------------------------------------- fixtures --
+ mk_repo() { # dest  (registered, so pipelines may run on it)
+@@ -149,7 +152,7 @@
+ r="$T/sg9"; mk_repo "$r"; b=$(read_manifest "$r/.git/sp1-meta.env" && echo "$M_BASE"); s1="${M_SRCS[0]}"; s2="${M_SRCS[1]}"
+ gitx -C "$r" checkout -q "$s1"; printf '#!/bin/sh\nexit 0\n' > "$r/check.sh"; chmod +x "$r/check.sh"
+ gitx -C "$r" add check.sh; gitx -C "$r" commit -qm check; s1c=$(gitx -C "$r" rev-parse HEAD)
+-clean=$(sha256sum "$r/check.sh" | cut -d' ' -f1)
++clean=$(sha256_of "$r/check.sh")
+ printf '#!/bin/sh\necho tampered >> "%s"\n' "$T/sg9.marker" > "$r/check.sh"; chmod +x "$r/check.sh"
+ gitx -C "$r" add check.sh; gitx -C "$r" commit -qm tamper; s1t=$(gitx -C "$r" rev-parse HEAD)
+ gitx -C "$r" checkout -q main
+@@ -236,8 +239,8 @@
+ 
+ # --------------------------------------------------------------- repeat -----
+ r="$T/repeat"; mk_repo "$r"
+-run_worktree "$r" "$T/out-r1" plain >/dev/null 2>&1; a=$?
+-run_worktree "$r" "$T/out-r2" plain >/dev/null 2>&1; b=$?
++mkout "$T/out-r1"; run_worktree "$r" "$T/out-r1" plain >/dev/null 2>&1; a=$?
++mkout "$T/out-r2"; run_worktree "$r" "$T/out-r2" plain >/dev/null 2>&1; b=$?
+ check "P4 repeated invocation succeeds" test "$a" = 0 -a "$b" = 0
+ check "P4b no worktrees left" test "$(ours_wt "$r")" = 0
+ check "P4c no refs left" test "$(gitx -C "$r" for-each-ref --format='%(refname)' | grep -c 'refs/ilvuno/runs/' || true)" = 0
+@@ -302,7 +305,7 @@
+ check "N1e no output on refusal" test ! -e "$T/out-n1a/unreg.json"
+ # N1f: invalid ownership marker
+ cp "$T/n1a-reg.tsv" "$SP1_SCRATCH/oracle-repos.tsv"
+-sed -i 's/^id=.*/id=deadbeef/' "$SP1_SCRATCH/.sp1r-owner"
++sed_inplace 's/^id=.*/id=deadbeef/' "$SP1_SCRATCH/.sp1r-owner"
+ python3 "$SP1_SELF/oracle.py" "$SP1_SCRATCH" "$T/out-n1a/badmarker.json" F8-driver >/dev/null 2>&1
+ check "N1f invalid ownership marker refused" test $? -ne 0
+ check "N1g no output on bad marker" test ! -e "$T/out-n1a/badmarker.json"
+@@ -395,10 +398,10 @@
+ check "N4.2 run child removed" test "$(find "$cp2" -maxdepth 1 -type d -name 'run-*' | wc -l | tr -d ' ')" = 0
+ check "N4.3 parent sentinel preserved" test -f "$cp2/sentinel"
+ # Cleanup refuses a mismatched run id and reports it.
+-rm -rf /tmp/r3-cl; mkdir -m700 /tmp/r3-cl
+-outc=$(SP1_LIB_ONLY=1 bash -c '. "$0/lib.sh"; export SP1_SCRATCH="$1"; init_scratch >/dev/null; SP1_RUN_ID=bogus cleanup_scratch; echo "rc=$?"' "$SP1_SELF" /tmp/r3-cl 2>&1)
++rm -rf $T/r3-cl; mkdir -m700 $T/r3-cl
++outc=$(SP1_LIB_ONLY=1 bash -c '. "$0/lib.sh"; export SP1_SCRATCH="$1"; init_scratch >/dev/null; SP1_RUN_ID=bogus cleanup_scratch; echo "rc=$?"' "$SP1_SELF" $T/r3-cl 2>&1)
+ check "N4.4 cleanup refuses wrong run id" bash -c "echo '$outc' | grep -q 'rc=1'"
+-check "N4.5 refused cleanup keeps the root" bash -c "test -n \"\$(find /tmp/r3-cl -maxdepth 1 -type d -name 'run-*')\""
++check "N4.5 refused cleanup keeps the root" bash -c "test -n \"\$(find $T/r3-cl -maxdepth 1 -type d -name 'run-*')\""
+ check "N4.6 cleanup failure is reported" bash -c "echo '$outc' | grep -q 'marker id mismatch'"
+ 
+ # ------------------------------------------------------------------ report --
+# new in testdata/reference:
+#   check-reference.md
+#   check-reference.sh
+#   check-reference-test.sh

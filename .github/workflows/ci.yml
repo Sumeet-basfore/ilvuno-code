@@ -1,4 +1,5 @@
 # T-0001 CI: build, test and lint on Linux and macOS, with the Git floor check.
+# T-0005 adds the reference-harness jobs below, reviewed before merge (AGENTS §10.2).
 # Reviewed before merge (AGENTS §10.2; S-4). The only action used is actions/checkout.
 name: ci
 
@@ -100,3 +101,85 @@ jobs:
 
       - name: Docs check
         run: make docs-check
+
+  # T-0005: the reference harness on the pinned Git 2.38.1 image. The wrapper runs in the container
+  # as the runner's own uid, so the private roots it creates are owned by that uid (R3-1).
+  reference-git-2-38-1:
+    name: reference matrix and tests on Git 2.38.1 (pinned image)
+    runs-on: ubuntu-latest
+    env:
+      GIT_CONFIG_GLOBAL: /dev/null
+      GIT_CONFIG_NOSYSTEM: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the pinned Git 2.38.1 image (SHA-256 checks run inside the Dockerfile)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ctx=$(mktemp -d)
+          docker build --no-cache -f testdata/reference/Dockerfile.git238 -t ilvuno-git238r:ci "$ctx"
+          docker image inspect ilvuno-git238r:ci --format 'image {{.Id}}'
+          docker run --rm ilvuno-git238r:ci git --version
+
+      - name: Negative tests, matrix and tests.sh inside the image
+        shell: bash
+        run: |
+          set -euo pipefail
+          scratch=$(mktemp -d)
+          scratch=$(cd -P "$scratch" && pwd -P)
+          chmod 700 "$scratch"
+          docker run --rm -u "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/src:ro" -v "$scratch:/scratch" -w /src \
+            -e TMPDIR=/scratch -e SP1_GIT_BIN=/usr/local/bin/git \
+            ilvuno-git238r:ci bash -c '
+              set -euo pipefail
+              bash testdata/reference/check-reference-test.sh
+              testdata/reference/check-reference.sh matrix
+              testdata/reference/check-reference.sh tests'
+          rm -rf "$scratch"
+
+  # T-0005 AC-3: a failing git must make the matrix fail.
+  reference-failing-git:
+    name: matrix fails when git fails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The matrix must exit nonzero with a failing git
+        shell: bash
+        run: |
+          set -uo pipefail
+          if SP1_GIT_BIN=/bin/false make reference-matrix; then
+            echo "matrix passed with a failing git"
+            exit 1
+          fi
+          echo "matrix refused a failing git, as required"
+
+  # T-0005: the negative tests (AC-9 to AC-13) on the runner's own Git and SHA-256 tool, on a private root.
+  # tests.sh is deliberately not run here. Its P1.4 asserts a supported Git (2.55.0 or 2.38.1), and the hosted
+  # runners ship Git 2.56.1, so P1.4 fails by design on them. tests.sh runs in the pinned Git 2.38.1 image above.
+  reference-host-tests:
+    name: reference negative tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      GIT_CONFIG_GLOBAL: /dev/null
+      GIT_CONFIG_NOSYSTEM: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print the host git version
+        run: git --version
+      - name: Reference negative tests on a private root
+        shell: bash
+        run: |
+          set -euo pipefail
+          scratch=$(mktemp -d)
+          scratch=$(cd -P "$scratch" && pwd -P)
+          chmod 700 "$scratch"
+          rc=0
+          TMPDIR="$scratch" bash testdata/reference/check-reference-test.sh || rc=$?
+          rm -rf "$scratch"
+          exit "$rc"

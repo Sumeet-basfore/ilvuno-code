@@ -1,0 +1,33 @@
+## version: git version 2.55.0
+## X-01 usage with three commits (expect exit 129)
+rc=129
+usage: git merge-tree [--write-tree] [<options>] <branch1> <branch2>
+## X-01 option support in merge-tree usage
+--               11
+--write-tree     2
+--name-only      1
+--no-messages    0
+-z               1
+--stdin          1
+--merge-base     0
+## X-06 loose object delta, conflicting merge-tree (first merge-tree call in this repo)
+objects before=19 after=21
+## X-02b shape: clean (s1,s2)
+rc=0 stdout=[66383ddc82087ad807401454fa56a5749a7c45e4|] stderr=[]
+## X-02b shape: conflict (s1,cf)
+rc=1 stdout=[e976afe5c7e136c03624a5538376a5b4421bbf83|shared.txt|] stderr=[]
+## X-02b shape: unrelated (s1,u)
+rc=128 stdout=[] stderr=[fatal: refusing to merge unrelated histories ]
+## X-04 worktree add -B refs/ilvuno/... (expect branch under refs/heads)
+rc=0 
+refs/ilvuno entries: 0
+refs/heads entries containing ilvuno: 1
+## X-04b worktree add --detach + update-ref + cleanup
+detach rc=0
+worktree HEAD == s1: yes
+1
+refs/ilvuno after create: refs/ilvuno/candidates/p2
+after cleanup: worktrees=1 refs/ilvuno=0
+## X-10 check-attr --source availability
+rc=0 stdout=[shared.txt: merge: unspecified ] stderr=[]
+## done

@@ -1,0 +1,8 @@
+#!/bin/sh
+# BSD stat: no -c; -f takes a BSD format string.
+case "$1" in
+  -c) echo "stat: illegal option -- c" >&2; exit 1 ;;
+  -f) case "$2" in %u) g=%u ;; %Lp) g=%a ;; *) echo "stat: unsupported format" >&2; exit 1 ;; esac
+      shift 2; [ "$1" = "--" ] && shift; exec /usr/bin/stat -c "$g" -- "$1" ;;
+  *) exec /usr/bin/stat "$@" ;;
+esac

@@ -1,0 +1,4 @@
+#!/bin/sh
+# macOS shasum: "-a 256" selects SHA-256; the output format matches sha256sum.
+[ "$1" = "-a" ] && shift 2
+exec /usr/bin/sha256sum "$@"
