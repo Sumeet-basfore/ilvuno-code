@@ -166,7 +166,7 @@ PASS line. Both Git versions run the same committed harness, and the same counts
 | AC-10 | met | oracle failure: exit 1, no comparison, tracked file unchanged |
 | AC-11 | met | cleanup failure after a successful oracle: exit 1, cleanup reported, no PASS line. With an oracle failure too, the original status is kept (exit 1) and the cleanup failure is reported |
 | AC-12 | met | mismatch: exit 1, the diff is printed, no PASS line, the wrapper's roots are removed, the tracked file is unchanged |
-| AC-13 | met | 18 refusals (6 invalid roots × 3 modes): only the read-only `rev-parse --show-toplevel` is recorded, and only for the inside-worktree root (`t0005-ac13-recording-shim.txt`) |
+| AC-13 | met for the owner-side cases; the wrong-owner case is met locally and hosted evidence is pending | 18 refusals (6 invalid roots × 3 modes): only the read-only `rev-parse --show-toplevel` is recorded, and only for the inside-worktree root (`t0005-ac13-recording-shim.txt`). Wrong owner: `check-reference-owner.sh` (remediation, 2026-11-21) |
 
 ## 10. Hosted CI: the PR #2 failures, diagnosed
 
@@ -223,8 +223,7 @@ mechanical and the output is unchanged. The owner decides.
 3. **bash 3.2 is not tested.** `mapfile` was removed and every script passes `bash -n`, but no bash 3.2 is available here.
 4. **The BSD shims are approximations.** `t0005-bsd-shim/` mimics the behaviour each construct depends on. It does not
    prove macOS behaviour.
-5. **Wrong-owner roots are not tested.** Refusing a root owned by another user needs a second account. The owner check
-   is in the wrapper and is untested.
+5. **Wrong-owner roots: tested locally, not in hosted CI.** `testdata/reference/check-reference-owner.sh` runs the real wrapper in the pinned image, as the invoking UID, against a directory owned by UID 65534 (mode 755, so the ownership check is the one that refuses). It checks the refusal message, the nonzero exit and the unchanged protected directory, and a control. It needs Docker and has run on this host only. It is not in the hosted `reference-git-2-38-1` job. **Pending G0 requirement:** it must run in an authorized hosted CI path, or G0 records it as not met (`docs/readiness/08-m0-remediation-amendment.md` §11).
 6. **R3-4 is unchanged.** The ownership marker, the registry and `run-env.json` are editable guard files, not
    attestations. The harness trusts its own process.
 7. **Scratch residue from direct runs.** When `tests.sh` or `sp1.sh` is invoked directly, its `sp1r.*` roots stay in the

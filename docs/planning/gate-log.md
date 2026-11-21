@@ -53,3 +53,22 @@ These entries again leave the historical entry and C-a to C-c unchanged.
 - **G0 status after T-0005.** G0-6 (reference conformance) is locally met on 2.55.0 and 2.38.1 (C-e). G0-7 has its note
   (`09` §9 to §12) and awaits owner review. G0-1 and G0-8 are pending hosted CI, and macOS is blocked (C-g). G0-10 and G0-11
   are unchanged. G0 is not passed.
+
+## Corrections (2026-11-21, M0 review remediation)
+
+These entries leave the historical entry and C-a to C-h unchanged. C-i is recorded under the owner's approval of the
+sixth commit, 2026-11-21 (`docs/readiness/08-m0-remediation-amendment.md`, approved subject to its §8 checks).
+
+- **C-i (corrections to stale evidence claims).**
+  - *Forge containment.* The T-0002 review checklist said the forge "cannot accidentally write outside t.TempDir()". The
+    lexical check it relied on did not cover symlinks, and worktree names were not checked. Both escape routes are now
+    refused, with regression tests that check an external sentinel is unchanged. The `DRIVER_MARKER` path is held to the
+    same containment rule.
+  - *F8 driver marker.* The marker was described as unobservable. It is observable inside the fixture's temporary root,
+    and the refused run leaves it absent. The control is in `f08_driver_test.go`.
+  - *AC-13 wrong owner.* The wrong-owner case was described as untested. It runs locally in the pinned Git 2.38.1 image,
+    through `testdata/reference/check-reference-owner.sh`. **Pending G0 requirement:** the case must run in an authorized
+    hosted CI path, or G0 must record it as not met (amendment §11). It is not in any CI path yet, and macOS evidence does
+    not exist.
+  - *Counts.* The negative-test count stays at 87, and the `tests.sh` count stays at 95. The wrong-owner case is counted
+    separately and is not part of either count.

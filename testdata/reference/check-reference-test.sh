@@ -3,7 +3,9 @@
 # throwaway sandbox repository under a private temporary root, so no case writes to the real work tree.
 #
 # Usage: TMPDIR=<private dir> check-reference-test.sh
-# Wrong-owner roots (AC-13) need a second user and are not tested here; the owner check is in the wrapper.
+# The wrong-owner case of AC-13 needs a second UID, so it is not in this suite. It runs in
+# check-reference-owner.sh, inside the pinned image. This suite prints an explicit NOT RUN line for it, and the
+# counts below do not include it.
 
 set -uo pipefail
 
@@ -143,6 +145,7 @@ done < <(invalid_bases)
 
 check "AC-13 tracked oracle.json unchanged" [ "$(tracked_sha)" = "$before" ]
 
+echo "NOT RUN here: AC-13 wrong-owner case (needs a second UID; see check-reference-owner.sh)"
 echo
 echo "check-reference-test: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

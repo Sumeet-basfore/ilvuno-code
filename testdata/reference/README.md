@@ -15,7 +15,11 @@ This directory is the **reference behaviour** for sequential two-way merges. It 
 ```bash
 make reference-matrix    # check-reference.sh matrix on a fresh private root (R3-1)
 make reference-tests     # negative tests AC-9 to AC-13, then tests.sh (95 assertions)
+bash testdata/reference/check-reference-owner.sh   # AC-13 wrong-owner test: needs Docker and the pinned image; exits 2 (NOT RUN) otherwise
 ```
+
+The wrong-owner case is not in `check-reference-test.sh`. That suite prints an explicit NOT RUN line for it, and its
+counts exclude it.
 
 `check-reference.sh oracle|matrix|tests` is the wrapper that enforces R3-1 to R3-3. It needs
 `TMPDIR` set to an absolute, canonical, existing, mode-700 directory, owned by you and outside the

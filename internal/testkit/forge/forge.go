@@ -12,10 +12,13 @@ package forge
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -35,12 +38,45 @@ const (
 )
 
 // Repo is a git repository created under t.TempDir().
+//
+// Containment: every path the forge writes, reads, removes or chmods is confined to the repository (Path), and
+// every worktree it creates or removes is a direct child of TempRoot()/worktrees. The checks are made before each
+// operation. They are not a sandbox: see resolve for the time-of-check window that remains.
 type Repo struct {
 	t     testing.TB
 	Path  string
 	home  string
 	tmp   string
 	hooks string
+	extra []string // variables set with SetEnv, forwarded to every git child
+}
+
+// settableEnv lists the variables a fixture may set with SetEnv. It is deliberately small: the forge's own
+// isolation variables (identity, configuration, protocol, locale, home) cannot be overridden, and GIT_* is
+// refused. DRIVER_MARKER is the only one the fixtures use; it is read by the F8 merge driver.
+var settableEnv = map[string]bool{"DRIVER_MARKER": true}
+
+// SetEnv forwards one variable to every git child of this repository, so that a configured program can see it.
+// Only the variables in settableEnv are accepted; anything else refuses the test. The value must be a clean
+// absolute path strictly inside TempRoot: no traversal, and no symlink among its components. The check is made when
+// the variable is set. A symlink created later is not seen here, so a fixture that writes the marker re-checks the
+// path first (f08_driver_test.go).
+func (r *Repo) SetEnv(key, value string) {
+	r.t.Helper()
+	if !settableEnv[key] {
+		r.refuse("variable %q may not be set by a fixture", key)
+	}
+	if !filepath.IsAbs(value) || filepath.Clean(value) != value {
+		r.refuse("value %q for %s is not a clean absolute path", value, key)
+	}
+	rel, err := filepath.Rel(r.TempRoot(), value)
+	if err != nil || rel == "." {
+		r.refuse("value %q for %s is not inside the temporary root %s", value, key, r.TempRoot())
+	}
+	if _, err := containedPath(r.TempRoot(), rel, "the temporary root"); err != nil {
+		r.t.Fatalf("%v", err)
+	}
+	r.extra = append(r.extra, key+"="+value)
 }
 
 // New creates an empty repository on branch main. Each call creates a new, separate repository.
@@ -65,10 +101,14 @@ func New(t testing.TB) *Repo {
 	return r
 }
 
+// TempRoot is the temporary directory that holds the repository, its worktrees and the isolated home. Nothing the
+// forge creates lies outside it.
+func (r *Repo) TempRoot() string { return filepath.Dir(r.Path) }
+
 // environ is the complete environment for git children. It does not inherit the caller's environment,
 // except PATH, so caller configuration variables cannot leak in.
 func (r *Repo) environ() []string {
-	return []string{
+	return append([]string{
 		"PATH=" + os.Getenv("PATH"),
 		"HOME=" + r.home,
 		"TMPDIR=" + r.tmp,
@@ -92,7 +132,7 @@ func (r *Repo) environ() []string {
 		"GIT_COMMITTER_EMAIL=" + Email,
 		"GIT_AUTHOR_DATE=" + Date,
 		"GIT_COMMITTER_DATE=" + Date,
-	}
+	}, r.extra...)
 }
 
 // Git runs one git command in the repository and returns its stdout without the trailing newline.
@@ -140,14 +180,56 @@ func (r *Repo) MustGit(args ...string) string {
 	return out
 }
 
-// resolve returns the absolute path for a repository-relative path. It rejects paths that
-// would leave the repository, so the forge cannot write outside its t.TempDir().
+// resolve returns the absolute path of a repository-relative path, after checking that the path stays inside the
+// repository. It refuses absolute and traversing paths, and any existing component that is a symlink, the final
+// component included. Each component is checked with Lstat, so a link is never followed during the check.
+//
+// Time-of-check window: the check and the operation that follows it are separate system calls. A process that
+// replaces a checked component with a symlink in between can still redirect the operation. The forge's threat model
+// is one test process at a time, not a concurrent same-UID adversary, and this is not a sandbox.
 func (r *Repo) resolve(rel string) string {
 	r.t.Helper()
-	if !filepath.IsLocal(rel) {
-		r.t.Fatalf("forge: path %q escapes the repository", rel)
+	p, err := containedPath(r.Path, rel, "the repository")
+	if err != nil {
+		r.t.Fatalf("%v", err)
 	}
-	return filepath.Join(r.Path, rel)
+	return p
+}
+
+// containedPath returns root/rel after checking that rel is a plain relative path and that no existing component
+// below root is a symlink, the final component included. Its errors start with refusedPrefix when the refusal is
+// a containment decision, and with "forge:" when the check itself failed. It is shared by resolve (the repository
+// root) and SetEnv (the temporary root).
+func containedPath(root, rel, what string) (string, error) {
+	if !filepath.IsLocal(rel) {
+		return "", errRefused("path %q escapes %s", rel, what)
+	}
+	cur := root
+	for _, part := range strings.Split(filepath.Clean(rel), string(filepath.Separator)) {
+		cur = filepath.Join(cur, part)
+		info, err := os.Lstat(cur)
+		if errors.Is(err, fs.ErrNotExist) {
+			break // the remaining components do not exist either, so none can be a link
+		}
+		if err != nil {
+			return "", fmt.Errorf("forge: lstat %s: %w", cur, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return "", errRefused("path %q has a symlink component %q", rel, part)
+		}
+	}
+	return filepath.Join(root, rel), nil // the full path, not the prefix the walk stopped at
+}
+
+// refuse stops the test with a containment refusal. Every refusal message starts with refusedPrefix.
+func (r *Repo) refuse(format string, args ...any) {
+	r.t.Helper()
+	r.t.Fatalf("forge: refused: "+format, args...)
+}
+
+// errRefused is refuse for functions that return an error.
+func errRefused(format string, args ...any) error {
+	return fmt.Errorf("forge: refused: "+format, args...)
 }
 
 // WriteFile writes content to a repository-relative path, creating parent directories.
@@ -188,12 +270,44 @@ func (r *Repo) Chmod(rel string, mode os.FileMode) {
 	}
 }
 
-// AddWorktree creates a detached worktree of rev in a sibling directory outside the repository
-// and returns its path. Worktrees are not part of the repository's own state.
+// worktreeNameRE is one plain path segment: it starts with a letter or digit and has no separator, no traversal and
+// no leading dash or dot.
+var worktreeNameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
+
+// worktreeRoot is the directory that holds this repository's worktrees, under TempRoot.
+func (r *Repo) worktreeRoot() string { return filepath.Join(r.TempRoot(), "worktrees") }
+
+// worktreeDir returns the destination for a worktree name. The name must be one plain path segment. The worktree
+// root must not be a symlink, and nothing may already exist at the destination, which must be a direct child of
+// the root.
+func (r *Repo) worktreeDir(name string) (string, error) {
+	if !worktreeNameRE.MatchString(name) {
+		return "", errRefused("worktree name %q is not one plain path segment", name)
+	}
+	root := r.worktreeRoot()
+	if info, err := os.Lstat(root); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return "", errRefused("worktree root %s is a symlink", root)
+	}
+	dir := filepath.Join(root, name)
+	if filepath.Dir(dir) != root {
+		return "", errRefused("worktree %q would not be a direct child of %s", name, root)
+	}
+	if _, err := os.Lstat(dir); err == nil {
+		return "", errRefused("worktree destination %s already exists", dir)
+	}
+	return dir, nil
+}
+
+// AddWorktree creates a detached worktree of rev under the worktree root (TempRoot()/worktrees), outside the
+// repository, and returns its path. The name is checked before any git command runs. The time-of-check window
+// described for resolve applies here too.
 func (r *Repo) AddWorktree(name, rev string) (string, error) {
-	dir := filepath.Join(filepath.Dir(r.Path), "worktrees", name)
-	if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil {
-		return "", fmt.Errorf("forge: create worktree parent: %w", err)
+	dir, err := r.worktreeDir(name)
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(r.worktreeRoot(), 0o755); err != nil {
+		return "", fmt.Errorf("forge: create worktree root: %w", err)
 	}
 	if _, err := r.Git("worktree", "add", "--detach", dir, rev); err != nil {
 		return "", err
@@ -201,8 +315,17 @@ func (r *Repo) AddWorktree(name, rev string) (string, error) {
 	return dir, nil
 }
 
-// RemoveWorktree removes a worktree created by AddWorktree and prunes its administrative entry.
+// RemoveWorktree removes a worktree created by AddWorktree and prunes its administrative entry. dir must be a
+// direct child of the worktree root, and must not be a symlink. Anything else is refused before git runs, so git
+// cannot be pointed at a directory outside the root.
 func (r *Repo) RemoveWorktree(dir string) error {
+	dir = filepath.Clean(dir)
+	if filepath.Dir(dir) != r.worktreeRoot() || !worktreeNameRE.MatchString(filepath.Base(dir)) {
+		return errRefused("%s is not a worktree directly under %s", dir, r.worktreeRoot())
+	}
+	if info, err := os.Lstat(dir); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return errRefused("worktree %s is a symlink", dir)
+	}
 	if _, err := r.Git("worktree", "remove", "--force", dir); err != nil {
 		return err
 	}
