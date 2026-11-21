@@ -1,5 +1,6 @@
-# Ilvuno M0 entry points at the T-0001 stage. Scope: docs/tasks/T-0001.md.
-# forge-verify is added by T-0002; reference-matrix and reference-tests by T-0005.
+# Ilvuno M0 entry points at the T-0002 stage. Scope: docs/tasks/T-0001.md and T-0002.md.
+# forge-verify is added by T-0002. fixtures and safety join it with T-0003/T-0004;
+# reference-matrix and reference-tests are added by T-0005.
 
 GO     ?= go
 BIN    ?= ilvuno
@@ -8,7 +9,7 @@ BIN    ?= ilvuno
 export GIT_CONFIG_GLOBAL := /dev/null
 export GIT_CONFIG_NOSYSTEM := 1
 
-.PHONY: build test lint docs-check bench gate
+.PHONY: build test lint docs-check forge-verify bench gate
 
 build:
 	CGO_ENABLED=0 $(GO) build -trimpath -o $(BIN) ./cmd/ilvuno
@@ -43,6 +44,11 @@ docs-check:
 	  fi; \
 	done; \
 	exit $$fail
+
+# T-0002 (forge): the deterministic repository forge and its self-tests. T-0003 and T-0004 add
+# their packages to this list when they land.
+forge-verify:
+	$(GO) test -count=1 -v ./internal/testkit/forge/...
 
 bench:
 	@echo "bench: not implemented in this build (lands with T-0305)"; exit 2
