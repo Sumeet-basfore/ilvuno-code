@@ -1,0 +1,233 @@
+# T-0001 CI: build, test and lint on Linux and macOS, with the Git floor check.
+# T-0005 adds the reference-harness jobs below, reviewed before merge (AGENTS §10.2).
+# Reviewed before merge (AGENTS §10.2; S-4). The only action used is actions/checkout.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.27.0"
+  GIT_FLOOR: "2.38.1"
+
+jobs:
+  build-test-lint:
+    name: build, test, lint (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Print and check the Git version (floor ${{ env.GIT_FLOOR }})
+        shell: bash
+        run: |
+          set -euo pipefail
+          git --version
+          v=$(git --version | awk '{print $3}')
+          lowest=$(printf '%s\n%s\n' "$GIT_FLOOR" "$v" | sort -V | head -n1)
+          if [ "$lowest" != "$GIT_FLOOR" ]; then
+            echo "Git $v is below the floor $GIT_FLOOR"
+            exit 1
+          fi
+
+      - name: Install the pinned Go release (SHA-256 checked)
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$RUNNER_OS-$RUNNER_ARCH" in
+            Linux-X64)
+              file=go1.27.0.linux-amd64.tar.gz
+              sha=675c26c449cbb18fc24b74650de1eabbae6e16f64326fd85a283fb3b58280685 ;;
+            macOS-ARM64)
+              file=go1.27.0.darwin-arm64.tar.gz
+              sha=90493b3bbd5e10f91d12153198bf1994fd756399b4fec93b49b0c6e2acdeeb3e ;;
+            *)
+              echo "unsupported runner $RUNNER_OS-$RUNNER_ARCH"
+              exit 1 ;;
+          esac
+          curl -sSfL -o "$RUNNER_TEMP/go.tgz" "https://go.dev/dl/$file"
+          echo "$sha  $RUNNER_TEMP/go.tgz" | shasum -a 256 -c -
+          mkdir -p "$HOME/sdk"
+          tar -C "$HOME/sdk" -xzf "$RUNNER_TEMP/go.tgz"
+          echo "$HOME/sdk/go/bin" >> "$GITHUB_PATH"
+
+      - name: Verify the Go version
+        shell: bash
+        run: |
+          set -euo pipefail
+          go version
+          test "$(go env GOVERSION)" = "go${GO_VERSION}"
+
+      - name: Build
+        run: make build
+
+      - name: Check the binary's linkage (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=$(ldd ./ilvuno 2>&1 || true)
+          echo "$out"
+          case "$out" in
+            *"not a dynamic executable"*) ;;
+            *) echo "unexpected dynamic linkage"; exit 1 ;;
+          esac
+
+      - name: Check the binary's linkage (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          otool -L ./ilvuno
+          bad=$(otool -L ./ilvuno | tail -n +2 | awk '{print $1}' | grep -v -E '^(/usr/lib/|/System/)' || true)
+          if [ -n "$bad" ]; then echo "non-system libraries: $bad"; exit 1; fi
+
+      # TEMPORARY DIAGNOSTIC for the PR #3 macOS timing question. Not gating. Remove once answered.
+      - name: "DIAGNOSTIC macOS: timing test alone, 10 runs, budget unchanged"
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        shell: bash
+        env:
+          GIT_CONFIG_GLOBAL: /dev/null
+          GIT_CONFIG_NOSYSTEM: "1"
+        run: |
+          set -uo pipefail
+          uptime
+          sysctl -n hw.ncpu
+          test_status=0
+          go test -count=10 -run '^TestFingerprintMeetsTimingBudgetOn500Files$' -v ./internal/testkit/safety/ 2>&1 | tee "$RUNNER_TEMP/timing-isolated.log" || test_status=$?
+          grep 'worst of 5' "$RUNNER_TEMP/timing-isolated.log" || true
+          uptime
+          measurement_status=0
+          python3 - "$RUNNER_TEMP" <<'PY' || measurement_status=$?
+          import os, subprocess, sys, time, statistics
+          base = sys.argv[1]
+          repo = os.path.join(base, 'spawn-repo')
+          os.makedirs(repo, exist_ok=True)
+          subprocess.run(['git', 'init', '-q', '-b', 'main', repo], check=True)
+          for i in range(500):
+              d = os.path.join(repo, 'dir%02d' % (i // 50)); os.makedirs(d, exist_ok=True)
+              open(os.path.join(d, 'file%03d.txt' % (i % 50)), 'w').write('content %d\n' % i)
+          subprocess.run(['git', '-C', repo, 'add', '-A'], check=True)
+          subprocess.run(['git', '-C', repo, '-c', 'user.name=d', '-c', 'user.email=d@example.com', 'commit', '-qm', 'base'], check=True)
+          cmds = {
+            'spawn baseline git --version': ['git', '--version'],
+            'stash list': ['git', 'stash', 'list'],
+            'for-each-ref': ['git', 'for-each-ref'],
+            'rev-parse --verify -q HEAD': ['git', 'rev-parse', '--verify', '-q', 'HEAD'],
+            'symbolic-ref -q HEAD': ['git', 'symbolic-ref', '-q', 'HEAD'],
+            'ls-files --stage -z': ['git', '--no-optional-locks', 'ls-files', '--stage', '-z'],
+            'status --porcelain=v2 -z': ['git', '--no-optional-locks', 'status', '--porcelain=v2', '-z', '--untracked-files=all'],
+            'rev-parse --git-path config': ['git', 'rev-parse', '--git-path', 'config'],
+          }
+          total = 0.0
+          for name, argv in cmds.items():
+              ts = []
+              for _ in range(20):
+                  t0 = time.perf_counter()
+                  subprocess.run(argv, cwd=repo, stdout=subprocess.DEVNULL, check=True)
+                  ts.append((time.perf_counter() - t0) * 1000)
+              print('%-30s median %7.2f ms  max %7.2f ms' % (name, statistics.median(ts), max(ts)))
+              if not name.startswith('spawn'):
+                  total += statistics.median(ts)
+          print('sum of medians for one Take (7 git calls): %.1f ms' % total)
+          PY
+          if [ "$measurement_status" -ne 0 ]; then exit "$measurement_status"; fi
+          exit "$test_status"
+
+      - name: Test
+        run: make test
+
+      - name: Lint
+        run: make lint
+
+      - name: Docs check
+        run: make docs-check
+
+  # T-0005: the reference harness on the pinned Git 2.38.1 image. The wrapper runs in the container
+  # as the runner's own uid, so the private roots it creates are owned by that uid (R3-1).
+  reference-git-2-38-1:
+    name: reference matrix and tests on Git 2.38.1 (pinned image)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the pinned Git 2.38.1 image (SHA-256 checks run inside the Dockerfile)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ctx=$(mktemp -d)
+          docker build --no-cache -f testdata/reference/Dockerfile.git238 -t ilvuno-git238r:ci "$ctx"
+          docker image inspect ilvuno-git238r:ci --format 'image {{.Id}}'
+          docker run --rm ilvuno-git238r:ci git --version
+
+      - name: Negative tests, matrix and tests.sh inside the image
+        shell: bash
+        run: |
+          set -euo pipefail
+          scratch=$(mktemp -d)
+          scratch=$(cd -P "$scratch" && pwd -P)
+          chmod 700 "$scratch"
+          docker run --rm -u "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/src:ro" -v "$scratch:/scratch" -w /src \
+            -e TMPDIR=/scratch -e SP1_GIT_BIN=/usr/local/bin/git \
+            ilvuno-git238r:ci bash -c '
+              set -euo pipefail
+              export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+              bash testdata/reference/check-reference-test.sh
+              testdata/reference/check-reference.sh matrix
+              testdata/reference/check-reference.sh tests'
+          rm -rf "$scratch"
+
+  # T-0005 AC-3: a failing git must make the matrix fail.
+  reference-failing-git:
+    name: matrix fails when git fails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The matrix must exit nonzero with a failing git
+        shell: bash
+        run: |
+          set -uo pipefail
+          if SP1_GIT_BIN=/bin/false make reference-matrix; then
+            echo "matrix passed with a failing git"
+            exit 1
+          fi
+          echo "matrix refused a failing git, as required"
+
+  # T-0005: the negative tests (AC-9 to AC-13) on the runner's own Git and SHA-256 tool, on a private root.
+  # tests.sh is deliberately not run here. Its P1.4 asserts a supported Git (2.55.0 or 2.38.1), and the hosted
+  # runners ship Git 2.56.1, so P1.4 fails by design on them. tests.sh runs in the pinned Git 2.38.1 image above.
+  reference-host-tests:
+    name: reference negative tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print the host git version
+        run: git --version
+      - name: Reference negative tests on a private root
+        shell: bash
+        env:
+          GIT_CONFIG_GLOBAL: /dev/null
+          GIT_CONFIG_NOSYSTEM: "1"
+        run: |
+          set -euo pipefail
+          scratch=$(mktemp -d)
+          scratch=$(cd -P "$scratch" && pwd -P)
+          chmod 700 "$scratch"
+          rc=0
+          TMPDIR="$scratch" bash testdata/reference/check-reference-test.sh || rc=$?
+          rm -rf "$scratch"
+          exit "$rc"

@@ -1,0 +1,43 @@
+# T-0005: BSD-semantics reproduction of the macOS failures (Linux host; NOT a macOS run)
+#
+# Shims in t0005-bsd-shim/ are PATH overrides that mimic the BSD behaviour each construct depends on:
+#   chmod      "MODE -- FILE" fails (BSD getopt reads "--" as a file name); the file is still changed
+#   sed        "-i SCRIPT" fails (BSD takes the next argument as a backup suffix)
+#   stat       "-c" fails; "-f FORMAT" is accepted with BSD formats (%u, %Lp)
+#   rm         "--version" and "--one-file-system" fail (BSD rm has neither)
+#   realpath   absent
+#   sha256sum  absent (macOS ships shasum, not sha256sum)
+#   shasum     accepts "-a 256" (macOS form)
+# They approximate macOS. They do not prove macOS behaviour; the hosted macOS run is still pending.
+#
+# Run: PATH=<this directory>:$PATH TMPDIR=<private mode-700 dir> bash testdata/reference/check-reference-test.sh
+#
+## A. a526c43 harness (PR #2 head), negative tests (check-reference-test.sh)
+control, no shims                       86 passed, 0 failed
+all shims                               83 passed, 3 failed
+   FAIL AC-9 cp failure names the injected step
+   FAIL AC-9 rm failure names the injected step
+   FAIL AC-12 mismatch is reported with a diff
+chmod shim only                         83 passed, 3 failed (same three)
+all shims except chmod                  85 passed, 1 failed
+   FAIL AC-12 mismatch is reported with a diff
+   oracle stops at: "stat: illegal option -- c" then "SP1_SCRATCH parent not owned by current user"
+false pass (a526c43, all shims): "AC-9/AC-10/AC-12/AC-13 tracked oracle.json unchanged" printed PASS
+   because sha256sum was absent, so both sides of the comparison were empty strings.
+#
+## B. T-0005 harness, after the portability and fail-loud changes
+negative tests, no shims                87 passed, 0 failed
+negative tests, all shims               87 passed, 0 failed
+tests.sh (95), no shims                 95 passed, 0 failed
+tests.sh (95), all shims                95 passed, 0 failed
+oracle regenerated in a fresh copy, no shims     identical to the tracked oracle.json
+oracle regenerated in a fresh copy, all shims    identical to the tracked oracle.json
+#
+## C. Test that the new AC-11 check (cleanup failure prints no PASS line) is meaningful
+pre-fix wrapper (a526c43) + new test:   86 passed, 1 failed (only: AC-11 cleanup failure prints no PASS line)
+fixed wrapper + new test:               87 passed, 0 failed
+#
+## D. Attribution
+A and B show that chmod "--" is the cause of the cp, rm and mismatch naming failures. The oracle-path
+constructs (stat -c, sed -i, sha256sum, realpath) are a second, independent cause of the AC-12 failure.
+Fixing the first alone leaves AC-12 failing; fixing both clears it. The tracked-hash false pass is a third issue.

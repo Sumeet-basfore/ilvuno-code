@@ -1,0 +1,19 @@
+# AC-13 invalid roots: git invocations recorded by a shim (host Git, 2026-11-21). Each row: mode, root, wrapper exit, logged git calls.
+oracle | relative (relative/dir) | exit=1 | git calls: none
+oracle | noncanonical (<scratch>/real/./x) | exit=1 | git calls: none
+oracle | symlink-aliased (<scratch>/link) | exit=1 | git calls: none
+oracle | inside-worktree (<scratch>/sandbox/private) | exit=1 | git calls: rev-parse --show-toplevel;
+oracle | mode-755 (<scratch>/wide) | exit=1 | git calls: none
+oracle | missing (<scratch>/missing) | exit=1 | git calls: none
+matrix | relative (relative/dir) | exit=1 | git calls: none
+matrix | noncanonical (<scratch>/real/./x) | exit=1 | git calls: none
+matrix | symlink-aliased (<scratch>/link) | exit=1 | git calls: none
+matrix | inside-worktree (<scratch>/sandbox/private) | exit=1 | git calls: rev-parse --show-toplevel;
+matrix | mode-755 (<scratch>/wide) | exit=1 | git calls: none
+matrix | missing (<scratch>/missing) | exit=1 | git calls: none
+tests | relative (relative/dir) | exit=1 | git calls: none
+tests | noncanonical (<scratch>/real/./x) | exit=1 | git calls: none
+tests | symlink-aliased (<scratch>/link) | exit=1 | git calls: none
+tests | inside-worktree (<scratch>/sandbox/private) | exit=1 | git calls: rev-parse --show-toplevel;
+tests | mode-755 (<scratch>/wide) | exit=1 | git calls: none
+tests | missing (<scratch>/missing) | exit=1 | git calls: none

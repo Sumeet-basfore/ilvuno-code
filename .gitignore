@@ -1,0 +1,8 @@
+# M0 build outputs
+/ilvuno
+*.out
+coverage.*
+.ilvuno/
+
+# Development worktrees (AGENTS §7, §8): never committed
+/.worktrees/

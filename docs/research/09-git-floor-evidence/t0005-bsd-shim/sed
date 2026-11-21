@@ -1,0 +1,4 @@
+#!/bin/sh
+# BSD sed: "-i" takes its backup suffix from the next argument, so "-i SCRIPT" is an error.
+if [ "$1" = "-i" ] && [ -n "$2" ]; then echo "sed: 1: invalid command code" >&2; exit 1; fi
+exec /usr/bin/sed "$@"

@@ -1,0 +1,3 @@
+#!/bin/sh
+# Absent on the target platform (macOS ships shasum, not sha256sum).
+echo "sha256sum: command not found" >&2; exit 127

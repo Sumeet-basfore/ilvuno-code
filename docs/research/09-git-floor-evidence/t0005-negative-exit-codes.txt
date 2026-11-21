@@ -1,0 +1,12 @@
+# T-0005 negative cases: wrapper exit status and observed output (host Git 2.55.0, 2026-11-21)
+# columns: case | mode | exit | invoked-oracle | compared | PASS-printed | tracked-oracle-unchanged
+# The two AC-11 rows with an injected cleanup failure leave their run roots in the base by design (cleanup failed).
+AC-9 mktemp injected | oracle | 1 | 0 | 0 | 0 | yes
+AC-9 chmod injected | oracle | 1 | 0 | 0 | 0 | yes
+AC-9 cp injected | oracle | 1 | 0 | 0 | 0 | yes
+AC-9 rm injected | oracle | 1 | 0 | 0 | 0 | yes
+AC-10 oracle injected | oracle | 1 | 0 | 0 | 0 | yes
+AC-11 cleanup injected (oracle ok) | oracle | 1 | 1 | 1 | 0 | yes
+AC-11 oracle+cleanup injected | oracle | 1 | 0 | 0 | 0 | yes
+AC-12 comparison mismatch | oracle | 1 | 1 | 1 | 0 | yes
+control: oracle, no fault | oracle | 0 | 1 | 1 | 1 | yes
