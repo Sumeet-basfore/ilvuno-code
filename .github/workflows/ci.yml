@@ -23,9 +23,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    env:
-      GIT_CONFIG_GLOBAL: /dev/null
-      GIT_CONFIG_NOSYSTEM: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -93,6 +90,55 @@ jobs:
           bad=$(otool -L ./ilvuno | tail -n +2 | awk '{print $1}' | grep -v -E '^(/usr/lib/|/System/)' || true)
           if [ -n "$bad" ]; then echo "non-system libraries: $bad"; exit 1; fi
 
+      # TEMPORARY DIAGNOSTIC for the PR #3 macOS timing question. Not gating. Remove once answered.
+      - name: "DIAGNOSTIC macOS: timing test alone, 10 runs, budget unchanged"
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        shell: bash
+        env:
+          GIT_CONFIG_GLOBAL: /dev/null
+          GIT_CONFIG_NOSYSTEM: "1"
+        run: |
+          set -uo pipefail
+          uptime
+          sysctl -n hw.ncpu
+          go test -count=10 -run '^TestFingerprintMeetsTimingBudgetOn500Files$' -v ./internal/testkit/safety/ 2>&1 | tee "$RUNNER_TEMP/timing-isolated.log"
+          grep 'worst of 5' "$RUNNER_TEMP/timing-isolated.log" || true
+          uptime
+          python3 - "$RUNNER_TEMP" <<'PY'
+          import os, subprocess, sys, time, statistics
+          base = sys.argv[1]
+          repo = os.path.join(base, 'spawn-repo')
+          os.makedirs(repo, exist_ok=True)
+          subprocess.run(['git', 'init', '-q', '-b', 'main', repo], check=True)
+          for i in range(500):
+              d = os.path.join(repo, 'dir%02d' % (i // 50)); os.makedirs(d, exist_ok=True)
+              open(os.path.join(d, 'file%03d.txt' % (i % 50)), 'w').write('content %d\n' % i)
+          subprocess.run(['git', '-C', repo, 'add', '-A'], check=True)
+          subprocess.run(['git', '-C', repo, '-c', 'user.name=d', '-c', 'user.email=d@example.com', 'commit', '-qm', 'base'], check=True)
+          cmds = {
+            'spawn baseline git --version': ['git', '--version'],
+            'stash list': ['git', 'stash', 'list'],
+            'for-each-ref': ['git', 'for-each-ref'],
+            'rev-parse --verify -q HEAD': ['git', 'rev-parse', '--verify', '-q', 'HEAD'],
+            'symbolic-ref -q HEAD': ['git', 'symbolic-ref', '-q', 'HEAD'],
+            'ls-files --stage -z': ['git', '--no-optional-locks', 'ls-files', '--stage', '-z'],
+            'status --porcelain=v2 -z': ['git', '--no-optional-locks', 'status', '--porcelain=v2', '-z', '--untracked-files=all'],
+            'rev-parse --git-path config': ['git', 'rev-parse', '--git-path', 'config'],
+          }
+          total = 0.0
+          for name, argv in cmds.items():
+              ts = []
+              for _ in range(20):
+                  t0 = time.perf_counter()
+                  subprocess.run(argv, cwd=repo, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                  ts.append((time.perf_counter() - t0) * 1000)
+              print('%-30s median %7.2f ms  max %7.2f ms' % (name, statistics.median(ts), max(ts)))
+              if not name.startswith('spawn'):
+                  total += statistics.median(ts)
+          print('sum of medians for one Take (7 git calls): %.1f ms' % total)
+          PY
+
       - name: Test
         run: make test
 
@@ -107,9 +153,6 @@ jobs:
   reference-git-2-38-1:
     name: reference matrix and tests on Git 2.38.1 (pinned image)
     runs-on: ubuntu-latest
-    env:
-      GIT_CONFIG_GLOBAL: /dev/null
-      GIT_CONFIG_NOSYSTEM: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -165,15 +208,15 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    env:
-      GIT_CONFIG_GLOBAL: /dev/null
-      GIT_CONFIG_NOSYSTEM: "1"
     steps:
       - uses: actions/checkout@v4
       - name: Print the host git version
         run: git --version
       - name: Reference negative tests on a private root
         shell: bash
+        env:
+          GIT_CONFIG_GLOBAL: /dev/null
+          GIT_CONFIG_NOSYSTEM: "1"
         run: |
           set -euo pipefail
           scratch=$(mktemp -d)
