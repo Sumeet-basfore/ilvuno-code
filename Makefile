@@ -1,6 +1,6 @@
-# Ilvuno M0 entry points at the T-0005 stage. Scope: docs/tasks/T-0001.md, T-0002.md, T-0004.md, T-0005.md.
-# forge-verify (T-0002) includes the safety package (T-0004). fixtures joins it with T-0003, which is not yet
-# implemented. reference-matrix and reference-tests (T-0005) run the SP-1R3 reference harness.
+# Ilvuno M0 entry points at the T-0003 stage. Scope: docs/tasks/T-0001.md through T-0005.md.
+# forge-verify (T-0002) covers the forge, the fixture corpus (T-0003) and the safety package (T-0004).
+# reference-matrix and reference-tests (T-0005) run the SP-1R3 reference harness.
 
 GO     ?= go
 BIN    ?= ilvuno
@@ -39,10 +39,10 @@ docs-check:
 	done; \
 	exit $$fail
 
-# T-0002 (forge) and T-0004 (safety): the deterministic repository forge and the safety fingerprint,
-# with their self-tests. T-0003 adds fixtures to this list when it lands.
+# T-0002 (forge), T-0003 (fixture corpus, including the oracle cross-check) and T-0004 (safety fingerprint),
+# with their self-tests.
 forge-verify:
-	$(GO) test -count=1 -v ./internal/testkit/forge/... ./internal/testkit/safety/...
+	$(GO) test -count=1 -v ./internal/testkit/forge/... ./internal/testkit/fixtures/... ./internal/testkit/safety/...
 
 # T-0005 (R3-1): each run gets a fresh private base, created here and removed here, and the exit status of
 # the wrapper is preserved. The wrapper refuses any other base. Both targets need a POSIX shell and Git.
