@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Desktop UI shell choice — decision report</title>
+<style>
+:root{
+  --paper:#f6f4ef; --paper-2:#efece4; --ink:#16150f; --ink-2:#56524a; --ink-3:#8a857a;
+  --rule:#d8d3c7; --accent:#9e3b22; --accent-soft:#f1e5dd; --code-bg:#efece4;
+  --mono:"JetBrains Mono","Liberation Mono",ui-monospace,monospace;
+  --sans:"Liberation Sans","Noto Sans",Inter,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0; color:var(--ink); background:var(--paper);
+  font-family:var(--sans); font-size:16.5px; line-height:1.62;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility}
+.wrap{display:grid; grid-template-columns:248px minmax(0,1fr); gap:52px;
+  max-width:1180px; margin:0 auto; padding:56px 40px 120px}
+/* ---------- sidebar ---------- */
+aside{position:sticky; top:40px; align-self:start; max-height:calc(100vh - 80px);
+  overflow:auto; padding-left:16px; border-left:2px solid var(--accent)}
+aside .kicker{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+aside .meta{font-family:var(--mono); font-size:11px; color:var(--ink-3); line-height:1.7; margin-top:10px}
+aside nav{margin-top:22px}
+aside nav a{display:block; color:var(--ink-2); text-decoration:none; font-size:13px;
+  line-height:1.35; padding:4px 0 4px 10px; border-left:1px solid transparent; margin-left:-11px}
+aside nav a:hover{color:var(--ink); border-left-color:var(--rule)}
+aside nav a.lvl3{padding-left:22px; font-size:12.2px; color:var(--ink-3)}
+aside .back{display:inline-block; margin-top:26px; font-family:var(--mono); font-size:11px;
+  color:var(--ink-3); text-decoration:none; border-bottom:1px solid var(--rule)}
+/* ---------- content ---------- */
+main{max-width:74ch}
+h1,h1 a,h2,h2 a,h3,h3 a,h4,h4 a{color:inherit}
+h1{font-size:36px; line-height:1.08; letter-spacing:-.022em; margin:0 0 10px; font-weight:700}
+h1 + p, h1 + blockquote{color:var(--ink-2); font-size:16.5px}
+h2{font-size:23px; line-height:1.2; letter-spacing:-.014em; margin:52px 0 14px; padding-top:16px;
+  border-top:1px solid var(--rule); font-weight:700}
+h2:first-of-type{border-top:0; padding-top:0; margin-top:34px}
+h3{font-size:17px; margin:30px 0 8px; letter-spacing:-.006em}
+h4{font-size:14.5px; margin:22px 0 6px; color:var(--ink-2)}
+p{margin:0 0 14px}
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--accent-soft)}
+a:hover{border-bottom-color:var(--accent)}
+ul,ol{margin:0 0 16px; padding-left:22px}
+li{margin:5px 0}
+li::marker{color:var(--ink-3)}
+hr{border:0; border-top:1px solid var(--rule); margin:38px 0}
+/* a markdown --- right before a heading already gets the heading's rule */
+hr:has(+ h2){display:none}
+hr + h2{border-top:0; padding-top:0; margin-top:44px}
+blockquote{margin:22px 0; padding:2px 0 2px 18px; border-left:2px solid var(--accent);
+  color:var(--ink-2)}
+blockquote p{margin:0 0 8px}
+blockquote p:last-child{margin:0}
+code{font-family:var(--mono); font-size:.855em; background:var(--code-bg);
+  padding:1.5px 5px; border-radius:2px; color:#2a2620; overflow-wrap:break-word}
+pre{background:var(--code-bg); padding:15px 17px; overflow-x:auto; margin:0 0 20px;
+  border-left:2px solid var(--ink-3); line-height:1.5}
+pre code{background:none; padding:0; font-size:12.6px; white-space:pre}
+table{width:100%; border-collapse:collapse; margin:8px 0 26px; font-size:13.6px}
+thead th{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:400; text-align:left; padding:0 12px 7px 0;
+  border-bottom:1.2px solid var(--ink); vertical-align:bottom}
+tbody td{padding:8px 12px 8px 0; border-bottom:1px solid var(--rule); vertical-align:top; line-height:1.45}
+tbody td:first-child{font-weight:700}
+td code,th code{font-size:12px}
+/* ---------- index ---------- */
+.index{max-width:1020px; margin:0 auto; padding:64px 40px 120px}
+.index .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+.index h1{margin-top:14px}
+.index .lede{color:var(--ink-2); font-size:18px; max-width:62ch; margin:14px 0 38px; line-height:1.55}
+.index ol{list-style:none; padding:0; margin:0; border-top:1.2px solid var(--ink)}
+.index li{border-bottom:1px solid var(--rule)}
+.index a.row{display:grid; grid-template-columns:34px minmax(0,1fr) 76px; gap:18px;
+  align-items:start; padding:16px 4px 16px 0; text-decoration:none; border:0; color:inherit}
+.index a.row:hover{background:var(--paper-2)}
+.index .n{font-family:var(--mono); font-size:11.5px; color:var(--accent); white-space:nowrap;
+  padding-top:4px}
+.index .t{font-size:17px; font-weight:700; letter-spacing:-.008em; line-height:1.3}
+.index .d{font-size:13.4px; color:var(--ink-2); margin-top:4px; line-height:1.5}
+.index .w{font-family:var(--mono); font-size:11px; color:var(--ink-3); text-align:right; padding-top:4px}
+@media (max-width:980px){
+  .wrap{grid-template-columns:1fr; gap:0; padding:32px 20px 80px}
+  aside{position:static; max-height:none; margin-bottom:28px}
+  aside nav{display:none}
+  .index{padding:32px 20px 80px}
+  .index a.row{grid-template-columns:1fr; gap:4px}
+  .index .w{text-align:left}
+  table{display:block; overflow-x:auto; white-space:nowrap}
+  table td,table th{white-space:normal}
+}
+@media print{
+  aside{display:none} .wrap{grid-template-columns:1fr; max-width:100%; padding:0}
+  body{font-size:11pt} h2{break-after:avoid} table,pre{break-inside:avoid}
+  a{color:inherit; border:0}
+}
+</style>
+</head><body>
+<div class="wrap">
+<aside>
+  <div class="kicker">Research report</div>
+  <div class="meta">3,470 words<br>9 sections<br>252 lines of source</div>
+  <nav><a class="lvl2" href="#0-recommendation">0. Recommendation</a>
+<a class="lvl2" href="#1-comparison-matrix">1. Comparison matrix</a>
+<a class="lvl2" href="#2-the-chat-rendering-problem-what-it-actually-costs">2. The chat-rendering problem — what it actually costs</a>
+<a class="lvl3" href="#doing-it-in-rust-instead-what-exists-verified">Doing it in Rust instead — what exists, verified</a>
+<a class="lvl2" href="#3-terminal-emulation">3. Terminal emulation</a>
+<a class="lvl2" href="#4-packaging-and-distribution">4. Packaging and distribution</a>
+<a class="lvl2" href="#5-cost-to-build-the-v1-ui">5. Cost to build the v1 UI</a>
+<a class="lvl2" href="#6-risks-and-unknowns">6. Risks and unknowns</a>
+<a class="lvl2" href="#7-a-30-minute-spike-that-would-settle-it">7. A 30-minute spike that would settle it</a>
+<a class="lvl2" href="#8-what-i-could-not-verify">8. What I could not verify</a>
+<a class="lvl3" href="#sources-all-fetched-2026-11-22-with-curl">Sources (all fetched 2026-11-22 with curl)</a></nav>
+  <a class="back" href="index.html">&larr; index</a>
+</aside>
+<main>
+<h1>Desktop UI shell choice — decision report</h1>
+<p>Research pass <code>2026-11-22</code>. Read-only: no toolchain installed, no project scaffolded, no repo modified.
+<code>web_search</code>/<code>web_fetch</code> returned HTTP 402 (no credits), so every number below came from
+<code>crates.io/api/v1</code>, <code>registry.npmjs.org</code>, <code>api.github.com</code>, <code>raw.githubusercontent.com</code>, and one blog
+article fetched with <code>curl</code>. Versions and download counts are as of this session; each carries its date.</p>
+<hr />
+<h2 id="0-recommendation">0. Recommendation</h2>
+<p><strong>Tauri 2.x</strong> (stable <code>2.12.7</code>, <code>2026-11-18</code>) with the Rust runner as a child/embedded process and the
+transcript served to the webview over a <strong>loopback HTTP/SSE endpoint</strong>, not Tauri IPC — the same shape
+all three reference apps converged on, and the one that keeps a browser/phone client free.
+Memory is <em>not</em> the reason to pick it: the measured Electron→Tauri idle delta is <strong>26.5 MiB</strong>
+(<code>59.5</code> vs <code>86.0</code> MiB), ~1 % of the 0.9–7.5 GB the 3–5 agent subprocesses will consume.
+<strong>Change it if</strong> the §7 Linux spike reproduces WebKitGTK breakage that we must ship through (xterm.js
+WebGL, <code>WEBKIT_DISABLE_DMABUF_RENDERER</code> abort, the font-weight-100 bug) — then take Electron, because
+the React UI is byte-identical either way and the runner is the same Rust process in both.</p>
+<hr />
+<h2 id="1-comparison-matrix">1. Comparison matrix</h2>
+<p>Cells are evidence, not vibes; the source for each row is in the sections that follow.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><strong>Electron 45</strong></th>
+<th><strong>Tauri 2.12</strong></th>
+<th><strong>egui 0.37</strong></th>
+<th><strong>iced 0.14</strong></th>
+<th><strong>Slint 1.19</strong></th>
+<th><strong>GPUI 0.2.2</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Memory (idle, all procs)</strong></td>
+<td>86.0 MiB measured, empty page, macOS</td>
+<td>59.5 MiB, same page, same run</td>
+<td>not published; ~40–80 MB typical claim, <strong>unverified</strong></td>
+<td>not published, <strong>unverified</strong></td>
+<td>not published, <strong>unverified</strong></td>
+<td>not published, <strong>unverified</strong></td>
+</tr>
+<tr>
+<td><strong>Bundle on disk</strong></td>
+<td>268.7 MiB (asar, macOS)</td>
+<td><strong>7.3 MiB</strong> (LTO release)</td>
+<td>single binary, few MB + assets</td>
+<td>few MB</td>
+<td>few MB</td>
+<td>few MB + ~109 deps</td>
+</tr>
+<tr>
+<td><strong>Startup</strong></td>
+<td>script 321 ms / first frame <strong>326 ms</strong></td>
+<td>script 309 ms / first frame <strong>377 ms</strong></td>
+<td>fastest class (native, no engine)</td>
+<td>fast</td>
+<td>fast</td>
+<td>fastest (Zed-class)</td>
+</tr>
+<tr>
+<td><strong>Dev iteration</strong></td>
+<td>Vite HMR + real Chrome DevTools — best in class</td>
+<td>Vite HMR for UI; <code>cargo build</code> on Rust change; <strong>WebKit Inspector</strong>, weaker than DevTools; <code>devtools</code> is a cargo feature</td>
+<td>rebuild+relaunch, no DOM inspector (built-in debug painter)</td>
+<td>rebuild+relaunch; in-tree <code>devtools</code> crate</td>
+<td>rebuild; LSP live preview (not verified here)</td>
+<td><code>hot-reload</code> feature (subsecond/dioxus) exists but tied to Zed tooling</td>
+</tr>
+<tr>
+<td><strong>Markdown / chat</strong></td>
+<td><code>react-markdown 10.1.0</code> + <code>shiki 4.6.0</code>, both mature, both used in production by the refs</td>
+<td>same as Electron (same webview DOM)</td>
+<td><code>egui_commonmark 0.26.0</code> (2.4 M dl) — renders; no rich copy/selection story verified</td>
+<td><strong>nothing</strong> but <code>iced_highlighter</code> (in-tree, thin, built on <code>two-face</code>)</td>
+<td><strong>nothing</strong> — no markdown crate exists</td>
+<td><strong>nothing</strong></td>
+</tr>
+<tr>
+<td><strong>Diffs</strong></td>
+<td><code>react-diff-view 3.3.3</code> + <code>diff 9.0.0</code>; refs write 1.9k–2.8k prod lines on top</td>
+<td>same</td>
+<td><code>similar 3.2.1</code> (algorithm only) — <strong>write the view yourself</strong></td>
+<td>algorithm only — write it yourself</td>
+<td>algorithm only — write it yourself</td>
+<td>algorithm only — write it yourself</td>
+</tr>
+<tr>
+<td><strong>Terminal</strong></td>
+<td><code>@xterm/xterm 6.0.0</code> + 8 addons (WebGL, fit, serialize, search, image…) — the thing VS Code uses</td>
+<td>same (xterm.js in the webview)</td>
+<td><code>alacritty_terminal 0.26</code> parser; <code>egui_term</code> is at <strong>4,750 downloads, last release 2025-04</strong></td>
+<td><code>alacritty_terminal</code>; <code>iced_term 0.8</code> at 27.8 k dl</td>
+<td>nothing</td>
+<td>nothing</td>
+</tr>
+<tr>
+<td><strong>Tables / virtualization</strong></td>
+<td><code>@tanstack/react-virtual 3.14.28</code> (used by orca, cloudroom)</td>
+<td>same</td>
+<td><code>egui_extras::TableBuilder</code>, <code>egui_table 0.11</code>, <code>egui_ltreeview</code> (tree)</td>
+<td><strong>no virtualized list widget</strong>; <code>Lazy</code> from iced-rs only</td>
+<td><code>ListView</code> + model (built in)</td>
+<td>Zed's <code>uniform_list</code> — not a public API</td>
+</tr>
+<tr>
+<td><strong>Theming</strong></td>
+<td>CSS — unlimited, one designer can do it</td>
+<td>CSS</td>
+<td>egui <code>Style</code>/<code>Visuals</code>; coarse, &quot;egui look&quot; is hard to escape</td>
+<td>theme struct, limited</td>
+<td><code>.slint</code> styling, good for panels</td>
+<td><code>Theme</code> + <code>rgb()</code>; Zed-shaped</td>
+</tr>
+<tr>
+<td><strong>Packaging / signing</strong></td>
+<td><code>electron-builder 26.18.0</code>, <code>electron-updater 6.8.11</code>, <code>@electron/notarize 3.1.2</code> — the reference</td>
+<td>built-in bundler (<code>.app/.dmg/.msi/nsis/.deb/.rpm/.AppImage</code>) + <code>tauri-plugin-updater 2.14.1</code>; <strong>signing mandatory, key loss = no more updates</strong></td>
+<td>none — <code>cargo-bundle 0.12</code> + <code>self_update 1.3.3</code> + <code>notarytool</code> by hand</td>
+<td>none, same</td>
+<td>none, same</td>
+<td>none, same</td>
+</tr>
+<tr>
+<td><strong>Cross-platform</strong></td>
+<td>Win/mac/Linux, one Chromium everywhere</td>
+<td>Win/mac/Linux <strong>+ iOS/Android</strong> (README: iOS 9+, Android 7+); three different engines</td>
+<td>Win/mac/Linux; no mobile, no web</td>
+<td>Win/mac/Linux; no mobile</td>
+<td>Win/mac/Linux + WASM/web + embedded</td>
+<td>macOS/Linux/Windows (Zed ships mac+linux)</td>
+</tr>
+<tr>
+<td><strong>Accessibility</strong></td>
+<td>Chromium a11y: AT-SPI / VoiceOver / UIA — best</td>
+<td>platform webview a11y (WKWebView good, WebKitGTK AT-SPI ok)</td>
+<td><code>accesskit 0.25.2</code> compiled in</td>
+<td><strong>none</strong> — 0 <code>accesskit</code> entries in <code>Cargo.lock</code></td>
+<td><code>accesskit</code> behind optional <code>accessibility-text</code> feature</td>
+<td>accesskit-based; README has an a11y topic — not verified</td>
+</tr>
+<tr>
+<td><strong>Ecosystem maturity</strong></td>
+<td>124 k★, 8-week major cadence, 3 refs pin <strong>43/44 while 45 shipped</strong></td>
+<td>113 k★, 122 releases on 2.x, 3.0 alpha in flight</td>
+<td>32.4 k★, <code>0.37</code> on <code>2026-10-15</code>, breaking release every ~6–8 weeks</td>
+<td>32.1 k★, <strong>0.14 on 2025-12-07</strong>, <code>master</code> is <code>0.15.0-dev</code></td>
+<td>24.7 k★, quarterly 1.x minors; royalty-free but <strong>attribution required</strong></td>
+<td>95.5 k★ (that is Zed, not gpui), 7 releases ever, none in 13 months</td>
+</tr>
+<tr>
+<td><strong>12-month risk</strong></td>
+<td>Chromium majors outpace you (refs already 1–2 behind); nothing else moves</td>
+<td>3.0 migration + <code>webkit2gtk-rs</code> 3.0 bump land inside the year</td>
+<td>constant breaking churn; you are the a11y/markdown/diff author</td>
+<td>one release a year means you fork to fix</td>
+<td>vendor risk (SixtyFPS), attribution obligation, weak text stack</td>
+<td><strong>not viable</strong> — see §2</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-the-chat-rendering-problem-what-it-actually-costs">2. The chat-rendering problem — what it actually costs</h2>
+<p>This is the deciding evidence. Measured in the cloned repos at <code>/tmp/ilvuno-research</code> in this session,
+<code>**/*.tsx|*.ts</code> under the transcript component root, split into total and <strong>prod-only</strong> (tests,
+<code>*.stories.tsx</code>, <code>__tests__</code> excluded):</p>
+<table>
+<thead>
+<tr>
+<th>Repo</th>
+<th>Surface directory</th>
+<th>Total</th>
+<th><strong>Prod</strong></th>
+<th>Largest prod file</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>t3code</td>
+<td><code>apps/web/src/components/chat</code></td>
+<td>90,702</td>
+<td><strong>67,391</strong></td>
+<td><code>ChatComposer.tsx</code> 4,116 · <code>MessagesTimeline.logic.ts</code> 2,949 · <code>MessagesTimeline.tsx</code> 1,936</td>
+</tr>
+<tr>
+<td>cloudroom</td>
+<td><code>gui/apps/app/src/components/thread</code></td>
+<td>53,972</td>
+<td><strong>37,577</strong></td>
+<td><code>ThreadTimelineRows.tsx</code> 2,612 · <code>ThreadDetailView.tsx</code> <strong>3,355</strong> (<code>03-cloudroom.md</code> §13) · <code>build-thread-timeline.ts</code> 1,726</td>
+</tr>
+<tr>
+<td>orca</td>
+<td><code>src/renderer/src/components/native-chat</code></td>
+<td>99,871</td>
+<td><strong>98,382</strong></td>
+<td>deliberately fragmented: 860 files, largest 450 lines</td>
+</tr>
+<tr>
+<td>orca</td>
+<td><code>src/renderer/src/components/terminal-pane</code></td>
+<td>81,078</td>
+<td><strong>79,363</strong></td>
+<td>772 files</td>
+</tr>
+<tr>
+<td>cloudroom</td>
+<td><code>gui/apps/app/src/components/git-diff</code></td>
+<td>3,023</td>
+<td><strong>2,750</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td>t3code</td>
+<td><code>apps/web/src/components/diffs</code></td>
+<td>2,830</td>
+<td><strong>1,857</strong></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Adjacent surfaces that are <em>not</em> optional once you have a transcript: cloudroom <code>promptbox</code> 37,658 lines
+and <code>secondary-panel</code> 34,772; t3code <code>settings</code> 86,131. None of these numbers include the Rust/Node
+runner.</p>
+<p>What those lines buy, from the dependency lists actually in each <code>package.json</code>:</p>
+<ul>
+<li>orca: <code>@xterm/xterm</code> + <code>addon-webgl/fit/serialize/search/image/ligatures/web-links</code> + <code>@xterm/headless</code>,
+<code>shiki</code>, <code>react-markdown</code>, <code>@tanstack/react-virtual</code>, <code>@monaco-editor/react</code>, <code>diff</code>.</li>
+<li>cloudroom: <code>monaco-editor</code>, <code>react-markdown</code>, <code>@tanstack/react-virtual</code>.</li>
+<li>t3code: <code>diff</code> (its own <code>ChatMarkdown.tsx</code> + <code>MessagesTimeline</code> logic on top).</li>
+</ul>
+<p><strong>Read this as: nobody in this space writes their own renderer.</strong> Three independent teams, three
+licences, same shopping list. The 37 k–98 k prod lines are not markdown rendering — they are the
+<em>behaviour</em> around it: streaming deltas into a stable layout without re-mounting highlighters, tool-call
+rows that expand into diffs, per-agent message shapes, scroll anchoring while tokens arrive, selection
+across virtualized rows, and the composer.</p>
+<h3 id="doing-it-in-rust-instead-what-exists-verified">Doing it in Rust instead — what exists, verified</h3>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Crate</th>
+<th>Downloads</th>
+<th>Last release</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>markdown → events</td>
+<td><code>pulldown-cmark 0.13.6</code></td>
+<td>217.1 M</td>
+<td>2026-10-30</td>
+<td>solid, but events only</td>
+</tr>
+<tr>
+<td>markdown → HTML</td>
+<td><code>comrak 1.1.0</code></td>
+<td>10.8 M</td>
+<td>2026-11-20</td>
+<td>solid; useless without an HTML view</td>
+</tr>
+<tr>
+<td>markdown widget</td>
+<td><code>egui_commonmark 0.26.0</code></td>
+<td>2.4 M</td>
+<td>2026-10-15</td>
+<td>the <strong>only</strong> maintained one; egui-only</td>
+</tr>
+<tr>
+<td>syntax highlight</td>
+<td><code>syntect 5.3.0</code> / <code>two-face 0.5.2</code></td>
+<td>43.1 M / 18.5 M</td>
+<td>2025-09-27 / 2026-08-07</td>
+<td>mature engine, you own the layout</td>
+</tr>
+<tr>
+<td>syntax highlight (iced)</td>
+<td><code>iced_highlighter</code> (in-tree)</td>
+<td>n/a</td>
+<td>tracks master</td>
+<td>thin, egui-equivalent absent</td>
+</tr>
+<tr>
+<td>diff algorithm</td>
+<td><code>similar 3.2.1</code> / <code>imara-diff 0.2.0</code></td>
+<td>259.8 M / 36.8 M</td>
+<td>2026-10-24 / 2025-06-14</td>
+<td>algorithms, <strong>no view</strong></td>
+</tr>
+<tr>
+<td>diff view</td>
+<td><code>vix-diff-view 2.1.0</code></td>
+<td><strong>404</strong></td>
+<td>—</td>
+<td>the entire Rust diff-view category</td>
+</tr>
+<tr>
+<td>terminal parser</td>
+<td><code>alacritty_terminal 0.26.0</code></td>
+<td>3.0 M</td>
+<td>2026-04-06</td>
+<td>real, published, but parser+grid only</td>
+</tr>
+<tr>
+<td>terminal widget (egui)</td>
+<td><code>egui_term 0.1.0</code></td>
+<td><strong>4,750</strong></td>
+<td><strong>2025-04-24</strong></td>
+<td>effectively abandoned</td>
+</tr>
+<tr>
+<td>terminal widget (iced)</td>
+<td><code>iced_term 0.8.0</code></td>
+<td>27.8 k</td>
+<td>2026-03-27</td>
+<td>small, one maintainer</td>
+</tr>
+<tr>
+<td>code editor widget</td>
+<td><code>egui_code_editor 0.5.0</code></td>
+<td>104 k</td>
+<td>2026-11-03</td>
+<td>highlights, no LSP-grade editing</td>
+</tr>
+<tr>
+<td>code editor widget</td>
+<td><code>iced_code_editor 0.7.1</code></td>
+<td><strong>4,942</strong></td>
+<td>2026-11-18</td>
+<td>hobby scale</td>
+</tr>
+<tr>
+<td>table</td>
+<td><code>egui_extras 0.37.0</code> / <code>egui_table 0.11.0</code></td>
+<td>14.1 M / 1.7 M</td>
+<td>2026-10-15 / 2026-10-19</td>
+<td>works; rows must be cheap</td>
+</tr>
+<tr>
+<td>table (iced)</td>
+<td><code>iced_table 0.14.0</code></td>
+<td>13 k</td>
+<td>2026-05-19</td>
+<td>nothing virtualized in core</td>
+</tr>
+</tbody>
+</table>
+<p><strong>GPUI is not a candidate for a third party today</strong>, and this is checkable rather than opinion:
+<code>0.2.2</code> published <code>2025-10-22</code>; 7 versions ever; <strong>nothing in 13 months</strong>; 109 crate dependencies
+(<code>blade-graphics</code>, <code>metal</code>, <code>cocoa</code>, <code>objc2</code>, <code>naga</code>…); its own README says &quot;still pre-1.0 … will often be
+breaking changes between versions&quot; and then instructs <code>gpui = { version = &quot;*&quot; }</code> plus a <code>gpui_platform</code>
+crate that <strong>is not on crates.io</strong> (<code>/api/v1/crates/gpui_platform</code> → not published). You would be
+vendoring Zed's workspace and tracking <code>main</code>. As a reference design it is excellent; as a dependency it
+does not exist yet.</p>
+<hr />
+<h2 id="3-terminal-emulation">3. Terminal emulation</h2>
+<p>Four real options, all verified:</p>
+<ol>
+<li><strong>xterm.js in a webview</strong> — <code>@xterm/xterm 6.0.0</code> (<code>2025-12-22</code>), 21.4 k★, pushed <code>2026-11-22</code>, 344 open
+issues, addons for WebGL rendering, fit, search, serialize, images, ligatures, plus <code>@xterm/headless</code>
+for server-side scraping. This is what VS Code, orca and cloudroom ship. Nothing in Rust is close in
+completeness: scrollback, selection, mouse modes, IME, hyperlinks, bracketed paste, resize/reflow.</li>
+<li><strong><code>alacritty_terminal 0.26.0</code></strong> — the real parser/grid, published and used by both egui_term and
+iced_term. There is no <code>wezterm-term</code> on crates.io (404); wezterm's <code>termwiz 0.23.3</code> exists but last
+released <code>2025-03-20</code>. <code>vt100 0.18.1</code> (21.4 M dl) parses but is not an emulator front-end.</li>
+<li><strong>Roll your own on <code>alacritty_terminal</code></strong> — you supply glyph atlas + wgpu/canvas drawing, cell
+damage tracking, selection, mouse reporting, key encoding, IME, search, and reflow. orca's
+<code>terminal-pane</code> is <strong>79,363 prod lines</strong> and that is with xterm.js doing the emulation; it is spending
+those lines on PTY transport, remote runtime, tab/session state and UI. A native pane is a
+multi-month item, not a week.</li>
+<li><strong>Embed a separate terminal app</strong> — loses the point.</li>
+</ol>
+<p>Practical choice: with a webview the terminal is a solved, boring dependency. With any native toolkit it
+becomes one of the two or three hardest parts of the product — for a developer tool, that is the worst
+place to spend novelty budget.</p>
+<hr />
+<h2 id="4-packaging-and-distribution">4. Packaging and distribution</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Signing / notarization</th>
+<th>Auto-update</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tauri</strong></td>
+<td>macOS notarization documented; Windows NSIS/MSI via <code>signtool</code>; Linux <code>.deb/.rpm/.AppImage</code>. Bundler is part of <code>tauri-cli 2.12.6</code>.</td>
+<td><code>tauri-plugin-updater 2.14.1</code> (16.1 M dl), <strong>signature verification cannot be disabled</strong> — you must hold the private key; losing it means you can never update installed users again. Endpoint can be static JSON or a dynamic server.</td>
+</tr>
+<tr>
+<td><strong>Electron</strong></td>
+<td><code>@electron/notarize 3.1.2</code> + <code>electron-builder 26.18.0</code> does the whole matrix (dmg/zip/nsis/AppImage/deb/snap, universal mac).</td>
+<td><code>electron-updater 6.8.11</code>: delta updates, channels, staged rollout. The most battle-tested of the six.</td>
+</tr>
+<tr>
+<td><strong>egui / iced / Slint / GPUI</strong></td>
+<td>No bundler, no notarization, no updater in-framework. <code>cargo-bundle 0.12.0</code> (193 k dl) builds a <code>.app</code>; <code>cargo-dist 0.34.0</code> ships installers; <code>self_update 1.3.3</code> gives an updater you wire yourself, with no code-signing enforcement model.</td>
+<td>Assemble it yourself, including the signing chain and the update-manifest format.</td>
+</tr>
+</tbody>
+</table>
+<p>Two Linux notes that matter for a developer tool: Tauri's Linux prerequisites require
+<code>libwebkit2gtk-4.1-dev</code> (Ubuntu 22.04+) and therefore <strong>the library is a host dependency</strong>, and
+<code>webkit2gtk-rs</code> is mid-migration to v3.0 (PR #16612, <code>2026-11-22</code>), i.e. a dependency bump is coming
+whether or not you want it.</p>
+<hr />
+<h2 id="5-cost-to-build-the-v1-ui">5. Cost to build the v1 UI</h2>
+<p>Order of magnitude, derived from the prod line counts above plus the crate inventory. &quot;v1&quot; means: one
+transcript per thread, streaming, markdown + code highlight, unified and side-by-side diff, file tree,
+terminal pane, context ledger — no plugins, no settings matrix.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Lines we write ourselves</th>
+<th>Calendar (1 senior)</th>
+<th>What we must build that nobody sells us</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tauri</strong></td>
+<td><strong>15 k–25 k</strong> TSX/CSS, plus the Rust runner</td>
+<td><strong>6–10 weeks</strong> to a usable v1</td>
+<td>transcript row model, scroll anchoring, diff wrapper, ledger panel. Markdown, highlighting, diffs, terminal, virtualization all bought.</td>
+</tr>
+<tr>
+<td><strong>Electron</strong></td>
+<td>same <strong>15 k–25 k</strong>, same components</td>
+<td><strong>6–10 weeks</strong></td>
+<td>identical to Tauri — strictly a superset cost (bigger binary, Chromium majors)</td>
+</tr>
+<tr>
+<td><strong>egui</strong></td>
+<td><strong>45 k–70 k</strong></td>
+<td><strong>4–6 months</strong></td>
+<td>markdown layout + link handling, inline code/code blocks with measured line widths, text selection across widgets, clipboard of rich content, diff view, terminal pane, drag-select rows, theming beyond egui's look</td>
+</tr>
+<tr>
+<td><strong>iced</strong></td>
+<td><strong>60 k–90 k</strong></td>
+<td><strong>6–9 months</strong></td>
+<td>all of egui's list, plus virtualization, plus accessibility (no accesskit at all), against a toolkit that shipped once in the last 12 months</td>
+</tr>
+<tr>
+<td><strong>Slint</strong></td>
+<td><strong>35 k–55 k</strong></td>
+<td><strong>3–5 months</strong></td>
+<td>markdown/rich-text view (no crate exists), diff view, terminal pane; UI <em>panels</em> are the pleasant part, the transcript is the expensive part</td>
+</tr>
+<tr>
+<td><strong>GPUI</strong></td>
+<td>unbounded</td>
+<td>not planable</td>
+<td>the framework itself, since <code>0.2.2</code> will not compile from crates.io as documented</td>
+</tr>
+</tbody>
+</table>
+<p>The asymmetry is the whole argument: 37–98 k prod lines exist in the reference apps <em>because</em> the web
+stack makes the hard parts additive. In a native toolkit the same features are subtractive — each one
+removes weeks and adds permanent ownership.</p>
+<hr />
+<h2 id="6-risks-and-unknowns">6. Risks and unknowns</h2>
+<ol>
+<li><strong>Linux is the actual risk, not memory.</strong> Three verified WebKitGTK facts, each dated:
+<code>tauri#14286</code> (open, <code>2025-10-12</code>) — font weight is offset by exactly 100 on WebKitGTK, text renders
+bolder than in any browser, CSS computed values are correct; <code>tauri#16226</code> (open PR, <code>2026-10-07</code>) —
+on Wayland with NVIDIA proprietary drivers or compositors without explicit sync, webkit2gtk 2.44
+enables the DMA-BUF renderer and <strong>GDK calls <code>abort()</code></strong>, which &quot;no Rust error handling or panic
+catching can survive&quot;; only mitigation is <code>WEBKIT_DISABLE_DMABUF_RENDERER=1</code>. Third: <code>devtools</code> is a
+cargo feature, so release builds ship without an inspector unless you opt in.</li>
+<li><strong>Tauri startup is not faster than Electron</strong> in the one controlled measurement: first frame 377 ms
+vs 326 ms. And in 4 of 50 Tauri launches the first frame was held <strong>8–80 s</strong> after the script ran,
+because the window started hidden — a real hazard for tray/restore flows.</li>
+<li><strong>Tauri IPC is not the transport for a token stream.</strong> The same benchmark: 50 MiB in 112 ms via
+<code>ipc::Response</code>, 279 ms via serde, and a <code>Channel</code> resolves <code>invoke()</code> <em>before</em> its chunks arrive
+(0 chunks received in all 9 calls). Batch deltas, or use loopback HTTP/SSE — which is what gives us
+browser/phone reuse for free.</li>
+<li><strong>Tauri 3.0 lands inside our horizon</strong> (alpha.6 <code>2026-11-06</code>; milestone &quot;3.0&quot; has 11 open issues;
+&quot;2.13&quot; has 14). Budget one migration. 2.x will stay supported but the ecosystem will fork attention.</li>
+<li><strong>Electron's hidden cost is the 8-week Chromium major</strong>, and the refs demonstrate it: orca pins
+<code>43.8.10</code>, t3code <code>44.10.1</code>, cloudroom <code>44.11.2</code>, while <code>45.4.1</code> is current. Three teams, all behind.</li>
+<li><strong>Attribute/reuse trap.</strong> Slint's royalty-free licence requires shipping <code>AboutSlint</code> in an About
+dialog or a &quot;Made with Slint&quot; badge on the download page; the licence also forbids exposing the
+toolkit's APIs. Fine for us, but it is a permanent product constraint, and GPLv3-or-commercial
+otherwise.</li>
+<li><strong>Unverified but load-bearing:</strong> whether xterm.js's WebGL addon works acceptably under WebKitGTK
+(canvas fallback exists, but the terminal is where developers notice latency); whether egui's text
+selection and IME behave well enough for a chat composer. Both are §7 tests, not reading.</li>
+</ol>
+<hr />
+<h2 id="7-a-30-minute-spike-that-would-settle-it">7. A 30-minute spike that would settle it</h2>
+<p>One page, one binary, on the machine we actually ship to (Ubuntu 24.04, Wayland, and the NVIDIA laptop
+if that is a target; repeat on macOS). Do not build a chat app — build the four primitives.</p>
+<ol>
+<li><code>npm create tauri-app@latest</code> (vanilla TS), 2 min.</li>
+<li>One page, four panes: <strong>(a)</strong> a fake transcript that appends a 60-char markdown delta every 16 ms for
+20 s, with shiki highlighting a code block that is re-highlighted each frame; <strong>(b)</strong> <code>xterm.js</code> +
+<code>addon-webgl</code> running <code>top</code> for 10 s from a Rust <code>Child</code>; <strong>(c)</strong> a 2,000-line side-by-side diff from
+<code>react-diff-view</code>; <strong>(d)</strong> a 10,000-row virtualized list from <code>@tanstack/react-virtual</code>, scrolling.</li>
+<li>Measure with <code>ps -o rss= --ppid</code> over the process tree every second, and <code>performance.now()</code> deltas
+into a log; print <code>p50/p95</code> frame time.</li>
+</ol>
+<p><strong>Pass criteria (all must hold):</strong> total RSS &lt; 400 MB with 3 idle <code>node</code> children running; p95 frame time
+&lt; 20 ms during (a) and (d); xterm WebGL context created and key echo latency &lt; 50 ms; no
+<code>GDK</code> protocol-error abort across 10 launches; text weight matches the same HTML in Firefox within one
+screenshot. <strong>Fail any of (b) or the launch test → Electron, same day, same React code, zero UI rewrite.</strong></p>
+<p>Add 10 minutes: repeat step 3 with <code>node</code> × 3 at 1 GB each, to confirm the shell's RSS does not scale
+with agent memory (it should not; if it does, our process model is wrong, not the shell).</p>
+<hr />
+<h2 id="8-what-i-could-not-verify">8. What I could not verify</h2>
+<ul>
+<li><strong>Memory for an app of our shape.</strong> The only controlled Electron↔Tauri measurement I found is an empty
+page plus a JSON payload trickle (Woliński, <code>2026-11-22</code>, Tauri 2.12.5 vs Electron 45.2.3, macOS 27.2,
+M1 Pro 32 GB). No published measurement covers a chat app with a real React bundle, highlighters and a
+terminal — and none covers Linux or Windows (the author says so explicitly). The 26.5 MiB delta is
+therefore a <em>floor</em>, not our number.</li>
+<li><strong>Any Linux/Windows memory figure</strong> for either shell. Nothing citable exists that I could reach.</li>
+<li><strong>xterm.js under WebKitGTK</strong>, and whether the WebGL addon survives the DMA-BUF path.</li>
+<li><strong>egui / iced / Slint text selection, IME, and copy-with-formatting semantics</strong> — not verifiable by
+reading; needs hands on a build, which this pass was not allowed to do.</li>
+<li><strong>Whether <code>gpui 0.2.2</code> actually builds from crates.io</strong> (<code>gpui_platform</code> missing suggests not). I did
+not compile it.</li>
+<li><strong>Whether Tauri's <code>.AppImage</code>/<code>.deb</code> bundles carry <code>libwebkit2gtk-4.1</code> or require it on the host.</strong> The
+prerequisites doc requires it for <em>development</em>; packaging behaviour is unconfirmed.</li>
+<li><strong>Slint's rich-text ceiling</strong> — no markdown crate exists, but I did not test how far <code>Text</code> with spans
+gets us.</li>
+<li><strong>Real LOC for our own v1.</strong> §5 is an order-of-magnitude estimate scaled from the reference repos, not
+a bottom-up plan.</li>
+</ul>
+<h3 id="sources-all-fetched-2026-11-22-with-curl">Sources (all fetched <code>2026-11-22</code> with <code>curl</code>)</h3>
+<p><code>crates.io/api/v1/crates/{tauri,egui,iced,slint,gpui,alacritty_terminal,vt100,avt,termwiz,pulldown-cmark,comrak,syntect,two-face,similar,imara-diff,vix-diff-view,egui_commonmark,egui_term,iced_term,iced_table,egui_table,egui_ltreeview,cargo-bundle,self_update,cargo-dist}</code> ·
+<code>registry.npmjs.org/{@xterm/xterm,@xterm/addon-*,shiki,react-markdown,react-diff-view,diff,@tanstack/react-virtual,monaco-editor,electron,electron-builder,electron-updater,@electron/notarize,@tauri-apps/api}</code> ·
+<code>api.github.com/repos/{emilk/egui,iced-rs/iced,slint-ui/slint,zed-industries/zed,tauri-apps/tauri,xtermjs/xterm.js}</code> ·
+<code>api.github.com/repos/tauri-apps/tauri/issues/{14286,16226}</code> · <code>api.github.com/repos/tauri-apps/tauri/milestones</code> ·
+<code>raw.githubusercontent.com/tauri-apps/tauri/{dev/README.md,dev/crates/tauri/Cargo.toml}</code> ·
+<code>raw.githubusercontent.com/zed-industries/zed/main/crates/gpui/{README.md,Cargo.toml}</code> ·
+<code>raw.githubusercontent.com/{iced-rs/iced/master/{Cargo.toml,Cargo.lock},iced-rs/iced/master/highlighter/Cargo.toml}</code> ·
+<code>raw.githubusercontent.com/slint-ui/slint/master/{LICENSE.md,LICENSES/LicenseRef-Slint-Royalty-free-2.0.md}</code> ·
+<code>raw.githubusercontent.com/tauri-apps/tauri-docs/v2/src/content/docs/{start/prerequisites.mdx,plugin/updater.mdx}</code> ·
+<code>wolinski.com/blog/tauri-vs-electron-ipc-memory.html</code> (with <code>github.com/michalwolinski/tauri-vs-electron-ipc-memory</code>) ·
+local clones <code>/tmp/ilvuno-research/{t3code,orca,cloudroom}</code> (line counts computed here, this session).</p>
+
+</main>
+</div>
+</body></html>

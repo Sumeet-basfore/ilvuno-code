@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orca — reference implementation research</title>
+<style>
+:root{
+  --paper:#f6f4ef; --paper-2:#efece4; --ink:#16150f; --ink-2:#56524a; --ink-3:#8a857a;
+  --rule:#d8d3c7; --accent:#9e3b22; --accent-soft:#f1e5dd; --code-bg:#efece4;
+  --mono:"JetBrains Mono","Liberation Mono",ui-monospace,monospace;
+  --sans:"Liberation Sans","Noto Sans",Inter,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0; color:var(--ink); background:var(--paper);
+  font-family:var(--sans); font-size:16.5px; line-height:1.62;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility}
+.wrap{display:grid; grid-template-columns:248px minmax(0,1fr); gap:52px;
+  max-width:1180px; margin:0 auto; padding:56px 40px 120px}
+/* ---------- sidebar ---------- */
+aside{position:sticky; top:40px; align-self:start; max-height:calc(100vh - 80px);
+  overflow:auto; padding-left:16px; border-left:2px solid var(--accent)}
+aside .kicker{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+aside .meta{font-family:var(--mono); font-size:11px; color:var(--ink-3); line-height:1.7; margin-top:10px}
+aside nav{margin-top:22px}
+aside nav a{display:block; color:var(--ink-2); text-decoration:none; font-size:13px;
+  line-height:1.35; padding:4px 0 4px 10px; border-left:1px solid transparent; margin-left:-11px}
+aside nav a:hover{color:var(--ink); border-left-color:var(--rule)}
+aside nav a.lvl3{padding-left:22px; font-size:12.2px; color:var(--ink-3)}
+aside .back{display:inline-block; margin-top:26px; font-family:var(--mono); font-size:11px;
+  color:var(--ink-3); text-decoration:none; border-bottom:1px solid var(--rule)}
+/* ---------- content ---------- */
+main{max-width:74ch}
+h1,h1 a,h2,h2 a,h3,h3 a,h4,h4 a{color:inherit}
+h1{font-size:36px; line-height:1.08; letter-spacing:-.022em; margin:0 0 10px; font-weight:700}
+h1 + p, h1 + blockquote{color:var(--ink-2); font-size:16.5px}
+h2{font-size:23px; line-height:1.2; letter-spacing:-.014em; margin:52px 0 14px; padding-top:16px;
+  border-top:1px solid var(--rule); font-weight:700}
+h2:first-of-type{border-top:0; padding-top:0; margin-top:34px}
+h3{font-size:17px; margin:30px 0 8px; letter-spacing:-.006em}
+h4{font-size:14.5px; margin:22px 0 6px; color:var(--ink-2)}
+p{margin:0 0 14px}
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--accent-soft)}
+a:hover{border-bottom-color:var(--accent)}
+ul,ol{margin:0 0 16px; padding-left:22px}
+li{margin:5px 0}
+li::marker{color:var(--ink-3)}
+hr{border:0; border-top:1px solid var(--rule); margin:38px 0}
+/* a markdown --- right before a heading already gets the heading's rule */
+hr:has(+ h2){display:none}
+hr + h2{border-top:0; padding-top:0; margin-top:44px}
+blockquote{margin:22px 0; padding:2px 0 2px 18px; border-left:2px solid var(--accent);
+  color:var(--ink-2)}
+blockquote p{margin:0 0 8px}
+blockquote p:last-child{margin:0}
+code{font-family:var(--mono); font-size:.855em; background:var(--code-bg);
+  padding:1.5px 5px; border-radius:2px; color:#2a2620; overflow-wrap:break-word}
+pre{background:var(--code-bg); padding:15px 17px; overflow-x:auto; margin:0 0 20px;
+  border-left:2px solid var(--ink-3); line-height:1.5}
+pre code{background:none; padding:0; font-size:12.6px; white-space:pre}
+table{width:100%; border-collapse:collapse; margin:8px 0 26px; font-size:13.6px}
+thead th{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:400; text-align:left; padding:0 12px 7px 0;
+  border-bottom:1.2px solid var(--ink); vertical-align:bottom}
+tbody td{padding:8px 12px 8px 0; border-bottom:1px solid var(--rule); vertical-align:top; line-height:1.45}
+tbody td:first-child{font-weight:700}
+td code,th code{font-size:12px}
+/* ---------- index ---------- */
+.index{max-width:1020px; margin:0 auto; padding:64px 40px 120px}
+.index .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+.index h1{margin-top:14px}
+.index .lede{color:var(--ink-2); font-size:18px; max-width:62ch; margin:14px 0 38px; line-height:1.55}
+.index ol{list-style:none; padding:0; margin:0; border-top:1.2px solid var(--ink)}
+.index li{border-bottom:1px solid var(--rule)}
+.index a.row{display:grid; grid-template-columns:34px minmax(0,1fr) 76px; gap:18px;
+  align-items:start; padding:16px 4px 16px 0; text-decoration:none; border:0; color:inherit}
+.index a.row:hover{background:var(--paper-2)}
+.index .n{font-family:var(--mono); font-size:11.5px; color:var(--accent); white-space:nowrap;
+  padding-top:4px}
+.index .t{font-size:17px; font-weight:700; letter-spacing:-.008em; line-height:1.3}
+.index .d{font-size:13.4px; color:var(--ink-2); margin-top:4px; line-height:1.5}
+.index .w{font-family:var(--mono); font-size:11px; color:var(--ink-3); text-align:right; padding-top:4px}
+@media (max-width:980px){
+  .wrap{grid-template-columns:1fr; gap:0; padding:32px 20px 80px}
+  aside{position:static; max-height:none; margin-bottom:28px}
+  aside nav{display:none}
+  .index{padding:32px 20px 80px}
+  .index a.row{grid-template-columns:1fr; gap:4px}
+  .index .w{text-align:left}
+  table{display:block; overflow-x:auto; white-space:nowrap}
+  table td,table th{white-space:normal}
+}
+@media print{
+  aside{display:none} .wrap{grid-template-columns:1fr; max-width:100%; padding:0}
+  body{font-size:11pt} h2{break-after:avoid} table,pre{break-inside:avoid}
+  a{color:inherit; border:0}
+}
+</style>
+</head><body>
+<div class="wrap">
+<aside>
+  <div class="kicker">Research report</div>
+  <div class="meta">7,909 words<br>16 sections<br>390 lines of source</div>
+  <nav><a class="lvl2" href="#0-executive-summary">0. Executive summary</a>
+<a class="lvl2" href="#1-what-it-is">1. What it is</a>
+<a class="lvl2" href="#2-stack-repo-shape">2. Stack &amp; repo shape</a>
+<a class="lvl2" href="#3-core-domain-model">3. Core domain model</a>
+<a class="lvl2" href="#4-agent-provider-integration">4. Agent / provider integration</a>
+<a class="lvl3" href="#provider-support-table">Provider support table</a>
+<a class="lvl2" href="#5-concurrency-orchestration">5. Concurrency &amp; orchestration</a>
+<a class="lvl2" href="#6-state-persistence">6. State &amp; persistence</a>
+<a class="lvl2" href="#7-transport-ipc">7. Transport / IPC</a>
+<a class="lvl2" href="#8-frontend-architecture">8. Frontend architecture</a>
+<a class="lvl2" href="#9-extensibility">9. Extensibility</a>
+<a class="lvl2" href="#10-shared-context-cross-agent-communication-critical">10. Shared context / cross-agent communication (CRITICAL)</a>
+<a class="lvl3" href="#101-sharing-mechanism-matrix">10.1 Sharing mechanism matrix</a>
+<a class="lvl2" href="#11-notable-engineering-decisions">11. Notable engineering decisions</a>
+<a class="lvl2" href="#12-what-to-reuse-for-our-product">12. What to reuse for our product</a>
+<a class="lvl2" href="#13-what-to-avoid-gotchas">13. What to avoid / gotchas</a>
+<a class="lvl2" href="#14-top-files-to-read">14. Top files to read</a>
+<a class="lvl2" href="#15-open-questions">15. Open questions</a></nav>
+  <a class="back" href="index.html">&larr; index</a>
+</aside>
+<main>
+<h1>Orca — reference implementation research</h1>
+<p>Repo: <code>github.com/stablyai/orca</code> @ <code>c91a3b2e</code> (v1.4.214), MIT, <code>Copyright (c) 2026 Lovecast Inc.</code>
+Clone: <code>/tmp/ilvuno-research/orca</code> (read-only)</p>
+<h2 id="0-executive-summary">0. Executive summary</h2>
+<ol>
+<li>Orca is an Electron desktop IDE whose product is <em>many agent CLIs in one window</em>, organised around git worktrees; it is not a model host. It spawns the user's own <code>claude</code>/<code>codex</code>/<code>gemini</code>/… binaries and never substitutes its own weights.</li>
+<li>Three integration tiers per agent: <strong>PTY/TUI</strong> (universal, heuristic prompt injection), <strong>ACP JSON-RPC</strong> (17 per-agent dialects), <strong>native SDK</strong> (Claude only, <code>@anthropic-ai/claude-agent-sdk</code>). 45 agent ids in total (<code>src/shared/agent-launch/catalog/tui-agent.ts</code>).</li>
+<li>Concurrency is <strong>worktree-per-worker</strong>. Agents are not threads of one runtime; they are separate CLI processes in separate checkouts, coordinated by a <strong>SQLite mailbox</strong> (<code>orchestration.db</code>) with 9 message types.</li>
+<li>The coordination primitive is <strong>mail + wake</strong>, not shared memory: <code>dispatch</code>, <code>worker_done</code>, <code>question</code>/<code>reply</code>, <code>escalation</code>, <code>merge_ready</code>, <code>handoff</code>, <code>decision_gate</code>, <code>heartbeat</code>, <code>status</code> (<code>create-core-tables-sql.ts:34</code>).</li>
+<li><strong>The coordinator is itself an agent.</strong> Orca deleted its programmatic scheduler (CLI <code>coordinator-start</code> throws <code>command_retired</code>); the DAG lives in the model's head and in <code>tasks</code>/<code>dispatch_contexts</code> rows it mutates through <code>orca orchestration …</code>.</li>
+<li>Consequently the worker contract is <strong>prompt-injected</strong>, not an API: <code>buildDispatchPreamble()</code> writes task ID, dispatch ID, <code>check</code>/<code>ask</code>/<code>worker_done</code> recipes into the worker's first message (<code>worker-dispatch-preamble.ts:84</code>).</li>
+<li>State: <code>orchestration.db</code> (schema v50, 20 migration modules) in Electron <code>userData</code>; agent state in <code>profile_state_documents</code>; all per-agent session history is read from <em>each CLI's own</em> on-disk store (AI Vault), never re-hosted.</li>
+<li>Transport: one JSON-RPC runtime server (~850 methods) over NDJSON unix socket locally, WebSocket/relay for remote+phone+web; protocol v3 with capability negotiation; ~385 CLI commands are a thin client of it.</li>
+<li>Cross-agent sharing today = shared worktree files + git + mail + <code>worker-read</code>/<code>agent read</code> transcripts + diff comments + the Crew relationship panel. <strong>There is no shared scratchpad, no shared vector memory, no blackboard, no cross-agent context object.</strong></li>
+<li>Cost of admission: 3.6M lines, 160 main-process modules, Electron 43, per-file size ratchets in CI. Reuse the <em>protocol shape</em> and the <em>hook/status model</em>; do not reuse the codebase.</li>
+</ol>
+<h2 id="1-what-it-is">1. What it is</h2>
+<p>Orca is a desktop IDE for &quot;parallel agentic development&quot;: a sidebar of git worktrees (each an independent checkout that can run its own agent), a pane/tab system where any pane can be a terminal, an agent chat, a diff, a browser, an emulator, or a file viewer, and a coordination layer that lets one agent hire other agents in other worktrees. Its own README frames it as &quot;Bots inside your agent IDE&quot; — you bring the CLI subscription, Orca brings workspaces, review, git, remote hosts, and the orchestration mailbox (<code>README.md</code>).</p>
+<p>Product surfaces in this repo:</p>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>What it is</th>
+<th>Evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Desktop</td>
+<td>Electron 43 app, macOS/Windows/Linux, <code>pnpm dev</code>/<code>build:*</code></td>
+<td><code>package.json</code>, <code>electron.vite.config.ts</code></td>
+</tr>
+<tr>
+<td>Web</td>
+<td>Same React renderer served as a bundled web client by <code>orca serve</code>, reached by a pairing URL</td>
+<td><code>src/renderer/web-index.html</code>, <code>vite.web.config.ts</code>, <code>src/shared/web-client/bundled-web-client-manifest.ts</code>, <code>src/main/server/serve-readiness.ts:113</code></td>
+</tr>
+<tr>
+<td>Mobile</td>
+<td>Expo/React Native app (own pnpm workspace, own lockfile) that pairs to a desktop over the relay</td>
+<td><code>mobile/package.json</code>, <code>mobile/app.config.js</code></td>
+</tr>
+<tr>
+<td>CLI</td>
+<td><code>orca</code> — 385 commands, a thin JSON-RPC client over the runtime socket</td>
+<td><code>src/cli/**</code>, <code>src/cli/dispatch/handler-group-manifest.ts</code></td>
+</tr>
+<tr>
+<td>Headless server</td>
+<td><code>orcad</code> — the runtime without the Electron UI, for &quot;your agents keep running when your laptop sleeps&quot;</td>
+<td><code>src/main/orcad/main.ts</code>, <code>src/main/daemon/**</code></td>
+</tr>
+<tr>
+<td>Cloud (open)</td>
+<td>Relay cells, relay-edge, push gateway, fence broker, contracts — MIT, in-repo</td>
+<td><code>cloud/README.md</code>, <code>cloud/apps/*</code></td>
+</tr>
+<tr>
+<td>Cloud (closed)</td>
+<td>hosted connector service (Slack/Linear/GitHub events), mobile release pipeline, some artifact sharing</td>
+<td><code>cloud/README.md</code>; <code>src/main/artifacts/artifact-cloud-*.ts</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-stack-repo-shape">2. Stack &amp; repo shape</h2>
+<p>Electron 43.8 + React 19.2 + Vite 8 + Tailwind 4 + Radix + shadcn primitives (<code>components.json</code>). Terminal is <strong>xterm.js 6.1 beta + webgl addon</strong> with <code>node-pty</code> on the host; Monaco for the editor. State: <strong>zustand 5</strong> slices in the renderer, SQLite (better-sqlite3-style sync API in <code>src/main/sqlite/sync-database.ts</code>) in main. Typescript 7, zod for every wire schema, oxlint/oxfmt instead of eslint/prettier. Tests: vitest + Playwright golden journeys (<code>tests/e2e/golden-journeys/</code>).</p>
+<p>Rough size (<code>find … | wc -l</code>, excluding lockfiles/dist):</p>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Files</th>
+<th>LOC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/main</code></td>
+<td>10,847 (+305 test)</td>
+<td>1,389,840</td>
+</tr>
+<tr>
+<td><code>src/renderer</code></td>
+<td>10,946</td>
+<td>1,338,941</td>
+</tr>
+<tr>
+<td><code>src/shared</code></td>
+<td>3,898</td>
+<td>367,095</td>
+</tr>
+<tr>
+<td><code>src/cli</code></td>
+<td>518</td>
+<td>67,746</td>
+</tr>
+<tr>
+<td><code>src/preload</code></td>
+<td>235</td>
+<td>20,167</td>
+</tr>
+<tr>
+<td><code>src/packages/*</code> (workspace libs)</td>
+<td>35</td>
+<td>3,449</td>
+</tr>
+<tr>
+<td><code>native/</code> (Windows/Wayland addons)</td>
+<td>43</td>
+<td>8,660</td>
+</tr>
+<tr>
+<td><code>mobile/</code></td>
+<td>3,103</td>
+<td>353,834</td>
+</tr>
+<tr>
+<td><code>cloud/</code></td>
+<td>297</td>
+<td>54,062</td>
+</tr>
+<tr>
+<td><strong>total</strong></td>
+<td>~30k ts/tsx</td>
+<td><strong>~3.6M</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Package layout (path → purpose):</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/main/&lt;agent&gt;/</code> × ~39</td>
+<td>Per-CLI adapters: <code>claude/</code>, <code>codex/</code>, <code>gemini/</code>, <code>pi/</code>, <code>opencode/</code>, <code>antigravity/</code>, <code>grok/</code>, <code>kimi/</code>, <code>hermes/</code>, <code>dsh/</code>, <code>zcode/</code>, <code>jcode/</code>, <code>muse/</code>, <code>amp/</code>, <code>droid/</code>, <code>goose/</code>, <code>copilot/</code>, <code>cursor/</code>, <code>cline/</code>, <code>qwen-code/</code>, <code>kiro/</code>, <code>kilo/</code>, <code>codebuddy/</code>, <code>continue/</code>, <code>devin/</code>, <code>auggie/</code>, <code>command-code/</code>, <code>mimo/</code>, <code>omp/</code>, <code>openclaude/</code>, <code>prime-agent</code>… plus <code>*-accounts/</code>, <code>*-usage/</code></td>
+</tr>
+<tr>
+<td><code>src/main/acp/</code></td>
+<td>Agent Client Protocol client: JSON-RPC peer, per-agent dialects, session runtime (19,937 LOC)</td>
+</tr>
+<tr>
+<td><code>src/main/pty/</code>, <code>src/main/providers/</code></td>
+<td>PTY lifecycle, process trees, foreground inspection, shell readiness, execution-host routing</td>
+</tr>
+<tr>
+<td><code>src/main/runtime/</code></td>
+<td>The RPC server and its 32 sub-systems (103 method modules, 851 methods)</td>
+</tr>
+<tr>
+<td><code>src/main/runtime/orchestration/</code></td>
+<td><strong>The heart</strong>: 492 files, 61,370 LOC (db, mailbox, crew, workers, coordinator, federation)</td>
+</tr>
+<tr>
+<td><code>src/main/workspaces/</code>, <code>src/main/git/worktrees/</code></td>
+<td>Worktree create/remove/sparse/move; 128 files in <code>workspaces</code></td>
+</tr>
+<tr>
+<td><code>src/main/agent-hooks/</code></td>
+<td>Status hook server + 23 managed installers + OSC-7501 program-status parser</td>
+</tr>
+<tr>
+<td><code>src/main/browser/</code></td>
+<td>Embedded Chromium browser pane, CDP, design-mode element grab (81,166 LOC)</td>
+</tr>
+<tr>
+<td><code>src/main/native-chat/</code></td>
+<td>Chat UI's transcript readers/decoders per agent (reads the CLI's own files)</td>
+</tr>
+<tr>
+<td><code>src/main/ai-vault/</code></td>
+<td>Cross-agent history index + search + session handoff prompts</td>
+</tr>
+<tr>
+<td><code>src/main/bots/</code></td>
+<td>The &quot;Bots&quot; product: Slack/Linear/GitHub-resident agents on a git repo at <code>~/.orca/bots/&lt;name&gt;</code></td>
+</tr>
+<tr>
+<td><code>src/main/orcad/</code>, <code>src/main/daemon/</code></td>
+<td>Headless server distribution and terminal daemon</td>
+</tr>
+<tr>
+<td><code>src/shared/</code></td>
+<td>Every wire contract, zod schema and domain type, used by all five clients</td>
+</tr>
+<tr>
+<td><code>src/cli/</code></td>
+<td>385 commands, handler-group manifest for lazy loading</td>
+</tr>
+<tr>
+<td><code>skills/</code>, <code>skill-guides/</code>, <code>skill-stubs/</code></td>
+<td>11 bundled skills shipped <em>into the agents'</em> skill dirs</td>
+</tr>
+<tr>
+<td><code>config/</code></td>
+<td>Build/test/lint scripts, ratchets, checks (heaviest non-source dir)</td>
+</tr>
+<tr>
+<td><code>cloud/</code></td>
+<td>Independent pnpm workspace: relay + push + contracts</td>
+</tr>
+<tr>
+<td><code>native/</code></td>
+<td>Windows notifications/registry/security addons, Wayland clipboard</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-core-domain-model">3. Core domain model</h2>
+<p>Entities, with the definitions:</p>
+<ul>
+<li><strong>Project / Repo / Worktree.</strong> <code>Worktree</code> is the central aggregate — it is <em>&quot;Orca's tracked view of a repo checkout, its metadata, terminals, browser tabs, and UI state&quot;</em> (<code>skill-guides/orca-cli.md</code>). Type: <code>src/shared/worktree/types.ts:94</code> — <code>id</code> is <code>`${repoId}::${path}`</code>, plus <code>identity</code>, <code>projectId</code>, <code>hostId</code>, <code>runtimeOwnerEnvironmentId</code>, <code>createdWithAgent</code>, <code>linkedPR/linkedIssue/linkedLinearIssue/linkedWorkItem</code>, <code>diffComments</code>, <code>sparseDirectories</code>, <code>pushTarget</code>, provenance (<code>cliProvenance</code>, <code>automationProvenance</code>). It additionally carries branch/head/PR via <code>GitWorktreeInfo</code>.</li>
+<li><strong>Execution host.</strong> <code>local | ssh:&lt;id&gt; | runtime:&lt;id&gt;</code> (<code>src/shared/execution-host/execution-host.ts:6</code>). <em>Every</em> feature must work on all three; a worktree records which host owns it. <code>runtime:</code> hosts are <code>orcad</code> instances and ephemeral VMs (<code>src/main/ephemeral-vm/</code>).</li>
+<li><strong>Terminal / PTY.</strong> <code>term_&lt;uuid&gt;</code> handle, pane key, process incarnation; the terminal handle <em>is</em> the mailbox address for a terminal agent (<code>src/shared/orchestration/mailbox/orchestration-party-identity.ts</code>).</li>
+<li><strong>Agent / agent session.</strong> <code>TuiAgent</code> = 45-value union of CLI ids (<code>src/shared/agent-launch/catalog/tui-agent.ts</code>). A running agent has an <code>orca_session_id:&lt;uuid&gt;</code> when it is a <em>chat</em> (structured), or only a terminal handle when it is a TUI. Chats keep their id across <code>/clear</code> (<code>skill-guides/orca-cli.md</code>).</li>
+<li><strong>Run.</strong> The coordination scope: <code>runs(id, objective, coordinator_handle, coordinator_orca_session_id, consumer_generation, legacy)</code> (<code>create-core-tables-sql.ts:5</code>). Every message, task and dispatch carries <code>run_id</code>; a legacy run id <code>run_legacy_local</code> exists for pre-Runs data, and <code>run_unbound</code> for mail from a terminal in no run (<code>orchestration-rpc-contract.ts:16</code>).</li>
+<li><strong>Task.</strong> A unit of work with a spec and a dependency list: <code>tasks(id, run_id, parent_id, spec, status ∈ pending|ready|dispatched|completed|failed|blocked, deps, result)</code> (<code>create-graph-tables-sql.ts:152</code>).</li>
+<li><strong>Dispatch.</strong> One <em>attempt</em> at a Task by one worker: <code>dispatch_contexts(id, task_id, assignee_handle, assignee_pane_key, assignee_orca_session_id, creator_*, depth, consumer_generation, retry_of_dispatch_id, follow_up_of_dispatch_id, status ∈ pending|dispatched|completed|failed|circuit_broken)</code> (<code>:178</code>). Depth is the nesting level (root coordinator = 0, its workers = 1).</li>
+<li><strong>Worker.</strong> Not a table — a projection over Dispatch + terminal + agent status (<code>src/main/runtime/orchestration/crew/crew-read-model.ts</code>, <code>.../workers/</code>). A worker has stage, liveness verdict, attention categories, auto-release deadline.</li>
+<li><strong>Message.</strong> The mailbox row (<code>create-core-tables-sql.ts:23</code>), with 9 types and 3 priorities, plus <code>thread_id</code> for question threads and pointer columns for delivery.</li>
+<li><strong>Decision gate.</strong> A blocking question attached to a task with options: <code>decision_gates(id, task_id, question, options, status ∈ pending|resolved|timeout)</code> (<code>:234</code>).</li>
+<li><strong>Crew.</strong> The <em>relationship graph</em> a party sees: <code>{ managedBy, managing, talkingWith }</code> rows, each row <code>{ partyKey, role ∈ manager|worker|peer, agentKind, status, task, progress, latest, reply, pendingQuestion, approvals, openTarget }</code> (<code>src/shared/orchestration/orchestration-crew.ts:17</code>).</li>
+<li><strong>Bot.</strong> A long-lived agent with a git-backed home: <code>~/.orca/bots/&lt;name&gt;/</code> containing <code>SOUL.md</code> and <code>MEMORY.md</code> as <em>files the agent edits itself</em> (<code>src/main/bots/bot-home.ts:92</code>, <code>src/shared/bot-soul.ts</code>). Bot type: <code>src/shared/bot-types.ts:259</code>.</li>
+<li><strong>Automation.</strong> Scheduled or event-triggered prompt: schedule, GitHub events (22 kinds incl. <code>ci_failed</code>, <code>pr_conflicted</code>, <code>deploy_finished</code>), Slack events, Google events (<code>src/shared/automation-event-triggers.ts</code>).</li>
+<li><strong>Browser.</strong> A real Chromium tab inside the app with CDP, cookies, site settings, extensions, design-mode element picking (<code>src/main/browser/</code>, 81k LOC).</li>
+<li><strong>Artifact.</strong> A shareable file with a cloud share record (<code>src/main/artifacts/</code>).</li>
+</ul>
+<p>Relations: <code>Project → Repo → Worktree(s) → Pane(s)/Terminal(s) → Agent(s)</code>; <code>Run → Task(s) → Dispatch(es) → Worker</code>; <code>Message</code> links any two parties and optionally a <code>task_id</code>/<code>dispatch_id</code>; <code>DecisionGate</code> links a message to a task. Worktrees are <em>execution isolation</em>; Runs are <em>coordination scope</em>. They are orthogonal — a Run can span worktrees and hosts.</p>
+<pre><code>Project ──▶ Repo ──▶ Worktree (id = repoId::path, hostId) ──▶ Pane ──▶ Terminal(term_…)
+                                                              └──▶ ok ──▶ Agent
+                                                                          ├─ chat  → orca_session_id:&lt;id&gt;
+                                                                          └─ tui   → term_ handle only
+Run (objective, coordinator_handle|
+      coordinator_orca_session_id)
+ ├─ Task(spec, deps[], status)          ◀── parent_id self-reference (DAG)
+ │    └─ Dispatch (attempt: assignee, depth, retry_of, follow_up_of) ──▶ Worker projection
+ │           ├─ DecisionGate(question, options)
+ │           └─ Message(type=dispatch … type=worker_done)
+ └─ Message(any two parties, thread_id, priority, payload)
+        └─ Delivery(consumer_generation) ──▶ veto fence on re-pointed panes
+Bot ──▶ git repo at ~/.orca/bots/&lt;name&gt; (SOUL.md, MEMORY.md) + Items + Automations
+Automation ── schedule | github/slack/google event ──▶ prompt run (optionally as a Bot)
+</code></pre>
+<p>The two identity axes matter for our design: <strong>an agent is addressed either by a terminal handle (PTY, no id until it reports) or by an <code>orca_session_id</code> (structured chat)</strong> — and the mailbox has to serve both (<code>orchestration-party.ts</code>, <code>mailbox/structured-pointer/</code>). Any design we build must pick which of those two it is, per thread.</p>
+<h2 id="4-agent-provider-integration">4. Agent / provider integration</h2>
+<p><strong>No single driver abstraction.</strong> There are three separate mechanisms, and which one applies is per-agent and per-launch-mode:</p>
+<p><strong>(a) PTY/TUI — the default and the fallback for everything.</strong> Orca launches the CLI as a child in a PTY and then <em>types into it</em>. The &quot;driver&quot; is a <strong>config record of quirks</strong>, not a class: <code>TuiAgentConfig</code> (<code>src/shared/agent-launch/catalog/tui-agent-config-types.ts</code>) with fields like <code>promptInjectionMode</code>, <code>draftPromptFlag</code>, <code>draftPromptEnvVar</code>, <code>pasteNeedsTypedRequest</code>, <code>preflightTrust</code>, <code>draftPasteReadySignal</code>, <code>submitRetryDelayMs</code>, <code>submitLineSettleMsPerLine</code>, <code>windowsShiftEnterEncoding</code>, <code>ctrlEnterEncoding</code>. 45 records, 362 lines, comments cite PR/issue numbers for each workaround (<code>tui-agent-config.ts:16</code>).</p>
+<p>Prompt injection modes: <code>argv</code> (positional), <code>flag-prompt</code>, <code>flag-prompt-interactive</code>, <code>flag-interactive</code>, <code>hermes-query</code>, <code>stdin-after-start</code>. Readiness is detected by <strong>regex on rendered output</strong> — <code>'claude-composer-prompt'</code>, <code>'codex-composer-prompt'</code>, <code>'antigravity-composer-prompt'</code>, <code>'render-cursor-after-bracketed-paste'</code>, etc. (<code>tui-agent-config-types.ts:3</code>). Example: Claude gets <code>--prefill</code> for drafts because paste-after-ready raced (PR #926 in comment); Antigravity gets <code>submitLineSettleMsPerLine: 45</code> because <code>agy</code> expands multiline pastes over seconds (<code>tui-agent-config.ts:168-178</code>).</p>
+<p><strong>(b) ACP (Agent Client Protocol) — structured chat.</strong> Real JSON-RPC over the child's stdio: <code>src/main/acp/transport/acp-json-rpc-peer.ts</code>, 1-MB+ line framing, retry, write queue, request settlement. Per-agent dialect modules normalise each implementation's deviations: 17 per-agent dialects over a shared <code>acp</code> base — <code>antigravity, auggie, cline, codebuddy, copilot, cursor, devin, droid, gemini, goose, grok, hermes, kimi, kiro, omp, opencode, qwen-code</code> (<code>src/main/acp/acp-dialects/</code>). Dialects own session/update mapping, model catalogs (<code>cursor-model-catalog.ts</code>, <code>grok-model-catalog.ts</code>), questions (<code>qwen-code-questions.ts</code>), subagents/sessions. ACP agents are <em>downloaded</em> by Orca from the official registry (<code>src/main/acp/registry/acp-registry-catalog.ts</code>, <code>cdn.agentclientprotocol.com/registry/v1/latest/registry.json</code>) with per-target sha256.</p>
+<p><strong>(c) Native SDK — Claude only.</strong> <code>@anthropic-ai/claude-agent-sdk</code> behind a stream-json connection, with the user's own CLI forced in via <code>pathToClaudeCodeExecutable</code> and the SDK's bundled CLIs deliberately excluded from the install (<code>src/main/claude/claude-stream-json-connection.ts</code>, <code>pnpm-workspace.yaml</code> <code>ignoredOptionalDependencies</code>). Control requests, <code>canUseTool</code> permission callbacks, user-message queue, child-tree reaping for proven exit. Codex has an equivalent but different lane: <code>codex app-server</code> (<code>src/shared/agent-session/lifecycle/provider-handles/agent-session-provider-handle-encoding.ts:16</code>).</p>
+<p><strong>Status reporting — two channels, hooks win.</strong> <code>src/main/agent-hooks/README.md</code> documents this precisely: (1) <em>managed integrations</em> — per-agent hook/plugin/extension that POSTs to a loopback hook server, 23 installers (<code>managed-agent-hook-registry.ts:45</code>); (2) <strong>OSC 7501 &quot;Program Status Protocol&quot;</strong>, an open terminal-escape protocol where the agent writes its own state into the PTY stream and Orca answers a <code>?</code> probe. Precedence, 2-minute staleness rules and the hybrid facet model are in that README; the live support matrix (which agent sends what) is maintained there with version numbers.</p>
+<p><strong>Chat vs terminal surfaces.</strong> Every agent can run as a TUI; agents with a structured lane can run as a chat. The user's default is per-agent (<code>globalSettings.agentDefaultSurface</code>, <code>nativeChatProviders</code> — <code>src/shared/native-chat/settings/native-chat-providers.ts</code>). <strong>Chat mode does not re-implement the agent.</strong> It starts the same binary and then <em>reads the CLI's own session file</em>: <code>src/main/native-chat/transcript-reader.ts</code> dispatches per agent to <code>decodeClaudeChatTranscriptLine</code>, <code>decodeCodexTranscriptLine</code>, <code>decodeGrokTranscriptLine</code>, <code>decodeOmpTranscriptLine</code>, with OpenCode/Hermes read from their SQLite stores. A chat can be moved to a terminal and back &quot;without losing context&quot; (README) because both sides point at the same provider session id.</p>
+<p><strong>Resume / identity.</strong> A session's resume cursor is a typed provider handle: <code>{provider, agent, nativeId, resumeCursor}</code> with namespaces <code>claude-sdk</code> (cursor = transcript leaf UUID) and <code>codex-app-server</code> (<code>agent-session-provider-handle-encoding.ts:9-30</code>).</p>
+<p><strong>Auth / subscription.</strong> Orca never holds model keys for the CLIs; it runs the user's logged-in CLI. It does add account plumbing <em>around</em> that: <code>src/main/claude-accounts/</code>, <code>codex-accounts/</code>, <code>grok-accounts/</code>, <code>managed-data-accounts/</code> let the user switch accounts without logging out; <code>src/main/claude-usage/</code>, <code>codex-usage/</code>, <code>muse-usage/</code> scrape usage/limits; <code>src/main/ai-vault/</code> and <code>*</code>-accounts keep per-account <code>home</code>/<code>CLAUDE_CONFIG_DIR</code> isolation. Orca's own keys exist only for its own extras (speech, MiniMax cookies, ZCode plan key) and are stored under <code>~/.orca</code> or the OS secret service (<code>src/main/macos-keychain/</code>, <code>src/main/linux-secret-service/</code>).</p>
+<h3 id="provider-support-table">Provider support table</h3>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>PTY/TUI</th>
+<th>ACP chat</th>
+<th>Native SDK</th>
+<th>Hooks</th>
+<th>Account switch</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claude Code</td>
+<td>✅ <code>--prefill</code>, composer marker</td>
+<td>✗ (SDK instead)</td>
+<td>✅ claude-agent-sdk</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Claude Agent Teams</td>
+<td>✅ via <code>orca claude-teams</code> wrapper (not Win/WSL)</td>
+<td>✗</td>
+<td>✗</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Codex</td>
+<td>✅</td>
+<td>✗ (app-server)</td>
+<td>✅ <code>codex app-server</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Gemini CLI</td>
+<td>✅</td>
+<td>✅ dialect</td>
+<td>✗</td>
+<td>✅</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Antigravity (<code>agy</code>)</td>
+<td>✅ path-scoped trust</td>
+<td>✅ dialect</td>
+<td>✗</td>
+<td>✅</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Pi / oh-my-pi</td>
+<td>✅ <code>ORCA_PI_PREFILL</code> env</td>
+<td>✅ omp dialect</td>
+<td>✗</td>
+<td>extension</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>OpenCode / OpenCode2</td>
+<td>✅ composer gate</td>
+<td>✅ dialect (+child sessions)</td>
+<td>✗</td>
+<td>plugin</td>
+<td>—</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Grok</td>
+<td>✅</td>
+<td>✅ dialect + subagents/goals</td>
+<td>✗</td>
+<td>✅</td>
+<td>✅</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Cursor</td>
+<td>✅</td>
+<td>✅ + model catalog</td>
+<td>✗</td>
+<td>✅</td>
+<td>✅</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Qwen Code</td>
+<td>✅</td>
+<td>✅ + questions</td>
+<td>✗</td>
+<td>✅</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Kimi, Kiro, Cline, CodeBuddy, Auggie, Cursor, Droid, Goose, Copilot, Devin, Hermes</td>
+<td>✅</td>
+<td>mixed (see dialects)</td>
+<td>✗</td>
+<td>✅</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Muse, ZCode, DSH, jcode, Command Code, MiMo, Amp, Continue, Kilo, OpenClaude</td>
+<td>✅</td>
+<td>—</td>
+<td>✗</td>
+<td>✅ (most)</td>
+<td>—</td>
+<td>✅ muse</td>
+</tr>
+<tr>
+<td>DeepSeek Harness</td>
+<td>✅ (<code>dsh-tui</code> profile)</td>
+<td>—</td>
+<td>✗</td>
+<td>✅</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Anything else</td>
+<td>✅ generic <code>stdin-after-start</code> / <code>argv</code></td>
+<td>✗</td>
+<td>✗</td>
+<td>✗</td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Verdict: <strong>the long tail is handled by heuristics, not adapters.</strong> Orca's real moat here is 45 hand-tuned PTY quirk records plus 23 hook installers plus OSC-7501 fallback — ~2 years of chasing CLI regressions.</p>
+<h2 id="5-concurrency-orchestration">5. Concurrency &amp; orchestration</h2>
+<p><strong>Isolation model.</strong> One worker → one worktree (default), or <code>--worktree current</code> to share the parent's checkout, or <code>--worktree new-child</code> to nest a branch off the parent's. Worktree creation is Orca's (<code>orca worktree create</code>), and the skill guide forbids agents from making their own checkouts: <em>&quot;Make checkouts yourself; let worker-start create a worker's workspace&quot;</em> (<code>skill-guides/orchestration.md</code>). Creation goes through a locked, resumable transaction (<code>src/main/git/worktrees/creation/worktree-preparation-*.ts</code>, <code>worktree-config-write.ts</code> explains the <code>config.lock</code> race).</p>
+<p><strong>The parent/child contract is prompt text, not an API.</strong> <code>buildDispatchPreamble()</code> (<code>worker-dispatch-preamble.ts:84</code>) prepends to the worker's first message:</p>
+<pre><code>You are working inside Orca, a multi-agent IDE. You are a dispatched worker.
+Your coordinator's Orca session ID is: orca_session_id:&lt;id&gt;   (or: &quot;receives mail you send with no recipient&quot;)
+Your task ID is: &lt;taskId&gt;
+# read mail:  orca orchestration check --terminal &lt;handle&gt;
+# ask, then end your turn (Orca wakes you):  orca orchestration ask --from &lt;h&gt; --question &quot;...&quot;
+# blocked:  orca orchestration send --type escalation --subject &quot;Blocked: …&quot;
+# finish exactly once:  orca orchestration send --type worker_done … --outcome succeeded
+=== TASK ===
+&lt;spec&gt;
+</code></pre>
+<p><code>worker_done</code> settlement is authoritative: it &quot;settles its Task; never mark a reported failure completed&quot; (<code>skill-guides/orchestration.md</code>), enforced by <code>requireWorkerDoneSettlement</code> and <code>dispatch_contexts.status</code>. A dispatch id fences completion across retries of one task (<code>PreambleParams.dispatchId</code> comment).</p>
+<p><strong>Nesting is bounded.</strong> <code>nestedWorkerMaxDepth</code> default <strong>4</strong> (root = 0), enforced server-side with refusal code <code>nested_worker_depth_exceeded</code> (<code>src/shared/orchestration/workers/nested-worker-depth.ts:9</code>), and the setting is <em>renderer-only — omitted from the SettingsUpdate RPC so workers cannot raise their own cap</em>.</p>
+<p><strong>Supervision is the agent's job.</strong> There is a legacy in-process <code>Coordinator</code> class with <code>pollIntervalMs=2000</code>, <code>maxConcurrent=4</code>, phases <code>decomposing → dispatching → monitoring → merging → done</code> (<code>src/main/runtime/orchestration/coordinator/coordinator.ts:33</code>). Its RPC entry (<code>orchestration.run</code>) and CLI (<code>orchestration coordinator-start/stop</code>) are <strong>retired</strong> — the CLI throws <code>command_retired</code> and the RPC fence rejects it with <code>orchestration_migration_required</code> (<code>src/main/runtime/rpc/orchestration/compatibility/orchestration-contract-fence.ts:19</code>). The live model: the coordinating <em>agent</em> loops — <code>worker-start</code> several, <strong>end its turn</strong>, get woken by mail, act, repeat. <code>skill-guides/orchestration.md</code> is explicit: <em>&quot;Never poll or run watch scripts… Orca wakes you.&quot;</em></p>
+<p><strong>Wake mechanics.</strong> Because a TUI agent cannot be sent a message, Orca <em>types a note</em> into it: &quot;you have mail, run <code>orca orchestration check --terminal &lt;h&gt;</code>&quot;. Delivery is deferred until the agent's live status shows it takes input (idle/working); otherwise the send receipt carries a <code>recipient_delivery_held</code> warning (<code>skill-guides/orca-cli.md</code>, &quot;Messaging agents&quot;). For chats the message is injected directly as a chat message with a sender header. Worst case (message too large for a chat message) the note names <code>check</code> and the agent reads from the mailbox. Implementation: <code>OrchestrationMailboxNotificationCoordinator</code> (<code>.../mailbox/notifications/mailbox-notification-coordinator.ts:31</code>) plus a sibling &quot;structured pointer&quot; lane for session-addressed workers with no PTY to type into.</p>
+<p><strong>Cancellation / lifecycle.</strong> <code>worker-stop</code>, <code>worker-abandon</code>, <code>worker-release</code>, <code>worker-retain</code>, <code>worker-keep-open</code>, <code>worker-auto-close</code>; each has a guarded state (<code>stop_unknown</code>, <code>start_unknown</code>, <code>abandoned</code>) because &quot;a live PTY can contain a dead agent&quot; (<code>worker-observation-handlers.ts</code> comment). Auto-release: workers close on their own unless kept open (<code>src/shared/orchestration/workers/worker-auto-close.ts</code>). <code>skill-guides/orchestration.md</code> states the safety rule: <em>&quot;Silence, a timeout, or <code>unverifiable</code> liveness alone never proves exit or authorizes autonomous recovery.&quot;</em></p>
+<p><strong>Federation.</strong> Runs can span machines: <code>federated_dispatches</code>, <code>remote_dispatch_attachments</code> with 9 states (<code>starting|ready|start_unknown|failed|succeeded|stopping|stop_unknown|stopped|abandoned</code>), sequence-numbered relay items both directions (<code>create-graph-tables-sql.ts:26-44</code>). <code>docs/reference/ssh-execution-boundary.md</code> is cited in-schema for why five states exist.</p>
+<p><strong>Concurrency guidance for the model</strong> (not enforced): start ~4 workers at once from one shell command, then end the turn (<code>skill-guides/orchestration.md</code>).</p>
+<p><strong>Worker lifecycle, as the server models it</strong> (from <code>workers/launch</code>, <code>workers/lifecycle</code>, <code>workers/reports</code>, <code>workers/approvals</code>):</p>
+<ol>
+<li><code>worker-start</code> → admission (<code>orchestration-admission.ts</code>: depth cap, caller identity, target host servable) → worktree prepare/attach → CLI spawn → preamble typed in → <code>dispatch_contexts.status = dispatched</code>, <code>worker_terminal_resources</code> minted.</li>
+<li>Readiness observation: composer/idle marker, trust prompt, <code>agent_readiness</code> timeout if the binary is missing.</li>
+<li>Working: mail arrives → held until the agent takes input → pointer typed or chat message injected → agent runs <code>check</code> → <code>ask</code>/<code>reply</code>, <code>escalation</code>, or <code>heartbeat</code>.</li>
+<li>Settlement: <code>worker_done</code> with <code>--outcome</code> → <code>lifecycle-reconciliation.ts</code> settles Task + Dispatch; a second <code>worker_done</code> is refused as duplicate.</li>
+<li>Post-settlement: auto-release timer, or kept open for the user, or a <code>send</code> re-opens it as a <strong>follow-up</strong> Dispatch (<code>follow_up_of_dispatch_id</code>) so the same worker continues the same Task.</li>
+<li>Exit without <code>worker_done</code> → <code>escalation</code> with <code>stopReason</code> (<code>exited</code> | <code>lost</code>), and <code>worker-show</code> reports the independent agent-liveness verdict plus a <code>nextAction</code> argv.</li>
+</ol>
+<p><strong>Approvals are a first-class lane.</strong> A worker's permission prompt is not left in its PTY: it is booked (<code>terminal-worker-approval-book.ts</code>), surfaced to the coordinator as a <code>CrewRow.approval</code>, and answered via <code>orchestration approve|deny</code> (<code>WorkerApprovalPayloadSchema</code>, <code>worker-approval-time-left.ts</code>). This is how a <em>terminal</em> worker asks a <em>remote chat</em> coordinator for permission.</p>
+<h2 id="6-state-persistence">6. State &amp; persistence</h2>
+<p>Two SQLite databases + a JSON profile layer:</p>
+<table>
+<thead>
+<tr>
+<th>Store</th>
+<th>Location</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>orchestration.db</code></td>
+<td><code>&lt;userData&gt;/orchestration.db</code> (<code>src/main/runtime/orchestration/db/orchestration-db-file.ts:3</code>)</td>
+<td>runs, messages, deliveries, mutation receipts, tasks, dispatch_contexts, decision_gates, attempt observation facts, federation tables, worker terminal resources, question threads</td>
+</tr>
+<tr>
+<td>profile state DB</td>
+<td><code>&lt;userData&gt;/</code> (<code>src/main/persistence/profile-state/database/</code>)</td>
+<td><code>profile_state_documents</code> (per-domain JSON documents + parts): projects, worktrees, terminals topology, automations runs, settings, window sessions</td>
+</tr>
+<tr>
+<td><code>~/.orca/</code></td>
+<td>home</td>
+<td><code>agent-hooks/</code> scripts + ownership, <code>bots/</code> (git repos with SOUL.md/MEMORY.md), <code>bot-tools.json</code>, credential stores, claude-agent-teams shim</td>
+</tr>
+<tr>
+<td>per-repo <code>.orca/</code></td>
+<td>worktree</td>
+<td><code>issue-command</code> (local), setup runner scripts (<code>workspace-hooks/folder-setup-runner-files.ts</code>)</td>
+</tr>
+<tr>
+<td>per-agent stores</td>
+<td>wherever each CLI puts them</td>
+<td>Orca <strong>reads</strong> these (AI Vault, native chat) and does not migrate them</td>
+</tr>
+</tbody>
+</table>
+<p><code>orchestration.db</code> is tuned, versioned and hardened: <code>busy_timeout=5000</code>, <code>auto_vacuum=INCREMENTAL</code>, <code>journal_mode=WAL</code>, <code>synchronous=NORMAL</code>, <code>temp_store=MEMORY</code> (because a full temp dir aborted transactions, #38123 — <code>orchestration-db.ts:60-72</code>), plus file permissions hardening (<code>database-file-permissions.ts</code>) and <strong>50 numbered migrations</strong> (<code>db/schema/migrate-v50.ts</code>) with explicit version-skew handling (<code>orchestration-schema-version-skew.ts</code>). Deletes are <em>recorded</em> (<code>removed_orchestration_work</code>) so a reset can be audited.</p>
+<p><strong>Resume semantics.</strong> A chat resumes by provider handle (Claude: session id + leaf UUID; Codex: thread id). A terminal agent resumes by re-running its recorded launch recipe (<code>SleepingAgentLaunchConfig</code> in <code>src/shared/agent-session/lifecycle/agent-session-resume.ts</code>). <code>orchestration_worker</code> rows keep the &quot;sleeping&quot; state so a sleeping agent still lists (<code>agent list</code> shows it as done while asleep).</p>
+<p><strong>Cloud sync.</strong> Orca syncs <em>nothing</em> of the workspace state to the cloud by default. The relay forwards encrypted RPC frames between a phone/web client and the host; the desktop holds the state. Optional: artifacts sharing (<code>src/main/artifacts/artifact-cloud-service.ts</code>), telemetry (<code>posthog-node</code>), and bots' connector events (hosted service, closed). Relay is X25519 + E2EE with per-device keys (<code>src/shared/remote-runtime/e2ee/</code>, <code>src/main/runtime/rpc/server/runtime-rpc-device-key-registration.ts</code>).</p>
+<h2 id="7-transport-ipc">7. Transport / IPC</h2>
+<p><strong>Three transports, one RPC surface.</strong></p>
+<ol>
+<li><strong>Electron main↔renderer</strong>: typed <code>ipcMain</code>/<code>contextBridge</code> (<code>src/preload/api/</code>, <code>src/main/ipc/</code>), 1,126-param generated catalog.</li>
+<li><strong>Local runtime socket</strong>: <code>unix</code> socket (POSIX) / named pipe (Windows), <strong>NDJSON</strong>, 1 MB frames, <code>maxConnections=32</code>, mode <code>0600</code>, 30s idle timeout suspended during dispatch, 10s keepalives (<code>src/main/runtime/rpc/transports/unix-socket-transport.ts:1</code>). This is what the CLI uses.</li>
+<li><strong>Remote / mobile / web</strong>: WebSocket or the cloud relay (<code>relay-transport.ts</code>, <code>cloud/apps/relay</code>), plus E2EE device keys and a mobile method allowlist (<code>runtime-rpc-mobile-method-allowlist.ts</code>). <code>orcad</code> is the same server without Electron.</li>
+</ol>
+<p><strong>Protocol discipline.</strong> <code>RUNTIME_PROTOCOL_VERSION = 3</code>, <code>MIN_COMPATIBLE_RUNTIME_{CLIENT,SERVER}_VERSION = 2</code>; the comment above it states the rule: add optional fields and new methods freely; raise minimums only to refuse unsupported peers; <strong>never require equal app versions</strong> (<code>src/shared/remote-runtime/protocol/protocol-version.ts</code>). Capabilities are a flat string array negotiated per client class — <code>NATIVE_REMOTE_RUNTIME_CLIENT_CAPABILITIES</code>, <code>MOBILE_RUNTIME_CAPABILITIES</code>, <code>WEB_RUNTIME_CLIENT_CAPABILITIES</code>, etc. (<code>orchestration-runtime-capabilities.ts</code>). Orchestration adds a second fence: every mutation must carry <code>orchestrationContractVersion === 1</code>, else <code>orchestration_migration_required</code> with a machine-readable reason (<code>client_contract_missing|unsupported|runtime_capability_missing|command_retired</code>).</p>
+<p><strong>Mutation idempotency.</strong> Every orchestration mutation takes a request id; the server writes <code>mutation_receipts(caller_fingerprint, request_id, method, payload_hash, state, receipt)</code> keyed on the caller's identity, so a lost reply can be replayed without double effects. The CLI surfaces this as &quot;reuse any request ID the error names&quot; and <code>orchestration request-show</code>.</p>
+<p><strong>Streaming.</strong> Long outputs are paginated/subscribed, not pushed whole: crew rows arrive as <code>begin / rows / delta / complete / end / summary</code> frames (<code>orchestration-crew.ts:53</code>), worker transcripts page with a cursor (<code>OrchestrationWorkerTranscriptPage</code>), terminals have binary routing for output (<code>runtime-rpc-binary-routing.ts</code>). Long-poll rather than polling for idle clients (<code>runtime-rpc-long-poll.ts</code>).</p>
+<p><strong>Sync model.</strong> The renderer holds a projection (<code>src/renderer/src/runtime/</code>) fed by subscriptions plus a revisioned session graph; the &quot;crew read model&quot; is a server-side cache with a 30s grace period after the last subscriber, per-party relevance to wake only affected panes (<code>crew/crew-read-model.ts</code>), and delta frames.</p>
+<h2 id="8-frontend-architecture">8. Frontend architecture</h2>
+<p>React 19 + Vite, no router — a workspace/pane layout model drives everything (<code>src/renderer/src/store/workspace-layout</code>, <code>components/tab-group/</code>, <code>components/pane-resize/</code>). State: <strong>zustand</strong> with cold/hot slices (<code>store/slices/*</code>: 30 slices — agent-inventory, agent-status, browser, diff-comments, editor, settings, tabs, worktrees, wsl, …), plus a store-observer installer layer and a transition log for debugging (<code>store/record-transitions</code>, <code>store/active-workspace-change-log.ts</code>).</p>
+<p>Key panels/screens: sidebar (worktrees with smart tiers, PR/issue links, dirty counts), tab groups with splits where each pane is <code>terminal | native-chat | diff | browser | emulator | file | pull-request | task-page</code>, right sidebar (review/checks/files), <code>activity</code>, <code>dashboard</code>, <code>settings</code> (with an Orchestration pane), <code>Crew</code> panel, <code>bots</code> (Items/Chat/Activity), <code>skills</code> browser, <code>native-chat</code> timeline with tool-call rows.</p>
+<p>Terminal rendering: <code>@xterm/xterm</code> 6.1 beta + <code>addon-webgl</code> + <code>addon-serialize</code> + <code>addon-search</code> + <code>addon-ligatures</code> + <code>addon-image</code> + <code>addon-unicode11</code> + <code>@xterm/headless</code> for transcript reconstruction. Pane input has an ownership model (<code>RuntimeTerminalDriverController</code>: <code>idle | desktop | mobile</code> with an input floor) so a phone and the desktop cannot fight over keystrokes (<code>src/main/runtime/terminal/driver/runtime-terminal-driver-controller.ts</code>).</p>
+<p>Design system: <code>docs/STYLEGUIDE.md</code> — monochrome, &quot;color is reserved for state&quot;, tokens only from <code>src/renderer/src/assets/main.css</code>, shadcn primitives, Geist Sans / <code>var(--font-mono)</code>, 14/13/12/11px type ramp. Enforced by <code>pnpm lint:design-system</code>. i18n: 11 locales, i18next, an <code>en-runtime-required.json</code> overlay for host-side strings.</p>
+<p>Mobile: Expo 58 + React Native + TanStack Query + the same xterm packages inside a webview; pairing via relay; iPad/Android tablets supported; owns its own pnpm workspace and lockfile.</p>
+<h2 id="9-extensibility">9. Extensibility</h2>
+<ul>
+<li><strong>Skills.</strong> Orca ships 11 bundled skills (<code>skills/*/SKILL.md</code>: <code>orca-cli</code>, <code>orchestration</code>, <code>orca-jira</code>, <code>orca-linear</code>, <code>jira-tickets</code>, <code>linear-tickets</code>, <code>orca-computer-use</code>, <code>orca-emulator</code>, <code>orca-emulator-android</code>, <code>orca-per-workspace-env</code>, <code>orca-plugin-authoring</code>) and <strong>installs them into each agent's own skills directory</strong> — 42 providers mapped to their <code>~/.&lt;agent&gt;/skills</code> or <code>.agents/skills</code> paths (<code>src/shared/skills/installation/skill-install-providers.ts</code>). The shipped <code>SKILL.md</code> is deliberately a <strong>stub</strong>: its content is &quot;run <code>ORCA skills get &lt;name&gt;</code>&quot; so the <em>binary</em> serves the version-matched guide, including references loaded on demand. This is the neatest trick in the repo for keeping agent instructions in sync with a shipped app.</li>
+<li><strong>skill-guides/ + skill-stubs/.</strong> Authoring source for the above: <code>skill-guides/orchestration.md</code> (158 lines) is the real protocol doc; <code>skill-stubs/</code> holds the short forms, plus <code>_shared/cli-resolution.md</code>.</li>
+<li><strong>Hooks.</strong> 23 managed installers that write native hook config into each agent's settings; a loopback hook server receives events; plus the OSC-7501 terminal protocol for agents without hooks (<code>src/main/agent-hooks/</code>).</li>
+<li><strong>MCP.</strong> Orca is an MCP <em>consumer</em>: it imports/clones MCP server config from other agents' files (<code>src/main/configuration-import/</code>, <code>src/shared/mcp/configuration</code>), with UI to toggle servers. It is not an MCP server itself.</li>
+<li><strong>Plugins.</strong> A full plugin platform: manifest <code>orca-plugin.json</code>, four execution modes (<code>data</code>, <code>sandboxed-ui</code>, <code>trusted-worker</code>, <code>isolated-frame</code>), declarative TSX UI, workers, storage atoms, settings, events, themes, syntaxes, status-bar items, panels; catalog + install + integrity checks (<code>src/main/plugins/</code>, <code>docs/reference/plugin-*.md</code>, <code>examples/plugins/*</code>). 27 <code>plugin.*</code> RPC methods.</li>
+<li><strong>Automations.</strong> Schedule/event-driven prompts across any repo, with run history and per-run message capture (<code>src/main/automations/</code>).</li>
+<li><strong>Embedded browser.</strong> Full Chromium tab: CDP, cookies, site settings, extensions, downloads, WebAuthn, element grab for Design Mode, and an agent-facing CLI (<code>orca browser …</code>, 73 <code>browser.*</code> RPC methods). Plus <code>computer</code> (desktop GUI via CLI) and <code>emulator</code> (iOS Simulator / Android emulator: <code>tap</code>, <code>type</code>, <code>ax</code>, <code>logcat</code>).</li>
+<li><strong>Workspace hooks.</strong> Per-repo <code>orca.yaml</code> (tracked) and <code>.orca/issue-command</code> (local) provide the &quot;issue → branch → prompt&quot; recipe per project (<code>src/main/workspace-hooks/</code>).</li>
+</ul>
+<h2 id="10-shared-context-cross-agent-communication-critical">10. Shared context / cross-agent communication (CRITICAL)</h2>
+<p>What exists <strong>today</strong>, verified in code:</p>
+<ol>
+<li><strong>Shared filesystem + git.</strong> Default is isolation (one worktree per worker); sharing is opt-in via <code>--worktree current</code>. Two agents in the same worktree see each other's edits immediately and share <code>git status</code>. There is <strong>no file locking, no conflict arbitration, no &quot;who is editing this file&quot; signal</strong> between agents — the guidance is social (&quot;use a new worktree when sharing would conflict&quot;).</li>
+<li><strong>The mailbox.</strong> A real message bus with types, threads, priorities, delivery state, and idempotent mutation receipts (§6). Addressing: terminal handle, <code>orca_session_id:&lt;id&gt;</code>, <code>run:&lt;runId&gt;</code>, <code>dispatch:&lt;id&gt;</code>, or a group address (<code>@…</code> — lifecycle types refuse groups: <code>rejectLifecycleGroupRecipient</code>).</li>
+<li><strong><code>ask</code> / <code>reply</code>.</strong> A question thread with an answer, 30-min-per-wait cap with resume, <code>--wait</code> for terminal-side blocking. A worker ends its turn after asking; Orca wakes it with the answer — this is the mechanism that makes &quot;one agent asks another&quot; work across <em>turn-based and terminal-based</em> agents without RPC.</li>
+<li><strong><code>worker_done</code> + settlement.</strong> A structured completion report (3 sentences, <code>--outcome succeeded|failed</code>, optional <code>--files-modified</code>, <code>--report-path</code>) that mutates server state. Reported failure can never be recorded as success.</li>
+<li><strong>Decision gates.</strong> A task can block on a gate with options; resolved by a human or a coordinator via <code>gate-resolve</code> (<code>decision_gates</code> table, <code>coordinator-decision-gates.ts</code>).</li>
+<li><strong>Worker observation.</strong> <code>worker-read --dispatch</code> returns the worker's transcript (or terminal screen) as structured output; <code>worker-show</code> returns stage, liveness verdict, attention categories, waiting-on-human detection, auto-release deadline. So <em>agent B can read agent A's actual output</em>, not just its messages. <code>agent read</code>, <code>terminal read</code>, <code>terminal wait</code> do the same for non-worker agents.</li>
+<li><strong>Crew panel.</strong> A live per-party graph of <code>managedBy / managing / talkingWith</code>, showing status, current task, latest message, pending question, pending approvals, and an <code>openTarget</code> you can jump to. This is the only <em>visual</em> cross-agent surface, and it is scoped to the party you are looking at.</li>
+<li><strong>Diff comments → agent.</strong> Review notes are persisted on <code>WorktreeMeta</code> with <code>sentAt</code> (&quot;handed to an agent&quot;), formatted deterministically (<code>File: … / Lines: … / User comment: &quot;…&quot;</code>) so they can be pasted into any agent's prompt (<code>src/shared/file-review/diff-comments-format.ts</code>).</li>
+<li><strong>PR/check feedback → agent.</strong> Draft commit messages and PR bodies from the diff; send failing checks or PR review comments back to an agent (README; <code>src/main/github/</code>).</li>
+<li><strong>AI Vault.</strong> Indexes <em>every</em> agent's own on-disk session history across accounts/hosts, searchable, with a <strong>continuation prompt</strong> that can hand one agent's transcript to another (<code>src/main/ai-vault/session-handoff-prompt.ts</code>, <code>src/shared/agent-session/conversation-context/agent-session-continuation.ts</code> — supports <code>focused</code> and <code>full</code> modes with a fenced, bounded transcript).</li>
+<li><strong>Handoff (one-way).</strong> <code>orca worktree create --agent X --prompt &quot;…&quot;</code> or <code>orchestration send --to …</code> with no Task/Run. Explicitly <em>not</em> orchestration: &quot;<code>task-create</code> is also forbidden because it records coordinator-owned tracking state&quot; (<code>skill-guides/orca-cli.md</code>).</li>
+<li><strong>Bots' shared home.</strong> A bot's <code>SOUL.md</code>/<code>MEMORY.md</code> are plain files it edits, and a bot's Items have comments that can carry picked skills and attachments — so <em>human and bot</em> share a durable written surface. Not agent↔agent generic.</li>
+<li><strong>Artifacts.</strong> Shareable files with cloud records; also in-repo <code>.orca/artifacts</code> slots for orcad.</li>
+</ol>
+<p>What does <strong>NOT</strong> exist (searched: <code>shared context</code>, <code>scratchpad</code>, <code>blackboard</code>, project-wide memory, agent-to-agent state):</p>
+<ul>
+<li><strong>No shared scratchpad / blackboard / project-level context object.</strong> Two agents in the same project have no structured way to see &quot;what the others have decided&quot; except by reading files or asking.</li>
+<li><strong>No shared vector memory or embeddings across agents.</strong> AI Vault search is over <em>historical transcripts</em>, per-host, opt-in, and does not feed the running agents' context.</li>
+<li><strong>No automatic context propagation.</strong> A new worker gets a hand-written spec, not &quot;the project state so far&quot;. Nothing summarises the other workers' progress into its prompt; the coordinator must do that in prose.</li>
+<li><strong>No peer discovery.</strong> An agent can only address parties it was told about (its coordinator, or a handle it looked up via <code>terminal list</code> / <code>agent list</code>). There is no registry an agent can query for &quot;who else is working on this project&quot;.</li>
+<li><strong>No file-level coordination</strong> — no locks, no leases, no conflict detection between agents.</li>
+<li><strong>No message replay/history beyond the mailbox</strong> — the mailbox keeps rows, but there is no &quot;conversation summary&quot; surface for an agent joining late (it can <code>inbox</code>/<code>check</code>, but it must read raw messages).</li>
+<li><strong>No cross-project memory.</strong> Bots have MEMORY.md; ordinary agents do not.</li>
+<li><strong><code>@group</code> broadcast exists but is thin</strong> — an address form, not a topic/subscription model; lifecycle types are refused on groups.</li>
+</ul>
+<p>Net: Orca's cross-agent context is <strong>mail + files + human-mediated prose</strong>. That is deliberate (it survives any agent's context loss and any agent's model), but it puts the burden of shared understanding on the coordinator agent's writing.</p>
+<h3 id="101-sharing-mechanism-matrix">10.1 Sharing mechanism matrix</h3>
+<table>
+<thead>
+<tr>
+<th>Mechanism</th>
+<th>Scope</th>
+<th>Durable</th>
+<th>Readable by an agent without a human</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Same worktree files + git</td>
+<td>per-worktree</td>
+<td>✅</td>
+<td>✅ (its own tools)</td>
+<td>no locks, no ownership signal</td>
+</tr>
+<tr>
+<td>Parent worktree (<code>--worktree current</code>)</td>
+<td>explicit</td>
+<td>✅</td>
+<td>✅</td>
+<td>default is isolation</td>
+</tr>
+<tr>
+<td>Mailbox message</td>
+<td>per-party</td>
+<td>✅ (<code>messages</code>)</td>
+<td>✅ via <code>check</code>/<code>inbox</code></td>
+<td>the only push mechanism</td>
+</tr>
+<tr>
+<td><code>ask</code>/<code>reply</code> thread</td>
+<td>per-party</td>
+<td>✅ (<code>question_threads</code>)</td>
+<td>✅</td>
+<td>blocks or resumes</td>
+</tr>
+<tr>
+<td><code>worker_done</code> report</td>
+<td>Run</td>
+<td>✅ (<code>tasks.result</code>)</td>
+<td>✅ via <code>task-list</code></td>
+<td>single writer (worker)</td>
+</tr>
+<tr>
+<td>Decision gate</td>
+<td>Task</td>
+<td>✅ (<code>decision_gates</code>)</td>
+<td>✅ via <code>gate-list</code></td>
+<td>human-resolvable</td>
+</tr>
+<tr>
+<td>Worker transcript (<code>worker-read</code>)</td>
+<td>Dispatch</td>
+<td>✅ (provider session)</td>
+<td>✅</td>
+<td>reads the <em>other</em> agent's output</td>
+</tr>
+<tr>
+<td>Diff comments</td>
+<td>Worktree</td>
+<td>✅ (<code>WorktreeMeta</code>)</td>
+<td>paste-only</td>
+<td><code>sentAt</code> records handoff</td>
+</tr>
+<tr>
+<td>AI Vault</td>
+<td>host, all agents</td>
+<td>✅ (index)</td>
+<td>✗ (UI/CLI only)</td>
+<td>history, not live context</td>
+</tr>
+<tr>
+<td>Crew panel</td>
+<td>per-party</td>
+<td>derived</td>
+<td>✗ visual only</td>
+<td><code>managedBy/managing/talkingWith</code></td>
+</tr>
+<tr>
+<td>Bot <code>SOUL.md</code>/<code>MEMORY.md</code></td>
+<td>per-bot</td>
+<td>✅ (git)</td>
+<td>✅</td>
+<td>bots only</td>
+</tr>
+<tr>
+<td>Artifacts</td>
+<td>cloud</td>
+<td>✅</td>
+<td>needs a link</td>
+<td>file sharing</td>
+</tr>
+<tr>
+<td>Broadcast <code>@group</code></td>
+<td>Run</td>
+<td>✅</td>
+<td>✅</td>
+<td>address form, not pub/sub</td>
+</tr>
+</tbody>
+</table>
+<p>Everything in the &quot;✅ readable&quot; rows is <em>pull</em>: an agent only sees another agent's work if it was told a handle and ran a command. There is no subscription an agent can hold, and no event it can receive while it is thinking.</p>
+<h2 id="11-notable-engineering-decisions">11. Notable engineering decisions</h2>
+<ul>
+<li><strong>The coordinator is a prompt, not a scheduler.</strong> <code>orchestration.run</code> and <code>coordinator-start/stop</code> are retired and rejected at a migration fence, even though the <code>Coordinator</code> class remains (<code>coordinator/coordinator.ts</code>, <code>gates.ts:17</code>, <code>orchestration-contract-fence.ts:19</code>). Coordination moved into the agent's loop; the server only persists Tasks/Dispatch/mail.</li>
+<li><strong>The worker contract is text injected into the worker's prompt</strong> (<code>worker-dispatch-preamble.ts:84</code>), including the exact <code>check</code>/<code>ask</code>/<code>worker_done</code> command lines and a &quot;do not use AskUserQuestion, the coordinator cannot see it&quot; warning. This is how a <em>terminal</em> agent is made to behave like a well-behaved RPC client.</li>
+<li><strong>One config record per CLI quirk instead of an abstraction.</strong> 45 <code>TuiAgentConfig</code> records with regex readiness markers and per-OS key encodings; comments cite the PR that discovered each (<code>tui-agent-config.ts</code>). Brutal, effective.</li>
+<li><strong>Read the provider's own session store instead of re-hosting it.</strong> Chat mode = same binary + decode <code>~/.claude/projects/**/*.jsonl</code> etc. (<code>native-chat/transcript-reader.ts</code>). Zero migration cost, automatic feature parity with the CLI's own history.</li>
+<li><strong>Two-channel status with precedence, one of them an open terminal protocol.</strong> Hooks first, OSC-7501 fallback, 2-minute staleness handoff, hybrid facet for progress/blocked (<code>agent-hooks/README.md</code>).</li>
+<li><strong>Version-matched agent docs served by the binary.</strong> Shipped <code>SKILL.md</code> files are stubs that shell out to <code>orca skills get &lt;name&gt;</code> (<code>skills/orchestration/SKILL.md</code>), so agent instructions never drift from the installed app.</li>
+<li><strong>Mutations carry caller identity + request id + payload hash</strong> in <code>mutation_receipts</code>, and the CLI teaches agents to reuse the request id (<code>orchestration-rpc-contract.ts</code>, <code>cli/runtime/connection/client-error-recovery.ts</code>).</li>
+<li><strong>Capability negotiation, not version equality.</strong> Flat capability strings per client class; protocol floor 2, ceiling 3 (<code>protocol-version.ts</code>, <code>orchestration-runtime-capabilities.ts</code>).</li>
+<li><strong>The nested-worker depth cap is server-side and excluded from the settings RPC</strong> so a worker cannot raise its own recursion limit (<code>nested-worker-depth.ts</code>).</li>
+<li><strong>Recorded deletions and fenced states.</strong> Deleted orchestration work is captured for audit; workers get <code>start_unknown</code>/<code>stop_unknown</code> rather than a boolean, because &quot;a live PTY can contain a dead agent&quot;.</li>
+<li><strong>Ratchet-style quality gates</strong> instead of cleanup projects: <code>check:max-lines-ratchet</code>, <code>check:ts-nocheck-ratchet</code>, <code>check:host-list-render-ratchet</code>, <code>lint:design-system</code>, <code>audit:dead-code</code>, plus a <code>check:changed</code> that runs only the tests importing your change (<code>AGENTS.md</code>).</li>
+</ul>
+<h2 id="12-what-to-reuse-for-our-product">12. What to reuse for our product</h2>
+<p>Ranked by value to &quot;one project, many agent threads that see each other's work&quot;:</p>
+<ol>
+<li><strong>The mailbox schema + message taxonomy.</strong> Nine types with a <code>thread_id</code>, priorities, delivery contracts, and receipts is exactly the primitive set we need; it maps 1:1 to &quot;these threads can message each other&quot;. Reuse: <code>db/schema/create-core-tables-sql.ts:23-60</code> (messages/deliveries/run_coordinator_handles), <code>shared/orchestration/mailbox/*</code>.</li>
+<li><strong>The &quot;note-into-a-TUI&quot; wake strategy.</strong> The insight that a terminal agent can only be woken by typing a <em>pointer</em> at it (&quot;run <code>check</code> to read your mail&quot;) is the single most important unblocker for supporting CLIs we cannot instrument. Reuse: <code>mailbox/notifications/mailbox-notification-coordinator.ts</code>, <code>skill-guides/orca-cli.md</code> §&quot;Messaging agents&quot;.</li>
+<li><strong>The prompt-injected worker preamble.</strong> Copy the shape (identity lines, task id, exact command recipes, &quot;finish exactly once&quot;, &quot;do not use your own question UI&quot;). Reuse: <code>workers/launch/worker-dispatch-preamble.ts:84-140</code>.</li>
+<li><strong>Two-channel agent status with precedence.</strong> Hooks + an out-of-band terminal protocol, with a staleness rule. Reuse: <code>agent-hooks/README.md</code> (the design, incl. the OSC-7501 spec link) and <code>server/program-status/hook-precedence.ts</code>.</li>
+<li><strong>Per-CLI quirk table.</strong> If we drive TUIs, we will need exactly this: readiness regex, submit retries, per-OS key encodings, trust pre-writes. Reuse: <code>shared/agent-launch/catalog/tui-agent-config-types.ts</code> as the schema (do not copy 45 entries wholesale — copy the fields we need and add per-agent as we hit bugs).</li>
+<li><strong><code>worker_done</code> settlement semantics.</strong> Reported failure cannot become success; a dispatch id fences completion across retries. Reuse: <code>workers/reports/*</code>, <code>workers/orchestration-worker-settlement.ts</code>, <code>create-graph-tables-sql.ts:178-230</code>.</li>
+<li><strong>Transcript-as-source-of-truth for chat.</strong> Reading each CLI's own JSONL/SQLite session store removes an entire class of &quot;our copy is wrong&quot; bugs and gives free history/search. Reuse: <code>native-chat/transcript-reader.ts</code>, <code>transcript-decoding/*</code>, <code>ai-vault/</code> for the cross-agent index.</li>
+<li><strong>Version-matched instructions served by the app.</strong> Stub skill → <code>skills get &lt;name&gt;</code> → real guide from the running binary. Reuse: <code>skills/*/SKILL.md</code> + <code>skill-guides/*.md</code> + <code>src/main/skills/bundled/*</code>.</li>
+<li><strong>Mutation idempotency (<code>request_id</code> + payload hash + caller fingerprint).</strong> Cheap, prevents double-dispatch when an agent's turn dies mid-call. Reuse: <code>mutation_receipts</code> table + <code>cli/runtime/connection/client-error-recovery.ts</code>.</li>
+<li><strong>Crew read model with per-party deltas.</strong> If we show a &quot;who's working for whom&quot; view, do it server-side with relevance tracking rather than rebuilding the graph in the client. Reuse: <code>crew/crew-read-model.ts</code>, <code>shared/orchestration/orchestration-crew.ts</code>.</li>
+<li><strong>Decision gates.</strong> A blocking question with options attached to a task is a better primitive than &quot;a chat message that might get lost&quot; for human-in-the-loop.</li>
+<li><strong>Depth cap as a fence, not a warning.</strong> <code>nested_worker_depth_exceeded</code> with the setting hidden from the RPC. Reuse: <code>shared/orchestration/workers/nested-worker-depth.ts</code>.</li>
+</ol>
+<h2 id="13-what-to-avoid-gotchas">13. What to avoid / gotchas</h2>
+<ul>
+<li><strong>License.</strong> MIT (root <code>LICENSE</code>, &quot;Copyright (c) 2026 Lovecast Inc.&quot;). <code>cloud/</code> is explicitly covered by the same root MIT (<code>cloud/README.md</code>). Third-party notices: <code>docs/site/THIRD_PARTY_NOTICES.md</code>. But: the <em>hosted</em> services are not in-repo — the connector service (Slack/Linear/GitHub events), the mobile release pipeline, and parts of artifact sharing are closed. Don't plan on self-hosting those.</li>
+<li><strong>Weight.</strong> 3.6M LOC, 160 main-process dirs, Electron 43, xterm v6 <strong>beta</strong> packages pinned, TS 7, Vite 8, <code>node-pty</code> native compilation, Windows/Wayland native addons. Any &quot;just reuse this module&quot; plan collapses under transitive coupling: <code>src/shared/</code> alone is 367k LOC of contracts and the orchestration code imports ~everything.</li>
+<li><strong>The PTY-heuristic treadmill.</strong> <code>tui-agent-config.ts</code> is a museum of regressions with PR numbers. Every CLI release can break paste readiness, submit, or trust prompts. Supporting 45 TUIs is a permanent maintenance tax — and it is <em>the</em> reason Orca's agent list looks impressive and its bug surface is enormous.</li>
+<li><strong>Dead and semi-dead code.</strong> <code>orchestration.run</code>/<code>runStop</code> are retired at the fence yet still registered (<code>gates.ts</code>); <code>Coordinator</code> is legacy; <code>coordinator-start/stop</code> CLI throw. Don't model our design on those files without reading the migration fence first.</li>
+<li><strong><code>opencode2</code>, <code>pi</code> vs <code>omp</code> vs <code>prime-agent</code>, <code>claude-agent-teams</code></strong> — near-duplicate agent ids that exist for historical reasons; id proliferation is a real cost in the schema (every hook installer, skill provider, dialect, usage module needs an entry).</li>
+<li><strong>Schema churn.</strong> <code>orchestration.db</code> is at v50 with 20 hand-written migration modules and several &quot;this runs before migrate so it must compile against a pre-v42 table&quot; comments. That is the cost of shipping a coordination DB inside a desktop app with downgrade risk.</li>
+<li><strong>Docs drift.</strong> The repo's own prose (README/skills) is <em>ahead</em> of some code paths and behind others; the skill guides are the most accurate documents in the repo and they are hand-written. Trust code over docs; trust <code>skill-guides/</code> over <code>docs/</code>.</li>
+<li><strong>No shared-context primitive</strong> means the coordinator agent's prompt writing is the bottleneck. If we copy Orca's model, we inherit the failure mode &quot;the coordinator forgot to tell the worker X&quot;.</li>
+<li><strong><code>--keep-open</code> / auto-release defaults differ by launch mode</strong> (kept-open vs new-workspace best-effort), and a failure to keep open only fails the start when explicitly requested (<code>worker-launch-handler.ts</code>). Small thing, easy to model wrong.</li>
+<li><strong>Windows cmd.exe cannot send orchestration mail bodies</strong> — <code>orca.cmd</code> refuses <code>send</code>/<code>reply</code>; and on Windows you must use <code>orca.exe</code>. Genuine platform sharp edge baked into the docs.</li>
+</ul>
+<h2 id="14-top-files-to-read">14. Top files to read</h2>
+<ol>
+<li><code>skill-guides/orchestration.md</code> — the whole coordination protocol as the agents are taught it. Start here.</li>
+<li><code>skill-guides/orca-cli.md</code> — handoff vs orchestration, agent addressing, mail delivery semantics, worktree selectors.</li>
+<li><code>src/main/runtime/orchestration/db/schema/create-core-tables-sql.ts</code> — runs/messages/deliveries/receipts + the 9 message types.</li>
+<li><code>src/main/runtime/orchestration/db/schema/create-graph-tables-sql.ts</code> — tasks, dispatch_contexts, decision_gates, federation, coordinator_runs.</li>
+<li><code>src/main/runtime/orchestration/workers/launch/worker-dispatch-preamble.ts</code> — the injected worker contract.</li>
+<li><code>src/main/runtime/orchestration/mailbox/notifications/mailbox-notification-coordinator.ts</code> — how mail becomes a typed note or a chat message.</li>
+<li><code>src/main/runtime/orchestration/crew/crew-read-model.ts</code> + <code>src/shared/orchestration/orchestration-crew.ts</code> — the relationship graph and its delta stream.</li>
+<li><code>src/shared/agent-launch/catalog/tui-agent-config-types.ts</code> + <code>tui-agent-config.ts</code> — the per-CLI quirk schema and 45 examples.</li>
+<li><code>src/main/agent-hooks/README.md</code> — hooks + OSC 7501 precedence model, with a live support matrix. Best-written doc in the repo.</li>
+<li><code>src/main/acp/transport/acp-json-rpc-peer.ts</code> + <code>src/main/acp/acp-dialects/acp-dialect.ts</code> — the structured-agent lane.</li>
+<li><code>src/main/claude/claude-stream-json-connection.ts</code> — the only native-SDK lane; shows the &quot;force the user's binary&quot; trick.</li>
+<li><code>src/main/native-chat/transcript-reader.ts</code> — transcript-as-truth, per-agent decoders.</li>
+<li><code>src/main/ai-vault/session-handoff-prompt.ts</code> + <code>src/shared/agent-session/conversation-context/agent-session-continuation.ts</code> — handing one agent's history to another.</li>
+<li><code>src/shared/remote-runtime/protocol/protocol-version.ts</code> + <code>orchestration-runtime-capabilities.ts</code> — the compatibility doctrine.</li>
+<li><code>src/main/runtime/rpc/transports/unix-socket-transport.ts</code> — the local IPC frame: NDJSON, 1 MB, 32 conns, 0600.</li>
+<li><code>src/main/runtime/rpc/orchestration/compatibility/orchestration-contract-fence.ts</code> — request-id/contract fencing for mutations.</li>
+<li><code>src/shared/worktree/types.ts</code> — the Worktree aggregate (what an app-side &quot;workspace&quot; really needs).</li>
+<li><code>src/main/runtime/orchestration/db/orchestration-db.ts</code> — pragmas, migrations, triggers, listener wiring; the whole persistence posture in one file.</li>
+<li><code>src/shared/orchestration/workers/nested-worker-depth.ts</code> — the small, complete example of a server-side safety fence.</li>
+<li><code>src/main/bots/bot-home.ts</code> + <code>src/shared/bot-soul.ts</code> — the &quot;agent memory is files in a git repo&quot; pattern.</li>
+</ol>
+<h2 id="15-open-questions">15. Open questions</h2>
+<p>Cannot be answered from this repo:</p>
+<ol>
+<li><strong>The hosted connector service.</strong> Slack/Linear/GitHub event fan-out to signed-in Orcas runs on a service &quot;not in this repository&quot; (<code>cloud/README.md</code>). How bots receive events, how retries/dedup work, and what the GitHub App scopes are, is unknown.</li>
+<li><strong>Mobile release / store pipeline.</strong> <code>mobile/fastlane/</code> exists but the push gateway deployment and <code>stablyai/orca-cloud</code> are private.</li>
+<li><strong>Artifact sharing backend.</strong> <code>artifact-cloud-service.ts</code> talks to a service whose API is only visible as client calls; retention and ACLs are opaque.</li>
+<li><strong>Orca accounts.</strong> <code>src/main/managed-data-accounts/</code>, <code>src/main/claude-accounts/</code>, and the <code>accounts.*</code> RPCs (47 methods) reference a &quot;signed-in Orca&quot; for managed models/data. Whether that ever becomes a first-class model gateway is not decidable from code.</li>
+<li><strong>Telemetry volume/shape.</strong> <code>posthog-node</code> is a dependency and <code>src/shared/telemetry/schemas/*</code> exists, but what is actually sent, and the opt-out UX, need the hosted project or the telemetry docs.</li>
+<li><strong>Actual measured reliability of the TUI heuristics.</strong> No published failure rates per agent; the config comments imply frequent breakage but there's no dashboard in-repo.</li>
+<li><strong>Why <code>claude</code> has an SDK lane while Codex uses <code>codex app-server</code> and every other agent is PTY-only</strong> — the decision record isn't in <code>docs/</code>; only PR references inside comments.</li>
+<li><strong>Whether the legacy <code>Coordinator</code> class is scheduled for deletion</strong> or kept as a compatibility path. Both the class and its retired RPC entry remain.</li>
+<li><strong>The OSC-7501 spec's governance.</strong> The spec link points at <code>superlogical.com/rex/docs/build/program-status</code>, not a standards body; whether third-party agents will implement it is speculation.</li>
+<li><strong>Multi-user/team semantics.</strong> Nothing in the schema models a second human on the same host; <code>mutation_caller_identities</code>, <code>bot-access-*</code> and pairing cover devices and bots, not teammates.</li>
+</ol>
+
+</main>
+</div>
+</body></html>

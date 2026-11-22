@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Synthesis — t3code × orca × cloudroom, and what it means for our product</title>
+<style>
+:root{
+  --paper:#f6f4ef; --paper-2:#efece4; --ink:#16150f; --ink-2:#56524a; --ink-3:#8a857a;
+  --rule:#d8d3c7; --accent:#9e3b22; --accent-soft:#f1e5dd; --code-bg:#efece4;
+  --mono:"JetBrains Mono","Liberation Mono",ui-monospace,monospace;
+  --sans:"Liberation Sans","Noto Sans",Inter,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0; color:var(--ink); background:var(--paper);
+  font-family:var(--sans); font-size:16.5px; line-height:1.62;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility}
+.wrap{display:grid; grid-template-columns:248px minmax(0,1fr); gap:52px;
+  max-width:1180px; margin:0 auto; padding:56px 40px 120px}
+/* ---------- sidebar ---------- */
+aside{position:sticky; top:40px; align-self:start; max-height:calc(100vh - 80px);
+  overflow:auto; padding-left:16px; border-left:2px solid var(--accent)}
+aside .kicker{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+aside .meta{font-family:var(--mono); font-size:11px; color:var(--ink-3); line-height:1.7; margin-top:10px}
+aside nav{margin-top:22px}
+aside nav a{display:block; color:var(--ink-2); text-decoration:none; font-size:13px;
+  line-height:1.35; padding:4px 0 4px 10px; border-left:1px solid transparent; margin-left:-11px}
+aside nav a:hover{color:var(--ink); border-left-color:var(--rule)}
+aside nav a.lvl3{padding-left:22px; font-size:12.2px; color:var(--ink-3)}
+aside .back{display:inline-block; margin-top:26px; font-family:var(--mono); font-size:11px;
+  color:var(--ink-3); text-decoration:none; border-bottom:1px solid var(--rule)}
+/* ---------- content ---------- */
+main{max-width:74ch}
+h1,h1 a,h2,h2 a,h3,h3 a,h4,h4 a{color:inherit}
+h1{font-size:36px; line-height:1.08; letter-spacing:-.022em; margin:0 0 10px; font-weight:700}
+h1 + p, h1 + blockquote{color:var(--ink-2); font-size:16.5px}
+h2{font-size:23px; line-height:1.2; letter-spacing:-.014em; margin:52px 0 14px; padding-top:16px;
+  border-top:1px solid var(--rule); font-weight:700}
+h2:first-of-type{border-top:0; padding-top:0; margin-top:34px}
+h3{font-size:17px; margin:30px 0 8px; letter-spacing:-.006em}
+h4{font-size:14.5px; margin:22px 0 6px; color:var(--ink-2)}
+p{margin:0 0 14px}
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--accent-soft)}
+a:hover{border-bottom-color:var(--accent)}
+ul,ol{margin:0 0 16px; padding-left:22px}
+li{margin:5px 0}
+li::marker{color:var(--ink-3)}
+hr{border:0; border-top:1px solid var(--rule); margin:38px 0}
+/* a markdown --- right before a heading already gets the heading's rule */
+hr:has(+ h2){display:none}
+hr + h2{border-top:0; padding-top:0; margin-top:44px}
+blockquote{margin:22px 0; padding:2px 0 2px 18px; border-left:2px solid var(--accent);
+  color:var(--ink-2)}
+blockquote p{margin:0 0 8px}
+blockquote p:last-child{margin:0}
+code{font-family:var(--mono); font-size:.855em; background:var(--code-bg);
+  padding:1.5px 5px; border-radius:2px; color:#2a2620; overflow-wrap:break-word}
+pre{background:var(--code-bg); padding:15px 17px; overflow-x:auto; margin:0 0 20px;
+  border-left:2px solid var(--ink-3); line-height:1.5}
+pre code{background:none; padding:0; font-size:12.6px; white-space:pre}
+table{width:100%; border-collapse:collapse; margin:8px 0 26px; font-size:13.6px}
+thead th{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:400; text-align:left; padding:0 12px 7px 0;
+  border-bottom:1.2px solid var(--ink); vertical-align:bottom}
+tbody td{padding:8px 12px 8px 0; border-bottom:1px solid var(--rule); vertical-align:top; line-height:1.45}
+tbody td:first-child{font-weight:700}
+td code,th code{font-size:12px}
+/* ---------- index ---------- */
+.index{max-width:1020px; margin:0 auto; padding:64px 40px 120px}
+.index .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+.index h1{margin-top:14px}
+.index .lede{color:var(--ink-2); font-size:18px; max-width:62ch; margin:14px 0 38px; line-height:1.55}
+.index ol{list-style:none; padding:0; margin:0; border-top:1.2px solid var(--ink)}
+.index li{border-bottom:1px solid var(--rule)}
+.index a.row{display:grid; grid-template-columns:34px minmax(0,1fr) 76px; gap:18px;
+  align-items:start; padding:16px 4px 16px 0; text-decoration:none; border:0; color:inherit}
+.index a.row:hover{background:var(--paper-2)}
+.index .n{font-family:var(--mono); font-size:11.5px; color:var(--accent); white-space:nowrap;
+  padding-top:4px}
+.index .t{font-size:17px; font-weight:700; letter-spacing:-.008em; line-height:1.3}
+.index .d{font-size:13.4px; color:var(--ink-2); margin-top:4px; line-height:1.5}
+.index .w{font-family:var(--mono); font-size:11px; color:var(--ink-3); text-align:right; padding-top:4px}
+@media (max-width:980px){
+  .wrap{grid-template-columns:1fr; gap:0; padding:32px 20px 80px}
+  aside{position:static; max-height:none; margin-bottom:28px}
+  aside nav{display:none}
+  .index{padding:32px 20px 80px}
+  .index a.row{grid-template-columns:1fr; gap:4px}
+  .index .w{text-align:left}
+  table{display:block; overflow-x:auto; white-space:nowrap}
+  table td,table th{white-space:normal}
+}
+@media print{
+  aside{display:none} .wrap{grid-template-columns:1fr; max-width:100%; padding:0}
+  body{font-size:11pt} h2{break-after:avoid} table,pre{break-inside:avoid}
+  a{color:inherit; border:0}
+}
+</style>
+</head><body>
+<div class="wrap">
+<aside>
+  <div class="kicker">Research report</div>
+  <div class="meta">4,382 words<br>12 sections<br>370 lines of source</div>
+  <nav><a class="lvl2" href="#0-the-five-things-that-matter">0. The five things that matter</a>
+<a class="lvl2" href="#1-the-three-side-by-side">1. The three, side by side</a>
+<a class="lvl2" href="#2-where-all-three-agree-treat-these-as-decided">2. Where all three agree (treat these as decided)</a>
+<a class="lvl2" href="#3-where-they-genuinely-diverge-and-what-to-copy-from-whom">3. Where they genuinely diverge (and what to copy from whom)</a>
+<a class="lvl3" href="#31-how-agents-coordinate-three-different-bets">3.1 How agents coordinate — three different bets</a>
+<a class="lvl3" href="#32-orchestration-engine">3.2 Orchestration engine</a>
+<a class="lvl3" href="#33-provider-abstraction">3.3 Provider abstraction</a>
+<a class="lvl3" href="#34-transport-and-clients">3.4 Transport and clients</a>
+<a class="lvl2" href="#4-the-provider-tax-quantified-this-decides-our-scope">4. The provider tax, quantified — this decides our scope</a>
+<a class="lvl2" href="#5-the-gap-map-for-five-threads-in-one-project-that-see-each-other">5. The gap map for &quot;five threads in one project that see each other&quot;</a>
+<a class="lvl3" href="#so-what-is-genuinely-new-in-our-product">So what is genuinely new in our product?</a>
+<a class="lvl2" href="#6-what-to-borrow-concretely">6. What to borrow, concretely</a>
+<a class="lvl2" href="#7-what-nobody-solved-our-actual-roadmap">7. What nobody solved (our actual roadmap)</a>
+<a class="lvl2" href="#8-hard-truths-about-the-reference-set">8. Hard truths about the reference set</a>
+<a class="lvl2" href="#9-scope-proposal-for-our-v1-a-position-to-argue-with">9. Scope proposal for our v1 (a position, to argue with)</a>
+<a class="lvl2" href="#10-licensing-ledger">10. Licensing ledger</a>
+<a class="lvl2" href="#11-one-paragraph-answer-to-are-they-similar">11. One-paragraph answer to &quot;are they similar?&quot;</a></nav>
+  <a class="back" href="index.html">&larr; index</a>
+</aside>
+<main>
+<h1>Synthesis — t3code × orca × cloudroom, and what it means for our product</h1>
+<p>Sources: <code>01-t3code.md</code> (635 lines), <code>02-orca.md</code> (390), <code>03-cloudroom.md</code> (479).
+All three cloned read-only at <code>/tmp/ilvuno-research/</code>, analysed by three parallel agents on the same
+model. Every claim here traces to a section in those reports, which trace to file paths.
+Licenses: <strong>t3code MIT, orca MIT, cloudroom Apache-2.0</strong> — permissive, but see §10 for the
+obligations and the closed parts nobody can copy.</p>
+<hr />
+<h2 id="0-the-five-things-that-matter">0. The five things that matter</h2>
+<ol>
+<li><strong>None of them is a pure web app, and that is not laziness — it is structural.</strong> Agent CLIs must
+run on a machine that has the repo, a shell, and the user's login. So every one of them ships a
+<em>runner</em>: t3 has <code>apps/server</code> (owns state, spawns CLI processes) + web/mobile/desktop clients
+(<code>01</code> §2, §7); cloudroom has a host daemon on the Mac plus a Rust core in a sandbox (<code>03</code> §1);
+orca is an Electron app whose main process <em>is</em> the runner, with a web build only as a shell
+(<code>02</code> §2, §7). <strong>Our product is therefore: browser UI + a local runner process + optional remote
+runner.</strong> Not &quot;a website that runs Claude&quot;.</li>
+<li><strong>They converge on ~80% of the architecture, independently.</strong> Event-sourced-ish state, one
+normalized provider event stream, capability-declared adapters, per-thread process, worktree
+isolation, a tool/MCP surface for cross-agent work. That convergence is the real spec — it is
+what three teams discovered by shipping, not what one person guessed.</li>
+<li><strong>The hard problem you named — &quot;five threads that see each other's work and talk&quot; — is solved by
+nobody.</strong> All three have <em>point-to-point, pull-based, tool-mediated</em> messaging. t3 is furthest
+(≈90 MCP tools, <code>delegate_task</code>, <code>t3_thread_read/search/send</code>, <code>ContextTransfer</code>); orca has a real
+mailbox with <code>ask</code>/<code>reply</code> and a worker preamble; cloudroom has <code>tell</code>/<code>output</code>/<code>log</code> + turn
+reports. <strong>None has ambient shared context</strong>: no shared memory, no push subscription, no
+peer discovery, no live &quot;agent B sees agent A's output without asking&quot;. All three say so
+explicitly (<code>01</code> §10.2, <code>02</code> §10, <code>03</code> §10).</li>
+<li><strong>The tax is provider adapters, and it is brutal and permanent.</strong> orca: 45 PTY quirk records + 17
+ACP dialects + 23 hook installers, each with PR numbers in the comments (<code>02</code> §4). cloudroom: 14
+local providers <em>and</em> 13 cloud harness adapters <em>and</em> a parity harness between them (<code>03</code> §4,
+§2). t3: 11 drivers, each with a bespoke protocol binding, plus replay fixtures to test them
+(<code>01</code> §4). &quot;Support all subscriptions&quot; is not a feature, it is an org-chart commitment.</li>
+<li><strong>A coordinator can be an agent, not a scheduler — and all three ended up there.</strong> t3 injects an
+orchestration contract into every session and lets the model delegate; orca <em>deleted</em> its
+programmatic coordinator (retired at a migration fence) and the coordinator agent loops on mail;
+cloudroom's workflows DSL is the only programmatic fan-out, and it is a JS sandbox, not a
+scheduler. The scheduler dream loses to &quot;the model is the scheduler, the app is the bus&quot;.</li>
+</ol>
+<hr />
+<h2 id="1-the-three-side-by-side">1. The three, side by side</h2>
+<table>
+<thead>
+<tr>
+<th>Axis</th>
+<th>t3code</th>
+<th>orca</th>
+<th>cloudroom</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Shape</td>
+<td>Web + mobile + desktop clients over a Node/Fastify-ish server (<code>apps/server</code>), Effect + SQLite</td>
+<td>Electron IDE: main process = server, renderer = React, plus embedded browser, xterm, PTY</td>
+<td>Electron desktop + React SPA + local Node server + <strong>Rust core</strong> for cloud sandboxes</td>
+</tr>
+<tr>
+<td>Agent integration</td>
+<td>11 drivers via <strong>native protocols</strong> (codex app-server, claude-agent-sdk, pi <code>--mode rpc</code>, opencode SDK, ACP for grok/kiro/fx/antigravity, ACP registry) (<code>01</code> §4.3)</td>
+<td><strong>3 tiers</strong>: PTY heuristics for 45 agents (default), ACP for 17, native SDK for Claude, <code>codex app-server</code> for Codex (<code>02</code> §4)</td>
+<td><strong>Provider = plugin</strong>: bridge artifact speaking JSON-RPC, 3 first-party CLI drivers + generic ACP bridge declaring 14 agents; Rust core reimplements 13 natively (<code>03</code> §4)</td>
+</tr>
+<tr>
+<td>Coordination model</td>
+<td>Orchestrator (pure) → events + projections + receipts + outbox in one txn → effect worker; agents coordinate through ~90 MCP tools (<code>01</code> §4, §10.1)</td>
+<td>Mailbox in SQLite + <strong>typing a pointer note into the TUI</strong>; coordinator agent wakes on mail; <code>worker_done</code> settles a Task (<code>02</code> §5)</td>
+<td>Parent/child threads; <code>tell</code> / <code>output</code> / <code>log</code> / <code>fork</code>; turn reports queued onto parent; tasks tracker resumes worker threads (<code>03</code> §10)</td>
+</tr>
+<tr>
+<td>Shared context</td>
+<td>Point-to-point tools + <code>ContextTransfer</code>/<code>ContextHandoff</code> (fork, provider_handoff, merge_back), lazy: native fork or bounded 240-char-per-item text (<code>01</code> §10.1 #7-8)</td>
+<td>Mail + files + <code>worker-read</code> transcripts + diff comments + AI Vault index; explicitly no blackboard (<code>02</code> §10)</td>
+<td>Git + <code>tell</code> + turn reports + tasks comments; <code>--shared-sandbox</code> = same folder (<code>03</code> §10)</td>
+</tr>
+<tr>
+<td>State</td>
+<td>SQLite, 55 tables, 137 migrations, <strong>projections are truth</strong>, event log pruned to 1 day (<code>01</code> §6)</td>
+<td>SQLite <code>orchestration.db</code> v50, 20 hand-written migration modules, mailbox/graph/program-status tables (<code>02</code> §6)</td>
+<td>App: SQLite/Drizzle 40 tables, append-only <code>events</code>; Cloud core: JSONL journal + snapshot every 20k + gzip segments, no SQL (<code>03</code> §6)</td>
+</tr>
+<tr>
+<td>Transport</td>
+<td>Effect RPC over WS, 247 RPCs, snapshot+cursor streams (<code>01</code> §7)</td>
+<td>Electron IPC + a local HTTP/WS server; CLI talks to it; remote/mobile via pairing (<code>02</code> §7)</td>
+<td>Local: HTTP + SSE; Cloud: HTTP API to sandbox + control-plane relay (<code>03</code> §7)</td>
+</tr>
+<tr>
+<td>Extensibility</td>
+<td>33 packages, per-provider packages, skills, MCP, scheduled tasks, <code>ScheduleWakeup</code>/webhooks (<code>01</code> §9)</td>
+<td><code>skills/</code> stubs → <code>orca skills get</code> served by the running binary; 23 hook installers; bots as git repos with <code>SOUL.md</code>/<code>MEMORY.md</code> (<code>02</code> §9)</td>
+<td>40 plugin dirs: providers, tasks, workflows, side-chat, snippets, org; nine built-in skills (<code>03</code> §9)</td>
+</tr>
+<tr>
+<td>Licence / size</td>
+<td>MIT, ~1.29M prod LOC TS</td>
+<td>MIT, ~3.6M LOC</td>
+<td>Apache-2.0 (+BB MIT NOTICE), 49k Rust + ~434k TS</td>
+</tr>
+<tr>
+<td>Forkable?</td>
+<td>No</td>
+<td>No</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-where-all-three-agree-treat-these-as-decided">2. Where all three agree (treat these as decided)</h2>
+<p>Each item below was built independently by ≥2 of them. These are not preferences.</p>
+<ol>
+<li><strong>One normalized event stream per turn, adapters translate into it.</strong> 18 variants (t3), 27 delta
+kinds + 13 system events (cloudroom), per-agent dialect mappers (orca ACP). The UI never learns a
+provider name — that is the whole point, and it is what makes swapping agents a config change.</li>
+<li><strong>Capabilities are declared, not probed ad hoc.</strong> t3: 11 capability groups + <code>planSelectionTransition</code>;
+cloudroom: <code>providerCapabilitiesSchema</code> with <code>supportsFork</code>, <code>supportsSessionRewind</code>,
+<code>modelCatalogScope</code>, <code>permissionModes</code>; orca: per-agent config records + a support matrix
+(<code>01</code> §4.1, <code>03</code> §4.5, <code>02</code> §4). Missing features <strong>degrade by policy</strong>, never by <code>if (provider === ...)</code>.</li>
+<li><strong>One thread = one process (except Codex).</strong> t3 states it flatly: every driver except Codex
+refuses to attach two app threads to one session, so N threads ≈ N subprocesses
+(<code>01</code> §13). cloudroom: one bridge process per session. orca: one PTY per worker. Budget memory
+and cold-start per thread, not per user.</li>
+<li><strong>Worktrees for isolation; shared checkout as opt-in.</strong> orca defaults to one worktree per worker
+(bounded nesting depth 4, enforced server-side); t3 defaults to the project root and only uses a
+worktree when asked; cloudroom gives each cloud child its own branch. All three accept the same
+consequence: isolated agents <strong>cannot see uncommitted work</strong>, and the answer is &quot;commit, then share
+via Git&quot; (<code>01</code> §10.1 #1, <code>02</code> §10 #1, <code>03</code> §10 #2).</li>
+<li><strong>The agent's own transcript is the record of truth.</strong> orca's chat mode <em>reads the CLI's own
+JSONL/SQLite</em> instead of keeping a parallel copy (<code>native-chat/transcript-reader.ts</code>); cloudroom
+keeps a native-identity/history pair and refuses to fabricate a missing one (<code>03</code> §4.4); t3 keeps
+provider ids as refs and marks sessions <code>reusable|broken</code> (<code>01</code> §4.2, §4.4). Do not build &quot;our own
+version of the conversation&quot; as the only copy.</li>
+<li><strong>Auth stays on the execution machine, never in the UI.</strong> &quot;Tokens never pass through the GUI or
+core API&quot; (cloudroom, <code>03</code> §4.6). t3: the user's existing CLI login, API keys only via secret
+providers or env. orca: never holds model keys, only account <em>plumbing</em> (<code>CLAUDE_CONFIG_DIR</code>
+isolation, usage scraping). Our runner should own credentials, and the browser should never see them.</li>
+<li><strong>Idempotency and an honest <code>unknown</code>.</strong> cloudroom: <code>request_id</code> + payload hash + caller
+fingerprint, <code>unknown</code> as a first-class terminal state, uncertain work never re-sent (<code>03</code> §12 #4).
+orca: <code>mutation_receipts</code>, <code>stop_unknown</code>/<code>start_unknown</code>/<code>abandoned</code> states, &quot;a live PTY can
+contain a dead agent&quot; (<code>02</code> §5). t3: command receipts in the same txn as events+outbox (<code>01</code> §12 #1).
+With N agents and M machines, retries are guaranteed; without this you get double dispatches.</li>
+<li><strong>The app injects the collaboration contract into the agent's prompt.</strong> t3's
+<code>orchestrationInstructions.ts</code> is <em>literally</em> the <code>&lt;t3_code_orchestration&gt;</code> block I am running under.
+orca's <code>buildDispatchPreamble()</code> writes identity, task id, and the exact <code>check</code>/<code>ask</code>/<code>worker_done</code>
+recipes into the worker's first message. cloudroom's skills do the same via <code>SKILL.md</code>
+(<code>01</code> §10.1 #9, <code>02</code> §5, <code>03</code> §9). <strong>This is the cheapest mechanism in the entire design space:</strong>
+a prompt is a cross-provider API that needs no SDK.</li>
+<li><strong>Bounded, paginated reads of another thread.</strong> t3 <code>t3_thread_read</code> (~30k chars/call, cursor
+positions); orca <code>worker-read --dispatch</code>; cloudroom <code>log</code>. Never dump a whole transcript into a
+prompt — it is the fastest way to blow a context window and a token budget.</li>
+<li><strong>Structured results beat prose parsing.</strong> t3 <code>outputSchema</code> + <code>t3_submit_output</code>; cloudroom
+workflows' JSON-Schema-constrained <code>agent()</code> results; orca <code>worker_done --outcome succeeded|failed</code>.
+Reported failure can never be recorded as success in all three.</li>
+<li><strong>Disk and durability guards are mandatory, not optional.</strong> cloudroom burned a 50 GB disk in days
+(<code>#606</code>) and now ships a 32 MiB reserve file plus a published storage policy; t3 prunes its event
+log to 1 day on purpose; orca defers delivery when a recipient cannot take input. Multi-agent
+workloads are a disk/IO workload.</li>
+</ol>
+<hr />
+<h2 id="3-where-they-genuinely-diverge-and-what-to-copy-from-whom">3. Where they genuinely diverge (and what to copy from whom)</h2>
+<h3 id="31-how-agents-coordinate-three-different-bets">3.1 How agents coordinate — three different bets</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>t3</th>
+<th>orca</th>
+<th>cloudroom</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Primitive</td>
+<td>MCP <strong>tool surface</strong> (~90 tools) + injected contract</td>
+<td><strong>Mailbox</strong> + pointer typed into TUI</td>
+<td><strong>Parent/child threads</strong> + <code>tell</code></td>
+</tr>
+<tr>
+<td>Who decides the plan</td>
+<td>the agent, via tools; <code>delegate_task</code> makes child thread+run</td>
+<td>the coordinator agent, via <code>worker-start</code>/<code>check</code>/<code>worker_done</code></td>
+<td>the user (Tasks/delegate) or a workflow script</td>
+</tr>
+<tr>
+<td>Deterministic?</td>
+<td>no</td>
+<td>no (coordinator retired at the fence)</td>
+<td>yes, inside the workflow DSL</td>
+</tr>
+<tr>
+<td>Survives a model change?</td>
+<td>mostly — tools are stable</td>
+<td>yes — mail is plain text</td>
+<td>yes — <code>tell</code> is plain text</td>
+</tr>
+<tr>
+<td>Biggest weakness</td>
+<td>requires the agent to know the tool surface</td>
+<td>the coordinator's prompt writing is the bottleneck</td>
+<td>1:1 hierarchy, no peer bus</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verdict for us:</strong> t3's tool surface <em>shape</em> + orca's <em>delivery mechanics</em>. Tools are how an agent
+expresses intent; typing a pointer into an uninstrumentable TUI is how you make a 45-CLI long tail
+interoperate. Neither alone is enough.</p>
+<h3 id="32-orchestration-engine">3.2 Orchestration engine</h3>
+<ul>
+<li>t3: <strong>pure <code>Orchestrator</code> decide function</strong> → events + projections + receipts + outbox <strong>in one
+SQLite transaction</strong> → an effect worker runs side effects. This is the single best idea in the set:
+it makes &quot;queued vs running vs waiting vs done&quot; honest across 11 providers and 4 clients, and it is
+testable without I/O (<code>01</code> §12 #1). <strong>Copy the shape.</strong></li>
+<li>orca: <strong>no engine.</strong> The coordinator is an agent; the DB holds the state it mutates through CLI calls.
+Cheap, brittle in a different way, and it deleted its own scheduler on purpose (<code>02</code> §5).</li>
+<li>cloudroom: <strong>workflows DSL</strong> (JS in a sandbox, no clock/fs/net, <code>agent()</code> calls, cached on resume)
+for fan-out, plus human-driven tasks (<code>03</code> §10 #10).</li>
+</ul>
+<p><strong>Verdict:</strong> t3's transactional command→event→effect core, with cloudroom's workflow script as the
+<em>optional</em> deterministic escape hatch. Do not start with a scheduler.</p>
+<h3 id="33-provider-abstraction">3.3 Provider abstraction</h3>
+<ul>
+<li>t3: <code>ProviderAdapterV2</code> — a 20-method <code>SessionRuntime</code> + 18-variant event union + 11 capability
+groups. Most complete contract, and the one you can read to learn the failure modes (<code>01</code> §4.1-4.2).</li>
+<li>cloudroom: <strong>provider = plugin, zero first-party privilege</strong> — Claude/Codex/Pi use the same public
+bridge API as third parties, so the abstraction cannot rot (<code>03</code> §4.1, and the delegate's surprise
+note). Strictest anti-special-casing stance of the three.</li>
+<li>orca: <strong>honest hackery</strong> — a config <em>record of quirks</em> per TUI, 45 entries with PR numbers. The
+abstraction is a bug museum, and that is the correct design for the long tail (<code>02</code> §4).</li>
+</ul>
+<p><strong>Verdict:</strong> adopt cloudroom's plugin discipline (no first-party privilege), t3's event union and
+capability groups as the vocabulary, orca's quirk-record schema for the PTY tier.</p>
+<h3 id="34-transport-and-clients">3.4 Transport and clients</h3>
+<ul>
+<li>t3 is the only one with a real <strong>web + mobile + desktop</strong> client story (snapshot + cursor streaming,
+<code>ThreadStream</code>, resumable WS, 247 RPCs). If our product is &quot;mostly web&quot;, this is the only relevant
+reference (<code>01</code> §7-8).</li>
+<li>cloudroom proves a <strong>browser can attach to a local machine</strong> through a Cloudflare-Worker tunnel with
+gap-hold (<code>03</code> §12 #12) — small, self-hostable, correct constants.</li>
+<li>orca optimises for <em>terminal fidelity</em> (xterm v6 beta, ghostty VT), which a web product should not
+copy in v1.</li>
+</ul>
+<hr />
+<h2 id="4-the-provider-tax-quantified-this-decides-our-scope">4. The provider tax, quantified — this decides our scope</h2>
+<table>
+<thead>
+<tr>
+<th>Approach</th>
+<th>Who</th>
+<th>Cost to add an agent</th>
+<th>Fidelity</th>
+<th>Works when CLI has no API</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Native protocol/SDK</td>
+<td>t3 (11), orca (Claude, Codex), cloudroom core (13)</td>
+<td>days–weeks, per provider version</td>
+<td>best (fork, rewind, subagents, approvals)</td>
+<td>no</td>
+</tr>
+<tr>
+<td>ACP (Agent Client Protocol)</td>
+<td>cloudroom (14 via one bridge), orca (17 dialects)</td>
+<td>hours if the agent speaks ACP; a dialect module if it deviates</td>
+<td>good chat, weaker approvals</td>
+<td>only ACP-speaking agents</td>
+</tr>
+<tr>
+<td>PTY + typing</td>
+<td>orca (45 configs, the default)</td>
+<td>hours to first success, <strong>weeks to reliable</strong>, forever</td>
+<td>chat-like, no structure</td>
+<td>yes, everything</td>
+</tr>
+</tbody>
+</table>
+<p>Hard numbers to keep in mind: <strong>45</strong> PTY quirk records, <strong>17</strong> ACP dialects, <strong>23</strong> hook installers,
+<strong>11</strong> native drivers, <strong>14+13</strong> cloudroom providers, <strong>2</strong> runtimes in cloudroom with a parity
+harness between them.</p>
+<p>Consequences for our plan:</p>
+<ul>
+<li>Building &quot;support every subscription&quot; as a first-class promise <strong>cannot</strong> be v1. Pick the tier
+order: <strong>ACP first, native SDK second, PTY last resort</strong> — and make the unsupported state visible
+instead of pretending.</li>
+<li>The PTY tier is where the long tail actually lives, and it is the reason orca's model list looks
+impressive. It is also why its bug surface is enormous. Treat PTY as an opt-in &quot;beta agents&quot; tier.</li>
+<li>Two runtimes (local + cloud) is a <em>permanent 2× implementation tax</em> and cloudroom pays for it with a
+parity harness. <strong>Do not build a cloud runner until a local runner is boring.</strong></li>
+</ul>
+<hr />
+<h2 id="5-the-gap-map-for-five-threads-in-one-project-that-see-each-other">5. The gap map for &quot;five threads in one project that see each other&quot;</h2>
+<p>What the reference set actually gives you, in ascending usefulness:</p>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>t3</th>
+<th>orca</th>
+<th>cloudroom</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Shared filesystem by default</td>
+<td>✅ project root</td>
+<td>opt-in <code>--worktree current</code></td>
+<td>opt-in <code>--shared-sandbox</code></td>
+<td>copy t3 (default shared, isolate on request)</td>
+</tr>
+<tr>
+<td>Read another thread's transcript</td>
+<td>✅ <code>t3_thread_read</code> (bounded, paginated)</td>
+<td>✅ <code>worker-read --dispatch</code></td>
+<td>✅ <code>output</code> / <code>log</code></td>
+<td>universal; copy t3's bounding</td>
+</tr>
+<tr>
+<td>Search other threads</td>
+<td>✅ FTS over message text</td>
+<td>✗</td>
+<td>✗</td>
+<td>copy t3; cheap and pays off</td>
+</tr>
+<tr>
+<td>Send a message to a thread</td>
+<td>✅ <code>t3_thread_send</code> (auto/queue/steer/restart)</td>
+<td>✅ mailbox + <code>ask</code>/<code>reply</code></td>
+<td>✅ <code>tell</code></td>
+<td>needed; copy t3's modes + orca's delivery-hold</td>
+</tr>
+<tr>
+<td>Wake an idle/terminal agent</td>
+<td>✅ queue a new turn</td>
+<td>✅ type a pointer note into the TUI</td>
+<td>✅ turn report notice on parent</td>
+<td><strong>orca's is the one that generalises to uninstrumentable CLIs</strong></td>
+</tr>
+<tr>
+<td>Child sees parent's later edits</td>
+<td>✗ (commit only)</td>
+<td>✗</td>
+<td>✗ (stated in SKILL.md)</td>
+<td>unsolved; our differentiator lives here</td>
+</tr>
+<tr>
+<td>Ambient shared context / blackboard</td>
+<td>✗</td>
+<td>✗</td>
+<td>✗</td>
+<td><strong>nothing</strong></td>
+</tr>
+<tr>
+<td>Push subscription (&quot;tell me when B finishes&quot;)</td>
+<td>✗ (parent is woken, not subscribed)</td>
+<td>✓ mailbox delivery + wake</td>
+<td>✓ turn reports</td>
+<td>orca/cloudroom shape</td>
+</tr>
+<tr>
+<td>Peer discovery (&quot;who else is on this project&quot;)</td>
+<td>✗</td>
+<td>✗ (must be told a handle)</td>
+<td>✗</td>
+<td>nothing</td>
+</tr>
+<tr>
+<td>Conflict detection between agents</td>
+<td>✗ (merge_back is context, not code)</td>
+<td>✗ (no locks)</td>
+<td>✗ (worktrees are the answer)</td>
+<td>nothing</td>
+</tr>
+<tr>
+<td>User-authored cross-thread context (@-mention)</td>
+<td>✓ (<code>t3-context://thread/&lt;id&gt;</code> + envelope)</td>
+<td>✗</td>
+<td>✗ (mention is a text label)</td>
+<td>copy t3's envelope format</td>
+</tr>
+<tr>
+<td>Handoff to a different provider</td>
+<td>✓ <code>ContextTransfer</code> (fork/provider_handoff/merge_back, lazy, auditable)</td>
+<td>✓ AI Vault continuation prompt</td>
+<td>✓ <code>thread fork --provider</code></td>
+<td><strong>the most reusable primitive in the whole set</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="so-what-is-genuinely-new-in-our-product">So what is genuinely new in our product?</h3>
+<p>Not &quot;many agents in one UI&quot; — three products do that. Not &quot;threads that talk&quot; — two do that. The
+increment is the combination the user described, and it decomposes into three primitives plus one
+missing layer:</p>
+<ol>
+<li><strong>Project-scoped shared context that is default-on and agent-readable without being asked.</strong> A
+durable, human-inspectable per-project object — decisions, constraints, changed files, open
+questions, &quot;who is doing what&quot; — that every thread's turn preamble includes a <em>digest</em> of, and that
+any thread can append to. All three repos instead rely on the coordinator remembering to write prose.
+That is the failure mode to remove (<code>02</code> §13 last bullet).</li>
+<li><strong>Turn-boundary push, not polling.</strong> A thread finishing should <em>notify</em> sibling/parent turns with a
+compact machine-readable delta (<code>{threadId, status, filesChanged, summary, verdict}</code>), not a
+transcript dump. t3 has <code>outputSchema</code>, orca has mailbox delivery, cloudroom has turn reports —
+combine them.</li>
+<li><strong>Review loops as first-class objects.</strong> &quot;Claude writes, Codex reviews, Pi documents&quot; is a <em>pipeline
+with a verdict</em>, not three chats. Nothing in the set models a round (produce → critique → revise →
+accept) as data; it all lives in prompts and mail. <code>DiffComment</code> (orca) and <code>worker_done --outcome</code>
+are the closest primitives.</li>
+</ol>
+<p>Runtime cost reality check: five concurrent threads = five CLI subprocesses with their own node/python
+runtimes, typically 300 MB–1.5 GB RAM each depending on agent (cloudroom measured OpenClaw at 1.3 GB
+and ~15 s cold start). &quot;Five threads per project&quot; is a <em>machine</em> requirement, not a UI feature. Design
+for a 16 GB laptop running 3–5 threads, and make &quot;park a thread&quot; (freeze process, keep history)
+a first-class state — cloudroom's 17-state session machine is the reference (<code>03</code> §12 #6).</p>
+<hr />
+<h2 id="6-what-to-borrow-concretely">6. What to borrow, concretely</h2>
+<p>Ranked by value per line we would otherwise write. None of this is &quot;fork the repo&quot; — it is
+&quot;read 3 files, copy the shape&quot;.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Borrow</th>
+<th>From</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Transactional command → events + projections + receipts + outbox → effect worker</td>
+<td>t3 <code>orchestration-v2/{Orchestrator,EventSink,EffectWorker}</code></td>
+<td>makes run state honest; testable without I/O</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>ContextTransfer</code> / <code>ContextHandoff</code> (lazy native-fork-or-text, auditable rows)</td>
+<td>t3 <code>ContextHandoffService</code> + its doc</td>
+<td>the primitive for &quot;B sees A&quot; without transcript dumping</td>
+</tr>
+<tr>
+<td>3</td>
+<td>The agent-facing tool surface + its <em>descriptions</em></td>
+<td>t3 <code>apps/server/src/mcp/toolkits/*</code></td>
+<td>tuned text; encodes real failure modes</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Provider-as-plugin, zero first-party privilege, declarative capability manifest</td>
+<td>cloudroom <code>provider-plugin-api.md</code>, <code>provider-types.ts</code></td>
+<td>keeps the abstraction honest as it grows</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>thread/delta</code> → <code>ThreadEvent</code> → timeline projection split</td>
+<td>cloudroom <code>provider-bridge-protocol</code></td>
+<td>the chat UI never learns a provider name</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Mailbox schema + message taxonomy + delivery-hold + pointer-note wake</td>
+<td>orca <code>create-core-tables-sql.ts:23-60</code>, <code>mailbox-notification-coordinator.ts</code></td>
+<td>the only mechanism that works for TUIs we cannot instrument</td>
+</tr>
+<tr>
+<td>7</td>
+<td>The prompt-injected worker preamble (identity, task id, exact commands, finish-once)</td>
+<td>orca <code>worker-dispatch-preamble.ts:84</code></td>
+<td>cross-provider API with zero SDK work</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Session state machine with park/resume (<code>sleeping</code>/<code>suspended</code>/<code>process_lost</code>/<code>history-only</code>)</td>
+<td>cloudroom <code>session/state.rs</code>, <code>session-lifecycle.md</code></td>
+<td>makes many long-lived threads affordable</td>
+</tr>
+<tr>
+<td>9</td>
+<td>History as journal + snapshot + segment compaction (and a disk reserve file)</td>
+<td>cloudroom <code>storage.md</code></td>
+<td>the biggest, least predictable dataset we will own</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Per-model reasoning-level validation with fail-don't-downgrade</td>
+<td>cloudroom <code>domain/shared-types.ts</code></td>
+<td>prevents silent quality loss</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Mutation idempotency: <code>request_id</code> + payload hash + first-class <code>unknown</code></td>
+<td>cloudroom <code>api.md</code> Conventions</td>
+<td>retries are inevitable with N agents</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Task tracker as the human/agent shared surface (seed prompt + <code>steer-if-active</code>)</td>
+<td>cloudroom <code>plugins/tasks</code></td>
+<td>the only cross-agent surface humans actually read</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Version-matched agent instructions served by the running binary (<code>skills get</code>)</td>
+<td>orca <code>skills/</code> stubs</td>
+<td>stops agent docs from drifting away from code</td>
+</tr>
+<tr>
+<td>14</td>
+<td>Bounded paginated cross-thread read + FTS search</td>
+<td>t3 <code>toolkits/thread/tools.ts</code></td>
+<td>cheap, high value, prevents context blowups</td>
+</tr>
+<tr>
+<td>15</td>
+<td>Replay-fixture testing per provider</td>
+<td>t3 <code>scripts/record-*-replay-fixture.ts</code></td>
+<td>the only way to test N protocols without N CI logins</td>
+</tr>
+<tr>
+<td>16</td>
+<td>Tunnel-with-gap-hold (browser → user's machine)</td>
+<td>cloudroom <code>connect/</code></td>
+<td>if we ever want &quot;open my local project from a browser&quot;</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-what-nobody-solved-our-actual-roadmap">7. What nobody solved (our actual roadmap)</h2>
+<ol>
+<li><strong>Ambient, default-on shared context.</strong> Every repo's answer is &quot;the coordinator should write it
+down&quot;. Product answer: a project context ledger (files, decisions, constraints, open questions,
+ownership) that (a) every turn's preamble digests, (b) any thread appends to with one tool call,
+(c) the user can read and edit. Plain files + GitHub-ish conventions, not a vector DB — that is
+what all three converged on for good reasons: survives context loss, model-agnostic, auditable,
+greppable.</li>
+<li><strong>Turn completion as a structured push.</strong> <code>{thread, status, verdict, filesChanged, summary}</code> on every
+turn boundary, delivered to interested threads as a wake + a digest, not a transcript.</li>
+<li><strong>Round-based collaboration as data.</strong> Model <code>round(n): propose → critique → revise → accept</code> with a
+verdict and an artifact pointer, so &quot;Codex reviews Claude's work&quot; is a state machine, not a chat.</li>
+<li><strong>Peer discovery inside a project.</strong> &quot;Who else is working on this repo and on what file&quot; — needs a
+registry, which no repo has.</li>
+<li><strong>Conflict signal between agents.</strong> Not merge arbitration (hard), just <em>awareness</em>: &quot;B is editing
+<code>src/x.ts</code>&quot; as a warning in A's context. orca explicitly has no locks or ownership signal.</li>
+</ol>
+<p>Whether all five are v1 is a decision — see §9.</p>
+<hr />
+<h2 id="8-hard-truths-about-the-reference-set">8. Hard truths about the reference set</h2>
+<ul>
+<li><strong>Forking any of them is not viable.</strong> 1.29M / 3.6M / 434k+49k LOC; Effect-as-hard-toolchain (t3),
+Electron 43 + native <code>node-pty</code> + xterm beta (orca), two runtimes + a closed web control plane
+(cloudroom). T3's own report says it plainly: &quot;Copying patterns is realistic; forking the repo is a
+career move.&quot;</li>
+<li><strong>Closed parts you cannot build on:</strong> t3's <code>app.t3.codes</code> + relay + App Store builds; orca's
+connector service / artifact sharing / mobile release pipeline; cloudroom's entire <code>web/</code> control
+plane (accounts, sandbox provisioning, Cloud Credits, <code>/child</code>, <code>/relay</code>, loop cron) — referenced by
+name in code and <em>absent from the repo</em> (<code>03</code> §13). Any of their &quot;cloud&quot; features are not a
+blueprint, they are a product.</li>
+<li><strong>Documentation drifts; skills don't.</strong> orca's <code>skill-guides/</code> are more accurate than <code>docs/</code>
+(delegate's words); t3 says pin a commit (<code>7ddc81d6</code>) because these repos move fast.</li>
+<li><strong>Two agents on the same account can sign each other out.</strong> cloudroom documented refresh-token
+rotation conflicts for Kimi and Codex (<code>03</code> §13). If our product runs five agents, we own that class
+of bug.</li>
+<li><strong>&quot;All subscriptions&quot; includes plans that forbid it.</strong> cloudroom refuses Claude plans for one
+harness on principle (<code>openclaw</code> ADR 0265). Expect terms-of-service risk that is a product decision,
+not an engineering one.</li>
+</ul>
+<hr />
+<h2 id="9-scope-proposal-for-our-v1-a-position-to-argue-with">9. Scope proposal for our v1 (a position, to argue with)</h2>
+<p>Deliberately small, and each item is justified by something above.</p>
+<p><strong>In scope</strong></p>
+<ul>
+<li>Browser UI + <strong>one</strong> local runner (Node, spawns CLIs, owns SQLite, streams over WS). No cloud runner.</li>
+<li>One project → N threads. Thread = one agent session on one provider instance.</li>
+<li>Providers: <strong>ACP tier</strong> (whatever speaks it) + <strong>native</strong> for Claude and Codex + <strong>PTY</strong> for at most
+2 more, gated as &quot;beta&quot;. Nothing else. Say no loudly and visibly.</li>
+<li>Cross-thread: shared project root by default; <code>read</code> (bounded), <code>search</code>, <code>send</code> (queue/steer),
+<code>delegate</code> (child thread, task prompt only), <code>transfer</code> (fork/handoff/merge-back of <em>context</em>).</li>
+<li>The four new primitives from §7: context ledger, turn-boundary push, review rounds, peer registry.
+Conflict awareness: warn, don't arbitrate.</li>
+<li>Transactional run state (command → events/projections/outbox) from day one — retrofitting honesty is
+the expensive kind of rewrite.</li>
+<li>Park/resume a thread; disk reserve; idempotent mutations with an honest <code>unknown</code>.</li>
+</ul>
+<p><strong>Out of scope for v1</strong></p>
+<ul>
+<li>Cloud sandboxes, mobile app, embedded browser, computer use, org sharing, marketplace, multi-machine
+federation, programmatic scheduler/DAG engine, more than ~5 providers.</li>
+</ul>
+<p><strong>Open decisions (the next conversation)</strong></p>
+<ol>
+<li><strong>Runner model:</strong> local-only first (t3/cloudroom-local shape) or local + remote-ssh from day one?
+Everything else follows from this.</li>
+<li><strong>Provider tier order:</strong> ACP-first (cloudroom) or native-first for Claude+Codex (t3)? Affects
+fidelity of approvals/fork/rewind.</li>
+<li><strong>Is the &quot;connected threads&quot; story a coordinator agent (orca), a tool surface (t3), or a
+user-driven board with agent access (cloudroom tasks)?</strong> All three work; they produce different UIs.</li>
+<li><strong>Do we model code isolation per thread (worktrees, t3/orca) or share one checkout (t3 default)?</strong>
+Shared is 10× simpler and fine for write/review/doc splits; worktrees are needed for two writers.</li>
+<li><strong>Do we build the ledger as files in the repo (greppable, committed) or app state (clean, hidden)?</strong>
+Files survive everything; app state is prettier.</li>
+<li><strong>Web-first means we need auth + a deployment story.</strong> Who owns the machine that runs the CLIs —
+the user's laptop (runner install) or ours (cloud)? This is the business model, not a detail.</li>
+</ol>
+<hr />
+<h2 id="10-licensing-ledger">10. Licensing ledger</h2>
+<table>
+<thead>
+<tr>
+<th>Repo</th>
+<th>Licence</th>
+<th>Copy files?</th>
+<th>Must carry</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>t3code</td>
+<td>MIT</td>
+<td>yes</td>
+<td>copyright + licence text</td>
+<td>vendored deps are not all MIT — <code>third-party-licenses.config.json</code>; hosted services outside the grant</td>
+</tr>
+<tr>
+<td>orca</td>
+<td>MIT</td>
+<td>yes</td>
+<td>copyright + licence text</td>
+<td><code>cloud/</code> covered; hosted connector/artifact services closed</td>
+</tr>
+<tr>
+<td>cloudroom</td>
+<td>Apache-2.0 (+ MIT NOTICE for BB)</td>
+<td>yes</td>
+<td><code>LICENSE</code> <strong>and</strong> <code>NOTICE</code>, mark modified files</td>
+<td>patent grant included; <code>gui/</code> is a fork of BB with stale <code>@bb/*</code> references; marketplace metadata not ours</td>
+</tr>
+</tbody>
+</table>
+<p>Practical stance: <strong>read for design, copy ≤200-line shapes with attribution, never copy a subsystem.</strong>
+Apache-2.0's NOTICE-retention and &quot;state changes&quot; obligations are the only ones that need process, and
+they only bind if we copy actual files.</p>
+<hr />
+<h2 id="11-one-paragraph-answer-to-are-they-similar">11. One-paragraph answer to &quot;are they similar?&quot;</h2>
+<p>Yes — architecturally they are three solutions to the same problem and they agree on the skeleton
+(project → thread → provider adapter → normalized event stream → transactional state → client over
+WS/SSE), on the isolation model (worktree per agent, shared checkout as opt-in), on credentials staying
+on the runner, and on the coordination mechanism (tools + mail + injected prompt contract, with the
+model as the scheduler). They diverge on <strong>how much structure they demand from the agent</strong> — t3 a rich
+tool API, orca a mailbox typed into a terminal, cloudroom a plugin bridge plus tasks — which is really a
+diverge on <em>which agents you can support at all</em>. The genuinely unsolved part, and therefore our
+product's only defensible core, is <strong>shared context between threads that is default-on, structured, and
+readable by both humans and agents</strong> — followed by <strong>review rounds modeled as data</strong> rather than as
+chat.</p>
+
+</main>
+</div>
+</body></html>

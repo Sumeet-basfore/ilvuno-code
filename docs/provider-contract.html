@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Provider contract</title>
+<style>
+:root{
+  --paper:#f6f4ef; --paper-2:#efece4; --ink:#16150f; --ink-2:#56524a; --ink-3:#8a857a;
+  --rule:#d8d3c7; --accent:#9e3b22; --accent-soft:#f1e5dd; --code-bg:#efece4;
+  --mono:"JetBrains Mono","Liberation Mono",ui-monospace,monospace;
+  --sans:"Liberation Sans","Noto Sans",Inter,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0; color:var(--ink); background:var(--paper);
+  font-family:var(--sans); font-size:16.5px; line-height:1.62;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility}
+.wrap{display:grid; grid-template-columns:248px minmax(0,1fr); gap:52px;
+  max-width:1180px; margin:0 auto; padding:56px 40px 120px}
+/* ---------- sidebar ---------- */
+aside{position:sticky; top:40px; align-self:start; max-height:calc(100vh - 80px);
+  overflow:auto; padding-left:16px; border-left:2px solid var(--accent)}
+aside .kicker{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+aside .meta{font-family:var(--mono); font-size:11px; color:var(--ink-3); line-height:1.7; margin-top:10px}
+aside nav{margin-top:22px}
+aside nav a{display:block; color:var(--ink-2); text-decoration:none; font-size:13px;
+  line-height:1.35; padding:4px 0 4px 10px; border-left:1px solid transparent; margin-left:-11px}
+aside nav a:hover{color:var(--ink); border-left-color:var(--rule)}
+aside nav a.lvl3{padding-left:22px; font-size:12.2px; color:var(--ink-3)}
+aside .back{display:inline-block; margin-top:26px; font-family:var(--mono); font-size:11px;
+  color:var(--ink-3); text-decoration:none; border-bottom:1px solid var(--rule)}
+/* ---------- content ---------- */
+main{max-width:74ch}
+h1,h1 a,h2,h2 a,h3,h3 a,h4,h4 a{color:inherit}
+h1{font-size:36px; line-height:1.08; letter-spacing:-.022em; margin:0 0 10px; font-weight:700}
+h1 + p, h1 + blockquote{color:var(--ink-2); font-size:16.5px}
+h2{font-size:23px; line-height:1.2; letter-spacing:-.014em; margin:52px 0 14px; padding-top:16px;
+  border-top:1px solid var(--rule); font-weight:700}
+h2:first-of-type{border-top:0; padding-top:0; margin-top:34px}
+h3{font-size:17px; margin:30px 0 8px; letter-spacing:-.006em}
+h4{font-size:14.5px; margin:22px 0 6px; color:var(--ink-2)}
+p{margin:0 0 14px}
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--accent-soft)}
+a:hover{border-bottom-color:var(--accent)}
+ul,ol{margin:0 0 16px; padding-left:22px}
+li{margin:5px 0}
+li::marker{color:var(--ink-3)}
+hr{border:0; border-top:1px solid var(--rule); margin:38px 0}
+/* a markdown --- right before a heading already gets the heading's rule */
+hr:has(+ h2){display:none}
+hr + h2{border-top:0; padding-top:0; margin-top:44px}
+blockquote{margin:22px 0; padding:2px 0 2px 18px; border-left:2px solid var(--accent);
+  color:var(--ink-2)}
+blockquote p{margin:0 0 8px}
+blockquote p:last-child{margin:0}
+code{font-family:var(--mono); font-size:.855em; background:var(--code-bg);
+  padding:1.5px 5px; border-radius:2px; color:#2a2620; overflow-wrap:break-word}
+pre{background:var(--code-bg); padding:15px 17px; overflow-x:auto; margin:0 0 20px;
+  border-left:2px solid var(--ink-3); line-height:1.5}
+pre code{background:none; padding:0; font-size:12.6px; white-space:pre}
+table{width:100%; border-collapse:collapse; margin:8px 0 26px; font-size:13.6px}
+thead th{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:400; text-align:left; padding:0 12px 7px 0;
+  border-bottom:1.2px solid var(--ink); vertical-align:bottom}
+tbody td{padding:8px 12px 8px 0; border-bottom:1px solid var(--rule); vertical-align:top; line-height:1.45}
+tbody td:first-child{font-weight:700}
+td code,th code{font-size:12px}
+/* ---------- index ---------- */
+.index{max-width:1020px; margin:0 auto; padding:64px 40px 120px}
+.index .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+.index h1{margin-top:14px}
+.index .lede{color:var(--ink-2); font-size:18px; max-width:62ch; margin:14px 0 38px; line-height:1.55}
+.index ol{list-style:none; padding:0; margin:0; border-top:1.2px solid var(--ink)}
+.index li{border-bottom:1px solid var(--rule)}
+.index a.row{display:grid; grid-template-columns:34px minmax(0,1fr) 76px; gap:18px;
+  align-items:start; padding:16px 4px 16px 0; text-decoration:none; border:0; color:inherit}
+.index a.row:hover{background:var(--paper-2)}
+.index .n{font-family:var(--mono); font-size:11.5px; color:var(--accent); white-space:nowrap;
+  padding-top:4px}
+.index .t{font-size:17px; font-weight:700; letter-spacing:-.008em; line-height:1.3}
+.index .d{font-size:13.4px; color:var(--ink-2); margin-top:4px; line-height:1.5}
+.index .w{font-family:var(--mono); font-size:11px; color:var(--ink-3); text-align:right; padding-top:4px}
+@media (max-width:980px){
+  .wrap{grid-template-columns:1fr; gap:0; padding:32px 20px 80px}
+  aside{position:static; max-height:none; margin-bottom:28px}
+  aside nav{display:none}
+  .index{padding:32px 20px 80px}
+  .index a.row{grid-template-columns:1fr; gap:4px}
+  .index .w{text-align:left}
+  table{display:block; overflow-x:auto; white-space:nowrap}
+  table td,table th{white-space:normal}
+}
+@media print{
+  aside{display:none} .wrap{grid-template-columns:1fr; max-width:100%; padding:0}
+  body{font-size:11pt} h2{break-after:avoid} table,pre{break-inside:avoid}
+  a{color:inherit; border:0}
+}
+</style>
+</head><body>
+<div class="wrap">
+<aside>
+  <div class="kicker">Project document</div>
+  <div class="meta">1,044 words<br>8 sections<br>158 lines of source</div>
+  <nav><a class="lvl2" href="#the-boundary">The boundary</a>
+<a class="lvl2" href="#commands-runner-adapter">Commands (runner → adapter)</a>
+<a class="lvl2" href="#events-adapter-runner">Events (adapter → runner)</a>
+<a class="lvl2" href="#capabilities">Capabilities</a>
+<a class="lvl2" href="#permission-flow-the-two-wires">Permission flow — the two wires</a>
+<a class="lvl2" href="#prompts-are-part-of-the-contract">Prompts are part of the contract</a>
+<a class="lvl2" href="#provider-table-for-v1">Provider table for v1</a>
+<a class="lvl2" href="#error-taxonomy">Error taxonomy</a></nav>
+  <a class="back" href="index.html">&larr; index</a>
+</aside>
+<main>
+<h1>Provider contract</h1>
+<p>What an adapter must implement, and what the runner promises it. Two adapters exist in v1: <code>claude</code>
+(native stream-json + control protocol) and <code>acp</code> (the <code>agent-client-protocol</code> crate, pointed at any
+agent's ACP command). Both were proven in <code>research/09-spike.md</code>.</p>
+<p>Design rule, from cloudroom: <strong>zero first-party privilege.</strong> If <code>claude</code> needs something the ACP adapter
+cannot also get, it goes in the shared capability struct or it does not exist.</p>
+<hr />
+<h2 id="the-boundary">The boundary</h2>
+<pre><code>runner ──command──▶ adapter ──wire──▶ CLI process
+       ◀──event──── adapter ◀──────  (stdio or HTTP)
+</code></pre>
+<p>The adapter is a translator, not a decision-maker. It never writes the DB, never decides a round is done,
+never retries a turn on its own. If it cannot answer a question, it emits <code>unknown</code> — the runner decides.</p>
+<h2 id="commands-runner-adapter">Commands (runner → adapter)</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Meaning</th>
+<th>Required response</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>spawn(instance, cwd, env)</code></td>
+<td>start the process</td>
+<td><code>spawned {pid}</code> or <code>failed {reason}</code></td>
+</tr>
+<tr>
+<td><code>session_open(thread)</code></td>
+<td>create a native session</td>
+<td><code>session {native_id}</code></td>
+</tr>
+<tr>
+<td><code>session_resume(thread, native_id)</code></td>
+<td>reattach</td>
+<td><code>session {native_id}</code> or <code>resume_failed {reason}</code></td>
+</tr>
+<tr>
+<td><code>prompt(turn_id, text, attachments)</code></td>
+<td>one user turn</td>
+<td>stream of events, ending in <code>turn_finished</code></td>
+</tr>
+<tr>
+<td><code>permission_reply(request_id, allow, updated_input, reason)</code></td>
+<td>answer a prompt</td>
+<td>ack; the wire handles the rest</td>
+</tr>
+<tr>
+<td><code>interrupt(turn_id)</code></td>
+<td>stop mid-turn</td>
+<td>ack, then <code>turn_finished{interrupted}</code></td>
+</tr>
+<tr>
+<td><code>park(thread)</code> / <code>unpark(thread)</code></td>
+<td>free the process, keep the session id</td>
+<td>ack</td>
+</tr>
+<tr>
+<td><code>shutdown</code></td>
+<td>clean exit</td>
+<td>ack, then process exit</td>
+</tr>
+</tbody>
+</table>
+<p>Idempotency: every command carries a <code>request_id</code>. Re-sending the same id must not produce a second turn.</p>
+<h2 id="events-adapter-runner">Events (adapter → runner)</h2>
+<p>Eleven kinds. Anything a CLI emits that does not fit goes into <code>raw</code> with the provider's original payload,
+so we never lose information we did not model yet.</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Payload</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>spawned</code></td>
+<td>pid, version, agent name</td>
+</tr>
+<tr>
+<td><code>session</code></td>
+<td>native id, model catalog, capabilities</td>
+</tr>
+<tr>
+<td><code>text_delta</code></td>
+<td>text</td>
+</tr>
+<tr>
+<td><code>thinking_delta</code></td>
+<td>text</td>
+</tr>
+<tr>
+<td><code>tool_call</code></td>
+<td>id, name, input, kind, status</td>
+</tr>
+<tr>
+<td><code>tool_result</code></td>
+<td>id, output (truncated), status</td>
+</tr>
+<tr>
+<td><code>permission_request</code></td>
+<td>request id, tool, input, options</td>
+</tr>
+<tr>
+<td><code>usage</code></td>
+<td>tokens in/out, context used/size, cost if known</td>
+</tr>
+<tr>
+<td><code>turn_finished</code></td>
+<td>stop reason, interrupted?, error?</td>
+</tr>
+<tr>
+<td><code>session_ended</code></td>
+<td>reason</td>
+</tr>
+<tr>
+<td><code>raw</code></td>
+<td>provider payload, for diagnostics only</td>
+</tr>
+</tbody>
+</table>
+<p><code>text_delta</code> is rendered and discarded into the aggregate message; <code>tool_call</code> and <code>permission_request</code>
+are persisted because they are evidence of what happened.</p>
+<h2 id="capabilities">Capabilities</h2>
+<p>Declared, not probed ad hoc. The runner greys out what is absent; it never imitates a missing feature.</p>
+<pre><code class="language-rust">struct Capabilities {
+    resume: bool,        // session survives a restart
+    fork: bool,          // branch a conversation
+    rewind: bool,        // revert files with the conversation
+    interrupt: bool,
+    steer: bool,         // inject a message into a running turn
+    approvals: bool,     // tool permission round-trip
+    structured_output: bool, // JSON-schema constrained
+    usage: bool,         // token/cost reporting
+    models: Vec&lt;Model&gt;,  // id + reasoning levels + context window
+}
+</code></pre>
+<h2 id="permission-flow-the-two-wires">Permission flow — the two wires</h2>
+<p><strong>Claude.</strong> <code>claude -p --input-format stream-json --output-format stream-json --verbose --permission-prompt-tool stdio</code>. The client <strong>must</strong> send
+<code>control_request{&quot;subtype&quot;:&quot;initialize&quot;}</code> first; without it every tool is silently denied. Then
+<code>control_request{&quot;subtype&quot;:&quot;can_use_tool&quot;}</code> arrives with <code>{tool_name, input}</code> and is answered with
+<code>control_response{behavior:&quot;allow&quot;|&quot;deny&quot;, updatedInput}</code>. <code>interrupt</code> uses the same channel. Verified.</p>
+<p><strong>ACP.</strong> The agent calls <code>session/request_permission</code>; the client answers with a <code>RequestPermissionOutcome</code>
+selected by option <strong>kind</strong> (<code>allow_once</code> preferred over <code>allow_always</code>), never by option position.
+Verified against <code>codex-acp 2.9.0</code>.</p>
+<p>Both map onto one runner event: <code>permission_request {tool, input, options}</code>. The runner's policy decides,
+the adapter only translates.</p>
+<h2 id="prompts-are-part-of-the-contract">Prompts are part of the contract</h2>
+<p>Because a prompt is the only interface every agent understands. Two texts ship with the runner, versioned
+in code, and are injected every turn — not once per session, because agents lose them.</p>
+<p><strong>Worker preamble</strong> (adapted from orca's <code>worker-dispatch-preamble</code>, the design that survives
+uninstrumentable CLIs):</p>
+<pre><code>You are a worker in Ilvuno, a multi-agent runner. Your coordinator is thread &lt;id&gt;.
+Your task id is &lt;task_id&gt;. Your round is &lt;round_index&gt;.
+Your branch is &lt;branch&gt;. Work only inside your worktree: &lt;path&gt;.
+
+Board: read `&lt;run&gt;/board.md` before you start and before you report.
+Message policy for this run: &lt;round|anytime|never&gt;.
+
+Rules:
+- Announce your intent on the board before you touch a file.
+- Write only inside your worktree. Never switch branches. Never merge.
+- When you need a decision you cannot make: write a `question` to the board and stop your turn.
+- When you finish: report exactly once with `ilvuno report --task &lt;task_id&gt; --status ok|failed
+  --summary &quot;&lt;3 sentences&gt;&quot; --files &quot;&lt;paths&gt;&quot;`.
+- Do not spawn other agents. Do not poll for work. You will be woken.
+
+=== TASK ===
+&lt;task text&gt;
+</code></pre>
+<p><strong>Orchestrator contract</strong> (adapted from t3's, which is the version that works):</p>
+<pre><code>You plan and delegate. You do not write code or prose deliverables yourself.
+Before dispatching, write one `intent` per worker naming the files or sources it will own.
+Dispatch only as many workers as the goal needs; prefer 2–4.
+Each dispatch must name a scope. A dispatch without a scope is refused by the runner.
+When a worker reports a failure, do not mark it done. Ask, or escalate to the human.
+If two workers will touch the same file, change the plan — never let them race.
+When all dispatches are reported, produce the round verdict: pass, pass_with_notes, or block.
+Follow the run's budget. If you cannot make progress, stop and say so.
+</code></pre>
+<p>Both texts live in <code>crates/runner/src/prompts/</code> with a version constant; the journal records which
+version was injected into which thread.</p>
+<h2 id="provider-table-for-v1">Provider table for v1</h2>
+<table>
+<thead>
+<tr>
+<th>Instance</th>
+<th>Wire</th>
+<th>approvals</th>
+<th>resume</th>
+<th>interrupt</th>
+<th>structured output</th>
+<th>notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>claude-main</code></td>
+<td>stream-json + control</td>
+<td>yes</td>
+<td>yes (<code>--resume</code>)</td>
+<td>yes</td>
+<td><code>--json-schema</code></td>
+<td>initialize handshake mandatory</td>
+</tr>
+<tr>
+<td><code>codex-main</code></td>
+<td><code>codex app-server</code> JSON-RPC</td>
+<td>yes</td>
+<td>yes (<code>thread/resume</code>)</td>
+<td>yes</td>
+<td>yes</td>
+<td>types generated from the binary</td>
+</tr>
+<tr>
+<td><code>acp:*</code></td>
+<td>ACP over stdio</td>
+<td>yes (<code>request_permission</code>)</td>
+<td>depends on agent</td>
+<td>yes</td>
+<td>no</td>
+<td>adapter quality varies; tier-3 unless tested</td>
+</tr>
+</tbody>
+</table>
+<p>Not in v1: PTY scraping. If an agent has neither ACP nor a protocol, it does not ship — labelled, not faked.</p>
+<h2 id="error-taxonomy">Error taxonomy</h2>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Example</th>
+<th>Runner behaviour</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>spawn_failed</code></td>
+<td>binary missing, bad args</td>
+<td>mark instance unavailable, do not retry blindly</td>
+</tr>
+<tr>
+<td><code>auth_required</code></td>
+<td>logged out, token expired</td>
+<td>pause the run, tell the human, keep branches</td>
+</tr>
+<tr>
+<td><code>usage_limit</code></td>
+<td>subscription exhausted</td>
+<td>distinct from failure; pause, offer account switch</td>
+</tr>
+<tr>
+<td><code>turn_failed</code></td>
+<td>non-zero exit mid-turn</td>
+<td>one retry, then <code>dispatch.failed</code></td>
+</tr>
+<tr>
+<td><code>protocol</code></td>
+<td>unparseable frame</td>
+<td>log <code>raw</code>, mark session broken, do not reuse</td>
+</tr>
+<tr>
+<td><code>unknown</code></td>
+<td>no confirmation either way</td>
+<td>record <code>unknown</code>; never silently resend</td>
+</tr>
+</tbody>
+</table>
+<p>A crash in the adapter must never take the runner with it: adapters are child processes, and the runner
+treats their death as <code>turn_failed{reason:&quot;adapter_died&quot;}</code>.</p>
+
+</main>
+</div>
+</body></html>
