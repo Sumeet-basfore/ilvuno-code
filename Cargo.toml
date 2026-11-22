@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+members = ["crates/provider-core", "crates/provider-claude", "crates/runner", "crates/cli"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+license = "UNLICENSED"
+publish = false
+
+[workspace.dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+rusqlite = { version = "0.33", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util", "sync", "time", "fs"] }
+uuid = { version = "1", features = ["v4"] }
+provider-core = { path = "crates/provider-core" }
+provider-claude = { path = "crates/provider-claude" }
+runner = { path = "crates/runner" }
