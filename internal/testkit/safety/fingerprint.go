@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 )
 
 const (
@@ -52,43 +53,81 @@ type Fingerprint struct {
 	Config   string            // SHA-256 of the repository's config file
 }
 
+// gitResult is the outcome of one read-only query: its stdout, or the error that ends the snapshot.
+type gitResult struct {
+	out string
+	err error
+}
+
+// queries holds the outcome of each of the seven reads. Each field is written by exactly one goroutine
+// and is read only after runConcurrently has returned.
+type queries struct {
+	refs, head, headRef, index, status, stash, config gitResult
+}
+
 // Take fingerprints the repository at dir. It fails when dir is not a git work tree; it never returns
-// an empty fingerprint for a directory that is not a repository.
+// an empty fingerprint for a directory that is not a repository. The seven reads run concurrently, and
+// their results are applied in a fixed order, so the fingerprint and the first error are the same as a
+// serial read would give.
 func Take(dir string) (Fingerprint, error) {
 	fp := Fingerprint{
 		Refs:     map[string]string{},
 		Index:    map[string]string{},
 		Worktree: map[string]string{},
 	}
-	if err := takeRefs(dir, &fp); err != nil {
-		return fp, err
-	}
-	if err := takeHead(dir, &fp); err != nil {
-		return fp, err
-	}
-	if err := takeIndex(dir, &fp); err != nil {
-		return fp, err
-	}
-	if err := takeWorktree(dir, &fp); err != nil {
-		return fp, err
-	}
-	stashes, err := git(dir, "stash", "list", "--format=%H")
-	if err != nil {
-		return fp, err
-	}
-	fp.Stashes = lines(stashes)
-	if err := takeConfig(dir, &fp); err != nil {
-		return fp, err
-	}
-	return fp, nil
+	err := runQueries(dir).apply(dir, &fp)
+	return fp, err
 }
 
-func takeRefs(dir string, fp *Fingerprint) error {
-	refs, err := git(dir, "for-each-ref", "--format=%(refname) %(objectname)")
-	if err != nil {
+// runQueries runs the seven reads concurrently. They are independent of one another; the config path
+// lookup and the config read are sequenced inside their single goroutine.
+func runQueries(dir string) queries {
+	var q queries
+	runConcurrently(
+		func() { q.refs.out, q.refs.err = git(dir, "for-each-ref", "--format=%(refname) %(objectname)") },
+		func() { q.head.out, q.head.err = gitOptional(dir, "rev-parse", "--verify", "-q", "HEAD") },
+		func() { q.headRef.out, q.headRef.err = gitOptional(dir, "symbolic-ref", "-q", "HEAD") },
+		func() { q.index.out, q.index.err = git(dir, "ls-files", "--stage", "-z") },
+		func() {
+			q.status.out, q.status.err = git(dir, "status", "--porcelain=v2", "-z", "--untracked-files=all")
+		},
+		func() { q.stash.out, q.stash.err = git(dir, "stash", "list", "--format=%H") },
+		func() { q.config.out, q.config.err = configDigest(dir) },
+	)
+	return q
+}
+
+// apply writes the outcomes into fp in the order of the serial implementation. It returns the first
+// failure in that order; fp then holds everything applied before it.
+func (q queries) apply(dir string, fp *Fingerprint) error {
+	if err := applyRefs(q.refs, fp); err != nil {
 		return err
 	}
-	for _, line := range lines(refs) {
+	if err := applyHead(q.head, q.headRef, fp); err != nil {
+		return err
+	}
+	if err := applyIndex(q.index, fp); err != nil {
+		return err
+	}
+	if err := applyWorktree(dir, q.status, fp); err != nil {
+		return err
+	}
+	if q.stash.err != nil {
+		return q.stash.err
+	}
+	fp.Stashes = lines(q.stash.out)
+	if q.config.err != nil {
+		return q.config.err
+	}
+	fp.Config = q.config.out
+	return nil
+}
+
+func applyRefs(res gitResult, fp *Fingerprint) error {
+	if res.err != nil {
+		return res.err
+	}
+	for _, line := range lines(res.out) {
 		name, sha, ok := strings.Cut(line, " ")
 		if !ok {
 			return fmt.Errorf("malformed for-each-ref line %q", line)
@@ -100,28 +139,25 @@ func takeRefs(dir string, fp *Fingerprint) error {
 	return nil
 }
 
-// takeHead records the commit and the symbolic target of HEAD. An unborn or detached HEAD is a valid
+// applyHead records the commit and the symbolic target of HEAD. An unborn or detached HEAD is a valid
 // state (git exits 1 for it) and leaves the field empty; any other failure is reported.
-func takeHead(dir string, fp *Fingerprint) error {
-	head, err := gitOptional(dir, "rev-parse", "--verify", "-q", "HEAD")
-	if err != nil {
-		return err
+func applyHead(head, ref gitResult, fp *Fingerprint) error {
+	if head.err != nil {
+		return head.err
 	}
-	fp.Head = head
-	ref, err := gitOptional(dir, "symbolic-ref", "-q", "HEAD")
-	if err != nil {
-		return err
+	fp.Head = head.out
+	if ref.err != nil {
+		return ref.err
 	}
-	fp.HeadRef = ref
+	fp.HeadRef = ref.out
 	return nil
 }
 
-func takeIndex(dir string, fp *Fingerprint) error {
-	out, err := git(dir, "ls-files", "--stage", "-z")
-	if err != nil {
-		return err
+func applyIndex(res gitResult, fp *Fingerprint) error {
+	if res.err != nil {
+		return res.err
 	}
-	for _, rec := range records(out) {
+	for _, rec := range records(res.out) {
 		meta, path, ok := strings.Cut(rec, "\t")
 		if !ok {
 			return fmt.Errorf("malformed ls-files record %q", rec)
@@ -142,14 +178,14 @@ func takeIndex(dir string, fp *Fingerprint) error {
 	return nil
 }
 
-// takeWorktree records every path that status lists (changed, deleted, unmerged or untracked, with
-// untracked files expanded) together with its current content state.
-func takeWorktree(dir string, fp *Fingerprint) error {
-	out, err := git(dir, "status", "--porcelain=v2", "-z", "--untracked-files=all")
-	if err != nil {
-		return err
+// applyWorktree records every path that status lists (changed, deleted, unmerged or untracked, with
+// untracked files expanded) together with its current content state. The content states are read here,
+// serially, once the status output is in hand.
+func applyWorktree(dir string, res gitResult, fp *Fingerprint) error {
+	if res.err != nil {
+		return res.err
 	}
-	recs := records(out)
+	recs := records(res.out)
 	for i := 0; i < len(recs); i++ {
 		xy, path, renamed, ok := statusEntry(recs[i])
 		if !ok {
@@ -227,20 +263,21 @@ func contentState(dir, rel string) (string, error) {
 	}
 }
 
-func takeConfig(dir string, fp *Fingerprint) error {
+// configDigest digests the repository's config file. The file's path comes from git, so the lookup and
+// the read stay in one goroutine, in that order.
+func configDigest(dir string) (string, error) {
 	p, err := git(dir, "rev-parse", "--git-path", "config")
 	if err != nil {
-		return err
+		return "", err
 	}
 	if !filepath.IsAbs(p) {
 		p = filepath.Join(dir, p)
 	}
 	b, err := os.ReadFile(p)
 	if err != nil {
-		return fmt.Errorf("read config: %w", err)
+		return "", fmt.Errorf("read config: %w", err)
 	}
-	fp.Config = digest(b)
-	return nil
+	return digest(b), nil
 }
 
 // Diff names every field that differs between two fingerprints, with both values. It returns nil when
@@ -355,6 +392,20 @@ func gitEnv() []string {
 		}
 	}
 	return env
+}
+
+// runConcurrently runs each job in its own goroutine and returns only after all of them have finished.
+// The fan-out is the fixed number of jobs passed in, so no goroutine outlives the call.
+func runConcurrently(jobs ...func()) {
+	var wg sync.WaitGroup
+	wg.Add(len(jobs))
+	for _, job := range jobs {
+		go func() {
+			defer wg.Done()
+			job()
+		}()
+	}
+	wg.Wait()
 }
 
 // records splits NUL-terminated output (git -z). A trailing terminator yields no empty record.
