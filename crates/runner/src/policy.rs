@@ -7,8 +7,28 @@ use provider_core::Decision;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 
-/// Shell metacharacters that would let a permitted command chain into something else.
-const FORBIDDEN_SHELL: &[char] = &[';', '&', '|', '`', '$', '<', '>', '(', ')', '\n', '\\'];
+/// True when the command has no live shell syntax: nothing that chains, substitutes or redirects.
+/// Single-quoted text is literal. Inside double quotes only `$` and backtick are live.
+pub fn is_shell_inert(command: &str) -> bool {
+    let (mut single, mut double) = (false, false);
+    let mut escaped = false;
+    for c in command.chars() {
+        if escaped {
+            return false;
+        }
+        match c {
+            '\\' if !single => escaped = true,
+            '\'' if !double => single = !single,
+            '"' if !single => double = !double,
+            '\n' if !single => return false,
+            '`' if !single => return false,
+            '$' if !single => return false,
+            ';' | '&' | '|' | '<' | '>' | '(' | ')' if !single && !double => return false,
+            _ => {}
+        }
+    }
+    !escaped && !single && !double
+}
 
 #[derive(Debug, Clone)]
 pub struct WorkerPolicy {
@@ -45,8 +65,8 @@ impl WorkerPolicy {
 
     fn check_bash(&self, input: &Value) -> Result<(), String> {
         let command = input.get("command").and_then(Value::as_str).unwrap_or_default();
-        if command.contains(FORBIDDEN_SHELL) {
-            return Err("shell control characters are not permitted".into());
+        if !is_shell_inert(command) {
+            return Err("shell control syntax is not permitted".into());
         }
         let prefix = format!("{} report --task {} ", self.ilvuno_bin, self.task_id);
         if command.starts_with(&prefix) {
@@ -117,6 +137,17 @@ mod tests {
         let subst = json!({"command": "ilvuno report --task task-7 --summary $(cat ~/.ssh/id_rsa)"});
         assert!(denied(&p.decide("Bash", &subst)));
         assert!(denied(&p.decide("Bash", &json!({"command": "git push origin main"}))));
+    }
+
+    #[test]
+    fn quoted_summary_text_is_literal_but_live_syntax_is_refused() {
+        assert!(is_shell_inert(r#"ilvuno report --task t --summary "Parts (a) and (b): done; mostly ok" --files findings.md"#));
+        assert!(is_shell_inert("ilvuno report --task t --summary 'a; b | c'"));
+        assert!(!is_shell_inert(r#"ilvuno report --task t --summary "x" ; rm -rf ~"#));
+        assert!(!is_shell_inert(r#"ilvuno report --task t --summary "$(whoami)""#));
+        assert!(!is_shell_inert(r#"ilvuno report --task t --summary `id`"#));
+        assert!(!is_shell_inert("ilvuno report --task t --summary x > /etc/passwd"));
+        assert!(!is_shell_inert(r#"ilvuno report --task t --summary "unclosed"#));
     }
 
     #[test]

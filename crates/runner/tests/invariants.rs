@@ -1,6 +1,7 @@
 //! M1 acceptance for the five invariants, exercised against real SQLite (temp ILVUNO_HOME, never ~).
 
-use runner::commands::{self, GateDecision, NewGoal, ReportStatus, SlotSpec};
+use runner::commands::{self, NewGoal, ReportStatus, SlotSpec};
+use runner::run_status::{self, GateDecision};
 use runner::store::{Outcome, Pending};
 use runner::{Home, RunStatus, Store, Verdict};
 use rusqlite::{params, Transaction};
@@ -66,7 +67,7 @@ fn decide_verdict(f: &mut Fixture, round_id: &str, v: Verdict) {
     let round_id = round_id.to_string();
     f.store
         .transact("round.verdict", None, |tx, p| {
-            commands::record_verdict(tx, p, &run_id, &round_id, v, &json!({"checks": []}))?;
+            run_status::record_verdict(tx, p, &run_id, &round_id, v, &json!({"checks": []}))?;
             Ok(Outcome::Applied(()))
         })
         .expect("verdict");
@@ -153,14 +154,14 @@ fn invariant3_merge_refused_until_accepted_by_human() {
     let run_id = f.run_id.clone();
     let merge = |f: &mut Fixture| {
         let rid = f.run_id.clone();
-        f.store.transact("merge.request", None, |tx, p| commands::request_merge(tx, p, &rid)).expect("merge")
+        f.store.transact("merge.request", None, |tx, p| run_status::request_merge(tx, p, &rid)).expect("merge")
     };
     assert!(matches!(merge(&mut f), Outcome::Refused(_)));
     decide_verdict(&mut f, &round.round_id, Verdict::Pass);
     assert!(matches!(merge(&mut f), Outcome::Refused(_)), "passing verdict alone is not enough");
     let gate = f
         .store
-        .transact("gate.accept", None, |tx, p| commands::gate_decide(tx, p, &run_id, &GateDecision::Accept))
+        .transact("gate.accept", None, |tx, p| run_status::gate_decide(tx, p, &run_id, &GateDecision::Accept))
         .expect("gate");
     assert_eq!(gate, Outcome::Applied(()));
     assert_eq!(merge(&mut f), Outcome::Applied(()));
@@ -282,7 +283,7 @@ fn journal_records_every_transition_in_order() {
     decide_verdict(&mut f, &round.round_id, Verdict::Pass);
     let run_id = f.run_id.clone();
     f.store
-        .transact("gate.accept", None, |tx, p| commands::gate_decide(tx, p, &run_id, &GateDecision::Accept))
+        .transact("gate.accept", None, |tx, p| run_status::gate_decide(tx, p, &run_id, &GateDecision::Accept))
         .expect("gate");
     let kinds = journal_kinds(&f.store, &f.run_id);
     let pos = |k: &str| kinds.iter().position(|x| x == k).unwrap_or_else(|| panic!("missing {k} in {kinds:?}"));
