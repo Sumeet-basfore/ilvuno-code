@@ -66,9 +66,13 @@ type queries struct {
 }
 
 // Take fingerprints the repository at dir. It fails when dir is not a git work tree; it never returns
-// an empty fingerprint for a directory that is not a repository. The seven reads run concurrently, and
-// their results are applied in a fixed order, so the fingerprint and the first error are the same as a
-// serial read would give.
+// an empty fingerprint for a directory that is not a repository.
+//
+// The seven reads run concurrently (see runQueries). Their results are aggregated into the fingerprint in
+// the fixed order of the serial algorithm, and the first error in that order is returned. For an
+// unchanged repository, the fingerprint and the first error are therefore identical to those of a serial
+// read. Concurrent Git reads are not an atomic repository snapshot: if the repository changes while Take
+// runs, different reads may observe different states, and the fingerprint then mixes those states.
 func Take(dir string) (Fingerprint, error) {
 	fp := Fingerprint{
 		Refs:     map[string]string{},
@@ -79,8 +83,11 @@ func Take(dir string) (Fingerprint, error) {
 	return fp, err
 }
 
-// runQueries runs the seven reads concurrently. They are independent of one another; the config path
-// lookup and the config read are sequenced inside their single goroutine.
+// runQueries runs the seven reads concurrently. For computation, the query outputs are independent of one
+// another: no read takes another read's output as input. The config path lookup and the config read are
+// sequenced inside their single goroutine. The outputs are not isolated from concurrent repository
+// mutations: each read happens at its own moment, so a change between two reads can be visible to one
+// and not to the other.
 func runQueries(dir string) queries {
 	var q queries
 	runConcurrently(
