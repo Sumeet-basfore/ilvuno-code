@@ -145,6 +145,10 @@ jobs:
 
       - name: Test
         run: make test
+        env:
+          # macOS only: run one package test binary at a time (go test -p=1). Same tests, same thresholds.
+          # Ubuntu gets an empty GOFLAGS, which go treats as unset.
+          GOFLAGS: ${{ runner.os == 'macOS' && '-p=1' || '' }}
 
       - name: Lint
         run: make lint
