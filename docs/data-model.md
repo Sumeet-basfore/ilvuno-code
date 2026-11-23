@@ -29,6 +29,8 @@ Use `PRAGMA journal_mode=WAL`, `foreign_keys=ON`, `synchronous=NORMAL`.
 | `budget_rounds` | INTEGER | default 3 (research) / 5 (feature) |
 | `budget_tokens` | INTEGER | default 150000 |
 | `budget_usd` | REAL | nullable; CLI-level cap where supported |
+| `providers` | TEXT | JSON: instance id → `{driver, command, model}` |
+| `assignments` | TEXT | JSON: slot → provider instance id; a missing slot uses the run default |
 
 ### `runs`
 

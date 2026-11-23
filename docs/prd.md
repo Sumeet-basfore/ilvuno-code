@@ -35,6 +35,14 @@ Not the user in v1: enterprises, non-coders, anyone expecting a hosted service.
 
 ## 4. The two templates
 
+**Agents are choices, not roles.** A slot (`researcher-a`, `builder`, `reviewer`, `synthesizer`) is a
+job. Which agent fills it is the user's decision, per run. Nothing in the engine may say "Claude codes,
+Codex reviews". A user who pays for one subscription must be able to fill every slot with it. The template
+offers a default; it never refuses a choice.
+
+If the reviewer is the same provider as the builder, the readiness report says so in one line — you lose
+the second opinion. That is a warning, not a refusal. The user decides.
+
 **Research run.** Roles: orchestrator, 2–4 researchers, one synthesizer, one citation checker.
 Loop: `plan → gather → compare → synthesize → verify → report`.
 Done in v0: every `<section>` of the brief carries a citation that resolves to a real section of the
@@ -45,10 +53,13 @@ are named in the goal but **not implemented in v0**. They are reported as `skip`
 gate, never as `pass`. Claim extraction is the work that would make them real; until then the human gate
 is the judge of those two, and the readiness report says so.
 
-**Feature run.** Roles: orchestrator, builder, reviewer (different provider required), merger.
+**Feature run.** Roles: orchestrator, builder, reviewer, merger.
 Loop: `plan → build → review → fix → verify → ready`.
 Done: the named test command exits 0; reviewer verdict is not blocking; the diff touches only declared
 paths; no new warnings in touched files. Then the human gate, then merge.
+
+`reviewer` defaults to a *different* provider than `builder` because that is where the second opinion
+comes from. It is a default, not a rule: any slot can be any agent, including all slots the same.
 
 Deliverable format is a parameter in both: HTML, PDF, markdown, a diff, a test suite. Format changes the
 machine checks, never the loop.

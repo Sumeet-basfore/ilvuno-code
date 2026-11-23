@@ -102,7 +102,7 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">887 words<br>9 sections<br>105 lines of source</div>
+  <div class="meta">1,014 words<br>9 sections<br>116 lines of source</div>
   <nav><a class="lvl2" href="#1-the-product-in-one-paragraph">1. The product in one paragraph</a>
 <a class="lvl2" href="#2-who-it-is-for">2. Who it is for</a>
 <a class="lvl2" href="#3-jobs-to-be-done">3. Jobs to be done</a>
@@ -160,6 +160,12 @@ AI review that never sees the conversation that produced the code.</p>
 </tbody>
 </table>
 <h2 id="4-the-two-templates">4. The two templates</h2>
+<p><strong>Agents are choices, not roles.</strong> A slot (<code>researcher-a</code>, <code>builder</code>, <code>reviewer</code>, <code>synthesizer</code>) is a
+job. Which agent fills it is the user's decision, per run. Nothing in the engine may say &quot;Claude codes,
+Codex reviews&quot;. A user who pays for one subscription must be able to fill every slot with it. The template
+offers a default; it never refuses a choice.</p>
+<p>If the reviewer is the same provider as the builder, the readiness report says so in one line — you lose
+the second opinion. That is a warning, not a refusal. The user decides.</p>
 <p><strong>Research run.</strong> Roles: orchestrator, 2–4 researchers, one synthesizer, one citation checker.
 Loop: <code>plan → gather → compare → synthesize → verify → report</code>.
 Done in v0: every <code>&lt;section&gt;</code> of the brief carries a citation that resolves to a real section of the
@@ -168,10 +174,12 @@ source; all required sections are cited; no placeholder markers. Then the human 
 are named in the goal but <strong>not implemented in v0</strong>. They are reported as <code>skip</code> with a reason at the
 gate, never as <code>pass</code>. Claim extraction is the work that would make them real; until then the human gate
 is the judge of those two, and the readiness report says so.</p>
-<p><strong>Feature run.</strong> Roles: orchestrator, builder, reviewer (different provider required), merger.
+<p><strong>Feature run.</strong> Roles: orchestrator, builder, reviewer, merger.
 Loop: <code>plan → build → review → fix → verify → ready</code>.
 Done: the named test command exits 0; reviewer verdict is not blocking; the diff touches only declared
 paths; no new warnings in touched files. Then the human gate, then merge.</p>
+<p><code>reviewer</code> defaults to a <em>different</em> provider than <code>builder</code> because that is where the second opinion
+comes from. It is a default, not a rule: any slot can be any agent, including all slots the same.</p>
 <p>Deliverable format is a parameter in both: HTML, PDF, markdown, a diff, a test suite. Format changes the
 machine checks, never the loop.</p>
 <h2 id="5-the-flow-the-ui-must-support">5. The flow the UI must support</h2>

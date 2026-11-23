@@ -102,7 +102,7 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">985 words<br>3 sections<br>195 lines of source</div>
+  <div class="meta">1,007 words<br>3 sections<br>197 lines of source</div>
   <nav><a class="lvl2" href="#entities">Entities</a>
 <a class="lvl3" href="#goals">goals</a>
 <a class="lvl3" href="#runs">runs</a>
@@ -194,6 +194,16 @@ journal <em>is</em> a table; it just happens to also be append-only.</p>
 <td><code>budget_usd</code></td>
 <td>REAL</td>
 <td>nullable; CLI-level cap where supported</td>
+</tr>
+<tr>
+<td><code>providers</code></td>
+<td>TEXT</td>
+<td>JSON: instance id → <code>{driver, command, model}</code></td>
+</tr>
+<tr>
+<td><code>assignments</code></td>
+<td>TEXT</td>
+<td>JSON: slot → provider instance id; a missing slot uses the run default</td>
 </tr>
 </tbody>
 </table>
