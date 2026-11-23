@@ -13,9 +13,10 @@ Below half, the loop is decoration.
 ## Where we are
 
 Done: engine (threads, tasks, rounds, gate, budget), board, replay, export, two agent types
-(Claude native, ACP/Codex), local API with live events, four board layouts, 107 tests.
+(Claude native, ACP/Codex), local API with live events, four board layouts, stage 0 window (reads runs,
+live run page, gate), tests.
 
-Not done: any window. No git. No packaging.
+Not done: starting a run from the window (stage 1). No git. No packaging.
 
 ---
 

@@ -1,10 +1,11 @@
 # Ilvuno
 
 A desktop app where several AI agents work on one project, and the project remembers what each did.
-Rust engine, local API, Tauri window (not built yet). The app decides nothing about who does what — you
+Rust engine, local API, and a Tauri window that reads the API. The app decides nothing about who does what — you
 write the goal, name the threads, and say what finished looks like.
 
-Status: the engine, the board, the gate, the replay and the local API work. There is no window yet.
+Status: the engine, the board, the gate, the replay and the local API work. Stage 0 of the window works: it
+lists runs, shows one run live, and accepts or sends back a gate. It cannot start a run yet.
 
 ## Run it
 
@@ -53,6 +54,15 @@ curl -s localhost:4737/runs/<run-id>
 ```
 
 Endpoints and error shapes: `docs/api.md`. Loopback only, no auth in v1.
+
+## The window
+
+```bash
+tools/window.sh      # starts the runner if it is not running, then opens the window
+```
+
+The window is a plain page in `crates/desktop/ui/` (no npm, no bundler). It only reads the local API and
+accepts or sends back a run at the gate. The layout is `proto/4-mix.html`.
 
 ## The board prototypes
 
