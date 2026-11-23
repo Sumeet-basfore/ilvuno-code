@@ -81,14 +81,23 @@ pub fn run_json(conn: &Connection, run_id: &str) -> Result<Value> {
         }))
     })?;
 
-    let ledger = rows(conn, "SELECT l.id, l.kind, l.body, l.scope, r.\"index\", t.name
+    let ledger = rows(conn, "SELECT l.id, l.kind, l.body, l.scope, r.\"index\", t.name, l.evidence
          FROM ledger l LEFT JOIN rounds r ON r.id = l.round_id LEFT JOIN threads t ON t.id = l.thread_id
          WHERE l.run_id = ?1 ORDER BY l.id", run_id, |r| {
         let scope: String = r.get(3)?;
+        let thread: Option<String> = r.get(5)?;
+        let evidence: Option<String> = r.get(6)?;
+        // Who wrote it: the thread, or, for entries without one, the recorded creator (user / runner).
+        // Without this the UI had to guess from board.md, which only carries a rendering of the same fact.
+        let author = thread.clone().or_else(|| {
+            evidence.as_deref()
+                .and_then(|e| serde_json::from_str::<Value>(e).ok())
+                .and_then(|v| v["created_by"].as_str().map(str::to_string))
+        }).unwrap_or_else(|| "runner".to_string());
         Ok(json!({
             "id": r.get::<_, i64>(0)?, "kind": r.get::<_, String>(1)?, "body": r.get::<_, String>(2)?,
             "scope": serde_json::from_str::<Value>(&scope).unwrap_or(Value::Null),
-            "round": r.get::<_, Option<i64>>(4)?, "thread": r.get::<_, Option<String>>(5)?,
+            "round": r.get::<_, Option<i64>>(4)?, "thread": thread, "author": author,
         }))
     })?;
 

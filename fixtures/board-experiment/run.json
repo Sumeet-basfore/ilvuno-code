@@ -1,16 +1,16 @@
 {
   "run": {
-    "id": "7ec8388e-1c89-4ed8-b05d-7aca049dcc9a",
+    "id": "6ba693b9-1f2d-43cc-9722-27163a0768ad",
     "status": "accepted",
     "rounds_used": 2,
-    "tokens_used": 355834,
-    "started_at": 1795415205751,
-    "ended_at": 1795415404092,
+    "tokens_used": 362211,
+    "started_at": 1795417816667,
+    "ended_at": 1795419922479,
     "blocked_reason": null,
     "project": "/home/sumeet/personal-repo/projects/ilvuno-second/examples"
   },
   "goal": {
-    "id": "1bdf2054-0cd2-4bf2-aefe-734dfeb02ff3",
+    "id": "1aa3de5e-32eb-4fe9-b049-93ca6b324a67",
     "text": "Read two sources and produce one short brief that a person can read. The sources are ../docs/security.md and ../docs/provider-contract.md, relative to this goal file. The brief is brief.html: one <section> for each source, with a short summary of what the source says.",
     "done": "brief.html exists, has a section for each source, and contains no TODO or TBD.",
     "checks": [
@@ -40,7 +40,7 @@
       "role": "orchestrator",
       "prompt": "Plan the work. Give reader-1 the security source and reader-2 the provider contract. Each reader writes its notes to a file in its own folder, named in the task scope by its file name only. When both have reported, give reader-1 one task to write brief.html from both notes files. Its scope is brief.html and the two notes files, given by absolute path. Never name the artifacts folder in a scope; the runner collects brief.html itself. Then report.",
       "status": "idle",
-      "native_session": "ae7169ed-6ece-40a4-8417-71efa5b38669"
+      "native_session": "3c022b98-b7ed-4779-8c65-36c60ee85b7a"
     },
     {
       "name": "reader-1",
@@ -48,7 +48,7 @@
       "role": "worker",
       "prompt": "You read the source you are given and write short notes. When you write the brief, use only the notes you are given.",
       "status": "idle",
-      "native_session": "d5703102-3887-4cef-a8c6-d1f42ed5909e"
+      "native_session": "5c56b102-e3fe-46d3-b367-ec8810728050"
     },
     {
       "name": "reader-2",
@@ -56,7 +56,7 @@
       "role": "worker",
       "prompt": "You read the source you are given and write short notes.",
       "status": "idle",
-      "native_session": "915b98c7-37b5-4e01-822f-40b34c4647ad"
+      "native_session": "193ccfc4-13cb-4fdb-a658-5a53b5dafe14"
     }
   ],
   "rounds": [
@@ -69,12 +69,12 @@
           {
             "name": "file_exists brief.html",
             "passed": false,
-            "detail": "missing: /tmp/ilvuno-fix/runs/7ec8388e-1c89-4ed8-b05d-7aca049dcc9a/artifacts/brief.html"
+            "detail": "missing: /tmp/demo-real/runs/6ba693b9-1f2d-43cc-9722-27163a0768ad/artifacts/brief.html"
           },
           {
             "name": "text_absent brief.html",
             "passed": false,
-            "detail": "cannot read /tmp/ilvuno-fix/runs/7ec8388e-1c89-4ed8-b05d-7aca049dcc9a/artifacts/brief.html: No such file or directory (os error 2)"
+            "detail": "cannot read /tmp/demo-real/runs/6ba693b9-1f2d-43cc-9722-27163a0768ad/artifacts/brief.html: No such file or directory (os error 2)"
           }
         ],
         "failing": [
@@ -83,8 +83,8 @@
         ],
         "failed_tasks": []
       },
-      "tokens": 215321,
-      "cost_usd": 0.07987624000000002
+      "tokens": 215963,
+      "cost_usd": 0.07730792
     },
     {
       "index": 1,
@@ -106,8 +106,8 @@
         "failing": [],
         "failed_tasks": []
       },
-      "tokens": 140513,
-      "cost_usd": 0.041080460000000006
+      "tokens": 146248,
+      "cost_usd": 0.04202410000000001
     }
   ],
   "tasks": [
@@ -119,12 +119,12 @@
         "run"
       ],
       "thread": "orchestrator",
-      "result": "Plan made: reader-1 reads docs/security.md into security-notes.md and reader-2 reads docs/provider-contract.md into provider-contract-notes.md, with non-overlapping scopes; both tasks are queued in round 0. Next, once both report, reader-1 gets one task to write brief.html from the two notes files (scope: brief.html plus the notes files by absolute path). brief.html is not written yet, so the goal is not complete; the intent's scope field reads 'run', which looks like a glitch the human should check.",
-      "message": "I sent the orchestrator report once, as you asked. It says the plan is made and both reader tasks are queued, and that `brief.html` is not written yet, so the goal is not complete.\n\nReader-1 and reader-2 are working on their tasks now. When both report, I will give reader-1 the brief task. I will not report again unless the plan changes.",
+      "result": "Plan made: reader-1 reads docs/security.md into security-notes.md and reader-2 reads docs/provider-contract.md into provider-contract-notes.md, with disjoint scopes so they cannot race. Both reader tasks are queued in round 0 (16b92b64-0ba5-448f-a46d-77ce27ee9fec and b7afef00-b98b-4013-be88-01bdc48df48d). The brief.html task for reader-1 is not yet delegated; it waits for both reader reports.",
+      "message": "I sent the orchestrator report once, and it was accepted (`reported 22f9376a-abed-4b3a-9598-d765037a15e2`).\n\nThe report says the plan is made, with the two reader tasks queued. The brief task for reader-1 has not been delegated yet, since it depends on both readers reporting. The job also asked me to report only after that handoff, so this report is earlier than the job's sequence. If you want the final report after the brief task, I'll need to send another one, and I'm not sure the run accepts a second report.",
       "round": 0
     },
     {
-      "prompt": "Read the security source at /home/sumeet/personal-repo/projects/ilvuno-second/docs/security.md. Write a short plain-language summary of what it says to security-notes.md in your own folder: a title line, then a few bullets covering the main points. Do not leave any TODO or TBD text. Touch no other files.",
+      "prompt": "Read the source at /home/sumeet/personal-repo/projects/ilvuno-second/docs/security.md. Write a short plain-language summary of what it says to a file named security-notes.md in your own folder. Cover the main points and any rules a reader must follow. Do not write TODO or TBD. Do not touch any other file. Report when the notes file is written.",
       "status": "reported",
       "created_by": "orchestrator",
       "scope": [
@@ -132,12 +132,12 @@
         "security-notes.md"
       ],
       "thread": "reader-1",
-      "result": "Wrote security-notes.md with a title and bullets summarizing docs/security.md: the agents are not sandboxed by Ilvuno, the repo is an untrusted input, and the runner enforces credential isolation, per-worker worktrees, runner-only merges, scope checks, and journaling. It also lists the known limits (no egress control, no protection against root compromise or malicious CLIs) and the conservative defaults. No TODO or TBD text and no other files were touched.",
-      "message": "I wrote the summary of `docs/security.md` to `security-notes.md` in my thread folder and reported it as done. The file has a title line and bullets covering the main points. It has no TODO or TBD text, and I touched no other files.\n\nThe first report attempt was refused because I passed the absolute path, which the scope check treated as outside the declared scope. I retried with the relative path `security-notes.md`, and that report went through.",
+      "result": "Read docs/security.md and wrote a plain-language summary to security-notes.md in the reader-1 folder. It covers the trust boundaries, what the runner enforces, the rules a reader must follow, defaults, incident steps, and what Ilvuno does not claim. No other files were touched and the notes contain no TODO or TBD.",
+      "message": "The report was refused because I passed an absolute path and the declared scope uses `security-notes.md`. I'll retry with the scope's relative form.I wrote the summary of `docs/security.md` to `security-notes.md` in my folder and reported it as done. The first report was refused because I passed the absolute path, which is outside the declared scope; the retry with `security-notes.md` went through.\n\nThe notes cover the trust boundaries, what the runner enforces, the rules a reader must follow, the defaults, the incident steps, and what Ilvuno does not claim. The file has no TODO or TBD, and I did not touch any other file.",
       "round": 0
     },
     {
-      "prompt": "Read the provider contract source at /home/sumeet/personal-repo/projects/ilvuno-second/docs/provider-contract.md. Write a short plain-language summary of what it says to provider-contract-notes.md in your own folder: a title line, then a few bullets covering the main points. Do not leave any TODO or TBD text. Touch no other files.",
+      "prompt": "Read the source at /home/sumeet/personal-repo/projects/ilvuno-second/docs/provider-contract.md. Write a short plain-language summary of what it says to a file named provider-contract-notes.md in your own folder. Cover the main points and any rules a reader must follow. Do not write TODO or TBD. Do not touch any other file. Report when the notes file is written.",
       "status": "reported",
       "created_by": "orchestrator",
       "scope": [
@@ -145,34 +145,34 @@
         "provider-contract-notes.md"
       ],
       "thread": "reader-2",
-      "result": "Wrote provider-contract-notes.md in my thread folder: a title and bullets covering the two adapters, the command and event sets, capabilities, per-wire permission flow, prompts and access rules, and error handling. The file has no TODO or TBD text. No other files were touched.",
-      "message": "The shell rejected that compound command, so I'll read the two files with the file tools.The runner refused the absolute path. The task scope lists the file by its bare name, so I'll report with that.I wrote the summary to `provider-contract-notes.md` in my thread folder and reported the task as done.\n\nThe file has a title line and bullets covering the two adapters (`claude` and `acp`), the command and event sets, the declared capabilities, the permission flow for each wire, the prompt rules, access rules, and error handling. It contains no TODO or TBD text, and I touched no other files.\n\nThe first report attempt was refused because I passed the absolute path. I reported again using the bare filename from the task scope, and the runner accepted it.",
+      "result": "Read docs/provider-contract.md and wrote a plain-language summary to provider-contract-notes.md in the reader-2 folder. It covers the adapter boundary, the command and event sets, capabilities, the Claude and ACP permission flows, the worker and orchestrator prompts, the CLI surface and read/write rules, the v1 provider table, and the error handling rules. No other files were touched and the notes contain no TODO or TBD.",
+      "message": "The shell rejected the compound command, so I'll read the two files directly.The report was refused because I passed an absolute path and the scope lists the bare filename. I'll retry with the name exactly as the scope gives it.I wrote the notes file and reported the task complete.\n\nThe summary is in `provider-contract-notes.md` in the reader-2 folder. It covers the adapter boundary, the command and event lists, capabilities, the Claude and ACP permission flows, the worker and orchestrator prompts, the CLI surface and read/write rules, the v1 provider table, and the error-handling rules. I wrote no TODO or TBD, and I touched no other files.\n\nThe first report attempt was refused because I passed the absolute path. The retry used `provider-contract-notes.md`, the name the scope lists, and was accepted. I logged an intent note before writing the file.",
       "round": 0
     },
     {
-      "prompt": "Round 0 did not pass. Plan the next step: create the tasks that fix this. Do not write the deliverable yourself.\n\nFailing checks:\n- file_exists brief.html: missing: /tmp/ilvuno-fix/runs/7ec8388e-1c89-4ed8-b05d-7aca049dcc9a/artifacts/brief.html\n- text_absent brief.html: cannot read /tmp/ilvuno-fix/runs/7ec8388e-1c89-4ed8-b05d-7aca049dcc9a/artifacts/brief.html: No such file or directory (os error 2)",
+      "prompt": "Round 0 did not pass. Plan the next step: create the tasks that fix this. Do not write the deliverable yourself.\n\nFailing checks:\n- file_exists brief.html: missing: /tmp/demo-real/runs/6ba693b9-1f2d-43cc-9722-27163a0768ad/artifacts/brief.html\n- text_absent brief.html: cannot read /tmp/demo-real/runs/6ba693b9-1f2d-43cc-9722-27163a0768ad/artifacts/brief.html: No such file or directory (os error 2)",
       "status": "reported",
       "created_by": "runner",
       "scope": [
         "run"
       ],
       "thread": "orchestrator",
-      "result": "Round 0 produced both notes files, security-notes.md from reader-1 and provider-contract-notes.md from reader-2, but the brief task was never created, so brief.html was never written. Round 1 queues one task on reader-1 (task cc57fba6-3bd4-42f5-b8fe-fdeacaa15e58) to write brief.html with one section per source, scoped to brief.html plus the two notes files by absolute path. reader-2 is not tasked again, so no file is touched by both workers.",
-      "message": "Round 0 failed because the brief task was never created, so brief.html was never written. The two notes files from round 0 exist, so I only had to queue the brief step.\n\n- **Created:** task `cc57fba6-3bd4-42f5-b8fe-fdeacaa15e58` on reader-1, round 1. It writes brief.html with one section per source, plus a short plain-language summary of each. Its scope is `brief.html` plus the two notes files by absolute path: `threads/reader-1/security-notes.md` and `threads/reader-2/provider-contract-notes.md`.\n- **Not re-run:** reader-2 gets no task this round, so no two workers touch the same file.\n- **Reported:** the plan is reported as ok on my task.\n\nI read the notes files directly to confirm they exist and have content. I could not inspect the board or folders with Bash because this thread only permits `ilvuno` commands, so I read the board with the Read tool. The brief itself is not written yet; its result will come back from reader-1.",
+      "result": "Round 0 failed because brief.html was never written; the two reader notes files (security-notes.md and provider-contract-notes.md) already exist and both readers reported. I queued one round-1 task on reader-1 (0d20be00-ea6e-4dca-9003-3749cb4a094e) with scope brief.html plus both notes files by absolute path, asking for one section per source and no TODO or TBD. Reader-2 needs no new work; the gate and the checks decide whether brief.html passes.",
+      "message": "Round 1 is planned: I queued one task on reader-1 to write `brief.html`, and reported the plan to the runner.\n\n- **Why round 0 failed:** the brief was never delegated. The two reader notes files already exist from round 0, so only the brief is missing.\n- **Task queued:** `0d20be00-ea6e-4dca-9003-3749cb4a094e` on reader-1. Its scope is `brief.html` plus both notes files by absolute path: `threads/reader-1/security-notes.md` and `threads/reader-2/provider-contract-notes.md`. I did not name the artifacts folder. The prompt asks for one `<section>` per source, a short plain-language summary in each, and no TODO or TBD.\n- **Reader-2:** no new work this round.\n- **Not verified:** I have not confirmed that reader-1 wrote `brief.html` or that the checks pass. That result comes after the task runs.",
       "round": 1
     },
     {
-      "prompt": "Write brief.html in your own thread folder. It is one short HTML page that a person can read. Give it one section element for each source. The first section covers the security source, summarizing the notes in security-notes.md. The second section covers the provider contract, summarizing the notes in provider-contract-notes.md. Each section has a heading and a short plain-language summary of what that source says. Read the two notes files only at their absolute paths in your scope, and do not edit them. The page must contain no TODO or TBD text. Touch no other files. Report exactly once when done.",
+      "prompt": "Write brief.html, a short brief a person can read, built from the two notes files given in scope. Use one <section> per source: one for the security model (from security-notes.md) and one for the provider contract (from provider-contract-notes.md). Each section gets a heading and a short plain-language summary of what that source says. Use valid HTML5 with a title and a single h1. Do not write TODO or TBD anywhere. Do not touch any other file. Report when brief.html is written.",
       "status": "reported",
       "created_by": "orchestrator",
       "scope": [
         "brief.html",
-        "/tmp/ilvuno-fix/runs/7ec8388e-1c89-4ed8-b05d-7aca049dcc9a/threads/reader-1/security-notes.md",
-        "/tmp/ilvuno-fix/runs/7ec8388e-1c89-4ed8-b05d-7aca049dcc9a/threads/reader-2/provider-contract-notes.md"
+        "/tmp/demo-real/runs/6ba693b9-1f2d-43cc-9722-27163a0768ad/threads/reader-1/security-notes.md",
+        "/tmp/demo-real/runs/6ba693b9-1f2d-43cc-9722-27163a0768ad/threads/reader-2/provider-contract-notes.md"
       ],
       "thread": "reader-1",
-      "result": "Wrote brief.html in my thread folder with two sections: a security model section summarizing security-notes.md and a provider contract section summarizing provider-contract-notes.md, each with a heading and plain-language summary. The file contains no TODO or TBD text (grep count 0). No other files were touched, and the two notes files were only read.",
-      "message": "I wrote `brief.html` in my thread folder and reported it as done.\n\nThe page has one `<section>` per source. The security section summarizes `security-notes.md`, and the provider-contract section summarizes `provider-contract-notes.md`. Each has a heading and a plain-language summary. A grep finds no TODO or TBD text. I only read the two notes files and didn't edit them.\n\nThe first report attempt was refused because I passed the absolute path. The scope accepts the relative name `brief.html`, so I reported that instead, and the report went through.",
+      "result": "Wrote brief.html in my thread folder with a single h1, a title, and two sections: security model (from security-notes.md) and provider contract (from provider-contract-notes.md). Each section has a heading and a plain-language summary; the file contains no TODO or TBD. Round 0's check looked for artifacts/brief.html, but my scope names brief.html, so I did not create an artifacts/ copy; the orchestrator should confirm the expected path.",
+      "message": "I wrote `brief.html` in my thread folder and reported it as done. The file has a title, a single h1, and two sections, one for the security model and one for the provider contract. Each section has a heading and a short plain-language summary drawn only from the two notes files. The file contains no TODO or TBD.\n\nThe round-0 check looked for `artifacts/brief.html`, which I did not create. My scope names `brief.html`, so I wrote it at `threads/reader-1/brief.html`. If the runner expects the `artifacts/` path, the orchestrator will need to say where it should go.\n\nMy first report attempt was refused because I passed the full path in `--files`. The retry with `brief.html` was accepted.\n\nFiles touched: `threads/reader-1/brief.html`.",
       "round": 1
     }
   ],
@@ -185,153 +185,166 @@
         "run"
       ],
       "round": 0,
-      "thread": null
+      "thread": null,
+      "author": "user"
     },
     {
       "id": 2,
       "kind": "intent",
-      "body": "Read the security source at /home/sumeet/personal-repo/projects/ilvuno-second/docs/security.md. Write a short plain-language summary of what it says to security-notes.md in your own folder: a title line, then a few bullets covering the main points. Do not leave any TODO or TBD text. Touch no other files.",
+      "body": "Read the source at /home/sumeet/personal-repo/projects/ilvuno-second/docs/security.md. Write a short plain-language summary of what it says to a file named security-notes.md in your own folder. Cover the main points and any rules a reader must follow. Do not write TODO or TBD. Do not touch any other file. Report when the notes file is written.",
       "scope": [
         "/home/sumeet/personal-repo/projects/ilvuno-second/docs/security.md",
         "security-notes.md"
       ],
       "round": 0,
-      "thread": "orchestrator"
+      "thread": "orchestrator",
+      "author": "orchestrator"
     },
     {
       "id": 3,
       "kind": "intent",
-      "body": "Read the provider contract source at /home/sumeet/personal-repo/projects/ilvuno-second/docs/provider-contract.md. Write a short plain-language summary of what it says to provider-contract-notes.md in your own folder: a title line, then a few bullets covering the main points. Do not leave any TODO or TBD text. Touch no other files.",
+      "body": "Read the source at /home/sumeet/personal-repo/projects/ilvuno-second/docs/provider-contract.md. Write a short plain-language summary of what it says to a file named provider-contract-notes.md in your own folder. Cover the main points and any rules a reader must follow. Do not write TODO or TBD. Do not touch any other file. Report when the notes file is written.",
       "scope": [
         "/home/sumeet/personal-repo/projects/ilvuno-second/docs/provider-contract.md",
         "provider-contract-notes.md"
       ],
       "round": 0,
-      "thread": "orchestrator"
+      "thread": "orchestrator",
+      "author": "orchestrator"
     },
     {
       "id": 4,
       "kind": "finding",
-      "body": "Plan made: reader-1 reads docs/security.md into security-notes.md and reader-2 reads docs/provider-contract.md into provider-contract-notes.md, with non-overlapping scopes; both tasks are queued in round 0. Next, once both report, reader-1 gets one task to write brief.html from the two notes files (scope: brief.html plus the notes files by absolute path). brief.html is not written yet, so the goal is not complete; the intent's scope field reads 'run', which looks like a glitch the human should check.",
+      "body": "Plan made: reader-1 reads docs/security.md into security-notes.md and reader-2 reads docs/provider-contract.md into provider-contract-notes.md, with disjoint scopes so they cannot race. Both reader tasks are queued in round 0 (16b92b64-0ba5-448f-a46d-77ce27ee9fec and b7afef00-b98b-4013-be88-01bdc48df48d). The brief.html task for reader-1 is not yet delegated; it waits for both reader reports.",
       "scope": [],
       "round": 0,
-      "thread": "orchestrator"
+      "thread": "orchestrator",
+      "author": "orchestrator"
     },
     {
       "id": 5,
       "kind": "intent",
-      "body": "Writing security-notes.md in my thread folder: a title and plain-language bullets summarizing docs/security.md. No other files touched.",
+      "body": "Writing security-notes.md in my thread folder (reader-1) with a plain-language summary of docs/security.md. No other files touched.",
       "scope": [
         "/home/sumeet/personal-repo/projects/ilvuno-second/docs/security.md",
         "security-notes.md"
       ],
       "round": 0,
-      "thread": "reader-1"
+      "thread": "reader-1",
+      "author": "reader-1"
     },
     {
       "id": 6,
       "kind": "finding",
-      "body": "Wrote security-notes.md with a title and bullets summarizing docs/security.md: the agents are not sandboxed by Ilvuno, the repo is an untrusted input, and the runner enforces credential isolation, per-worker worktrees, runner-only merges, scope checks, and journaling. It also lists the known limits (no egress control, no protection against root compromise or malicious CLIs) and the conservative defaults. No TODO or TBD text and no other files were touched.",
+      "body": "Read docs/security.md and wrote a plain-language summary to security-notes.md in the reader-1 folder. It covers the trust boundaries, what the runner enforces, the rules a reader must follow, defaults, incident steps, and what Ilvuno does not claim. No other files were touched and the notes contain no TODO or TBD.",
       "scope": [
         "security-notes.md"
       ],
       "round": 0,
-      "thread": "reader-1"
+      "thread": "reader-1",
+      "author": "reader-1"
     },
     {
       "id": 7,
       "kind": "intent",
-      "body": "Writing provider-contract-notes.md in my thread folder: a title and plain-language bullets summarizing docs/provider-contract.md. No other files touched.",
+      "body": "Writing provider-contract-notes.md in my thread folder (reader-2) with a plain-language summary of docs/provider-contract.md. No other files touched.",
       "scope": [
         "/home/sumeet/personal-repo/projects/ilvuno-second/docs/provider-contract.md",
         "provider-contract-notes.md"
       ],
       "round": 0,
-      "thread": "reader-2"
+      "thread": "reader-2",
+      "author": "reader-2"
     },
     {
       "id": 8,
       "kind": "finding",
-      "body": "Wrote provider-contract-notes.md in my thread folder: a title and bullets covering the two adapters, the command and event sets, capabilities, per-wire permission flow, prompts and access rules, and error handling. The file has no TODO or TBD text. No other files were touched.",
+      "body": "Read docs/provider-contract.md and wrote a plain-language summary to provider-contract-notes.md in the reader-2 folder. It covers the adapter boundary, the command and event sets, capabilities, the Claude and ACP permission flows, the worker and orchestrator prompts, the CLI surface and read/write rules, the v1 provider table, and the error handling rules. No other files were touched and the notes contain no TODO or TBD.",
       "scope": [
         "provider-contract-notes.md"
       ],
       "round": 0,
-      "thread": "reader-2"
+      "thread": "reader-2",
+      "author": "reader-2"
     },
     {
       "id": 9,
       "kind": "intent",
-      "body": "Round 0 did not pass. Plan the next step: create the tasks that fix this. Do not write the deliverable yourself.\n\nFailing checks:\n- file_exists brief.html: missing: /tmp/ilvuno-fix/runs/7ec8388e-1c89-4ed8-b05d-7aca049dcc9a/artifacts/brief.html\n- text_absent brief.html: cannot read /tmp/ilvuno-fix/runs/7ec8388e-1c89-4ed8-b05d-7aca049dcc9a/artifacts/brief.html: No such file or directory (os error 2)",
+      "body": "Round 0 did not pass. Plan the next step: create the tasks that fix this. Do not write the deliverable yourself.\n\nFailing checks:\n- file_exists brief.html: missing: /tmp/demo-real/runs/6ba693b9-1f2d-43cc-9722-27163a0768ad/artifacts/brief.html\n- text_absent brief.html: cannot read /tmp/demo-real/runs/6ba693b9-1f2d-43cc-9722-27163a0768ad/artifacts/brief.html: No such file or directory (os error 2)",
       "scope": [
         "run"
       ],
       "round": 1,
-      "thread": null
+      "thread": null,
+      "author": "runner"
     },
     {
       "id": 10,
       "kind": "intent",
-      "body": "Write brief.html in your own thread folder. It is one short HTML page that a person can read. Give it one section element for each source. The first section covers the security source, summarizing the notes in security-notes.md. The second section covers the provider contract, summarizing the notes in provider-contract-notes.md. Each section has a heading and a short plain-language summary of what that source says. Read the two notes files only at their absolute paths in your scope, and do not edit them. The page must contain no TODO or TBD text. Touch no other files. Report exactly once when done.",
+      "body": "Write brief.html, a short brief a person can read, built from the two notes files given in scope. Use one <section> per source: one for the security model (from security-notes.md) and one for the provider contract (from provider-contract-notes.md). Each section gets a heading and a short plain-language summary of what that source says. Use valid HTML5 with a title and a single h1. Do not write TODO or TBD anywhere. Do not touch any other file. Report when brief.html is written.",
       "scope": [
         "brief.html",
-        "/tmp/ilvuno-fix/runs/7ec8388e-1c89-4ed8-b05d-7aca049dcc9a/threads/reader-1/security-notes.md",
-        "/tmp/ilvuno-fix/runs/7ec8388e-1c89-4ed8-b05d-7aca049dcc9a/threads/reader-2/provider-contract-notes.md"
+        "/tmp/demo-real/runs/6ba693b9-1f2d-43cc-9722-27163a0768ad/threads/reader-1/security-notes.md",
+        "/tmp/demo-real/runs/6ba693b9-1f2d-43cc-9722-27163a0768ad/threads/reader-2/provider-contract-notes.md"
       ],
       "round": 1,
-      "thread": "orchestrator"
+      "thread": "orchestrator",
+      "author": "orchestrator"
     },
     {
       "id": 11,
       "kind": "finding",
-      "body": "Round 0 produced both notes files, security-notes.md from reader-1 and provider-contract-notes.md from reader-2, but the brief task was never created, so brief.html was never written. Round 1 queues one task on reader-1 (task cc57fba6-3bd4-42f5-b8fe-fdeacaa15e58) to write brief.html with one section per source, scoped to brief.html plus the two notes files by absolute path. reader-2 is not tasked again, so no file is touched by both workers.",
+      "body": "Round 0 failed because brief.html was never written; the two reader notes files (security-notes.md and provider-contract-notes.md) already exist and both readers reported. I queued one round-1 task on reader-1 (0d20be00-ea6e-4dca-9003-3749cb4a094e) with scope brief.html plus both notes files by absolute path, asking for one section per source and no TODO or TBD. Reader-2 needs no new work; the gate and the checks decide whether brief.html passes.",
       "scope": [],
       "round": 1,
-      "thread": "orchestrator"
+      "thread": "orchestrator",
+      "author": "orchestrator"
     },
     {
       "id": 12,
       "kind": "intent",
-      "body": "Writing brief.html in my thread folder: one section each for the security notes and the provider contract notes, summarized from security-notes.md and provider-contract-notes.md. No other files touched.",
+      "body": "Writing brief.html in my thread folder (threads/reader-1) from security-notes.md and the provider-contract notes. No other file touched.",
       "scope": [
         "brief.html",
-        "/tmp/ilvuno-fix/runs/7ec8388e-1c89-4ed8-b05d-7aca049dcc9a/threads/reader-1/security-notes.md",
-        "/tmp/ilvuno-fix/runs/7ec8388e-1c89-4ed8-b05d-7aca049dcc9a/threads/reader-2/provider-contract-notes.md"
+        "/tmp/demo-real/runs/6ba693b9-1f2d-43cc-9722-27163a0768ad/threads/reader-1/security-notes.md",
+        "/tmp/demo-real/runs/6ba693b9-1f2d-43cc-9722-27163a0768ad/threads/reader-2/provider-contract-notes.md"
       ],
       "round": 1,
-      "thread": "reader-1"
+      "thread": "reader-1",
+      "author": "reader-1"
     },
     {
       "id": 13,
       "kind": "finding",
-      "body": "Wrote brief.html in my thread folder with two sections: a security model section summarizing security-notes.md and a provider contract section summarizing provider-contract-notes.md, each with a heading and plain-language summary. The file contains no TODO or TBD text (grep count 0). No other files were touched, and the two notes files were only read.",
+      "body": "Wrote brief.html in my thread folder with a single h1, a title, and two sections: security model (from security-notes.md) and provider contract (from provider-contract-notes.md). Each section has a heading and a plain-language summary; the file contains no TODO or TBD. Round 0's check looked for artifacts/brief.html, but my scope names brief.html, so I did not create an artifacts/ copy; the orchestrator should confirm the expected path.",
       "scope": [
         "brief.html"
       ],
       "round": 1,
-      "thread": "reader-1"
+      "thread": "reader-1",
+      "author": "reader-1"
     }
   ],
   "artifacts": [
     {
       "kind": "note",
-      "path": "/tmp/ilvuno-fix/runs/7ec8388e-1c89-4ed8-b05d-7aca049dcc9a/artifacts/rounds/r0/reader-1/security-notes.md",
-      "bytes": 1839,
-      "sha256": "229299c6f71ae89c735be9633c67e70a4777a26bf9e8ce2453a94867f61de76a",
+      "path": "/tmp/demo-real/runs/6ba693b9-1f2d-43cc-9722-27163a0768ad/artifacts/rounds/r0/reader-1/security-notes.md",
+      "bytes": 3803,
+      "sha256": "842de3e517f9134f0efe1dd19b6bba206c0d6ec91b011932f400880704b89eaf",
       "thread": "reader-1"
     },
     {
       "kind": "note",
-      "path": "/tmp/ilvuno-fix/runs/7ec8388e-1c89-4ed8-b05d-7aca049dcc9a/artifacts/rounds/r0/reader-2/provider-contract-notes.md",
-      "bytes": 2756,
-      "sha256": "b416e8840139154f7a201ff7a5105f5e0674c3a38e4c8e453ed395619af87828",
+      "path": "/tmp/demo-real/runs/6ba693b9-1f2d-43cc-9722-27163a0768ad/artifacts/rounds/r0/reader-2/provider-contract-notes.md",
+      "bytes": 6490,
+      "sha256": "a7b987eaab7b75045bfdada2a1d7d2154d4daf458ab242a2941ecdb3ed24fe7a",
       "thread": "reader-2"
     },
     {
       "kind": "report",
-      "path": "/tmp/ilvuno-fix/runs/7ec8388e-1c89-4ed8-b05d-7aca049dcc9a/artifacts/rounds/r1/reader-1/brief.html",
-      "bytes": 4018,
-      "sha256": "f0a24ba13441c4da7b365c5604ed7b58fc472870e8ea7661f9692f57ada4439b",
+      "path": "/tmp/demo-real/runs/6ba693b9-1f2d-43cc-9722-27163a0768ad/artifacts/rounds/r1/reader-1/brief.html",
+      "bytes": 3520,
+      "sha256": "81b9858310c5b349390101a91fda24685a306b734c4a39e6d1273a1f1b97f50b",
       "thread": "reader-1"
     }
   ]
