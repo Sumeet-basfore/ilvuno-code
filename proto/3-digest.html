@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>3-digest · Read two sources and produce one short b</title><style>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>3-digest · Read two sources and produce one short brief that a person can read</title><style>
 :root{
   --paper:#f6f4ef; --paper-2:#efece4; --ink:#16150f; --ink-2:#56524a; --ink-3:#8a857a;
   --rule:#d8d3c7; --accent:#9e3b22; --accent-soft:#f1e5dd; --green:#2f5d3a; --code:#efece4;
@@ -8,58 +8,57 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
   font-size:15.5px;line-height:1.6;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1100px;margin:0 auto;padding:40px 36px 96px}
+.wrap{max-width:1060px;margin:0 auto;padding:38px 34px 96px}
 a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-soft)}
 nav.variants{display:flex;gap:18px;font-family:var(--mono);font-size:11px;letter-spacing:.11em;
   text-transform:uppercase;color:var(--ink-3);margin-bottom:26px;flex-wrap:wrap}
 nav.variants a{color:var(--ink-3);border-bottom:1px solid transparent;padding-bottom:2px}
 nav.variants a.on{color:var(--accent);border-bottom-color:var(--accent)}
 nav.variants a:hover{color:var(--ink)}
-header.run{border-bottom:1.4px solid var(--ink);padding-bottom:16px;margin-bottom:26px}
+nav.variants .pick{color:var(--green)}
+header.run{border-bottom:1.4px solid var(--ink);padding-bottom:14px;margin-bottom:8px}
 header.run .proj{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--ink-3);
   overflow-wrap:anywhere}
-header.run h1{font-size:26px;line-height:1.18;letter-spacing:-.018em;margin:6px 0 10px;font-weight:700}
-header.run p.done{color:var(--ink-2);font-size:14px;margin:0 0 14px;max-width:78ch}
-.meta{display:flex;gap:22px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+header.run h1{font-size:27px;line-height:1.16;letter-spacing:-.02em;margin:6px 0 8px;font-weight:700}
+header.run p.done{color:var(--ink-2);font-size:14px;margin:0 0 12px;max-width:80ch}
+.meta{display:flex;gap:20px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--ink-3);
+  align-items:baseline}
 .meta b{color:var(--ink);font-weight:500}
-.chip{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
-  padding:2px 7px;border:1px solid var(--rule);color:var(--ink-2);margin-right:6px}
+.chip{display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  padding:2px 6px;border:1px solid var(--rule);color:var(--ink-2)}
 .chip.pass{color:var(--green);border-color:#b9c9b6;background:#eef2ea}
 .chip.fail{color:var(--accent);border-color:#e0c3b7;background:var(--accent-soft)}
-.chip.block{color:var(--accent);border-color:#e0c3b7}
-.kind{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
-h2.sec{font-size:12px;letter-spacing:.13em;text-transform:uppercase;font-family:var(--mono);
-  color:var(--ink-3);font-weight:400;margin:44px 0 12px;border-top:1px solid var(--rule);padding-top:12px}
-table{width:100%;border-collapse:collapse;font-size:13.5px}
-th{text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
-  color:var(--ink-3);font-weight:400;padding:0 10px 6px 0;border-bottom:1.1px solid var(--ink)}
-td{padding:7px 10px 7px 0;border-bottom:1px solid var(--rule);vertical-align:top}
-td.num{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);white-space:nowrap}
-details.goal{margin:0 0 12px}
-details.goal pre{max-height:200px;overflow:auto}
+h2.sec{font-size:11px;letter-spacing:.13em;text-transform:uppercase;font-family:var(--mono);
+  color:var(--ink-3);font-weight:400;margin:40px 0 10px;border-top:1px solid var(--rule);padding-top:11px;
+  display:flex;justify-content:space-between;align-items:baseline}
+h2.sec span{letter-spacing:.04em;text-transform:none;color:var(--ink-3)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:400;padding:0 10px 5px 0;border-bottom:1.1px solid var(--ink)}
+td{padding:6px 10px 6px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+td.num{font-family:var(--mono);font-size:11px;color:var(--ink-3);white-space:nowrap}
 .mono{font-family:var(--mono);font-size:.86em;background:var(--code);padding:1px 4px;color:#2a2620}
-.scope{font-family:var(--mono);font-size:11px;color:var(--ink-3);overflow-wrap:anywhere}
-.row{display:grid;grid-template-columns:88px minmax(0,1fr);gap:16px;padding:12px 0;
-  border-bottom:1px solid var(--rule)}
-.row .who{font-family:var(--mono);font-size:11px;color:var(--ink-2);line-height:1.5}
-.row .who span{display:block;color:var(--ink-3);font-size:10px}
-.row p{margin:0;max-width:80ch}
-.row .scope{margin-top:5px}
-details{margin-top:6px}
-summary{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
-details pre{background:var(--code);padding:10px 12px;overflow-x:auto;font-size:12px;line-height:1.45;
-  white-space:pre-wrap;margin:8px 0 0}
-.card{border:1px solid var(--rule);padding:16px 18px;margin:0 0 14px;background:#fbfaf6}
-.card h3{font-size:15.5px;margin:0 0 4px;letter-spacing:-.008em}
-.card .head{display:flex;justify-content:space-between;gap:14px;align-items:baseline;margin-bottom:8px}
-.card .sub{color:var(--ink-2);font-size:13.5px;margin:0 0 8px}
-.round{border-top:1px solid var(--rule);padding:14px 0}
-.round h3{font-size:15px;margin:0 0 6px}
-.round .why{color:var(--ink-2);font-size:13.5px;margin:0}
+.scope{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);overflow-wrap:anywhere}
+.row{display:grid;grid-template-columns:84px minmax(0,1fr);gap:14px;padding:10px 0;border-bottom:1px solid var(--rule)}
+.row .who{font-family:var(--mono);font-size:10.5px;color:var(--ink-2);line-height:1.5}
+.row .who span{display:block;color:var(--ink-3);font-size:9.5px}
+.row p{margin:0;max-width:82ch}
+details{margin-top:5px}
+summary{cursor:pointer;font-family:var(--mono);font-size:10.5px;color:var(--ink-3)}
+details pre{background:var(--code);padding:10px 12px;overflow:auto;font-size:12px;line-height:1.45;
+  white-space:pre-wrap;margin:7px 0 0;max-height:220px}
+.card{border:1px solid var(--rule);padding:14px 16px;margin:0 0 10px;background:#fbfaf6}
+.card h3{font-size:15px;margin:0 0 3px;letter-spacing:-.008em}
+.card .head{display:flex;justify-content:space-between;gap:14px;align-items:baseline;margin-bottom:7px}
+.card .sub{color:var(--ink-2);font-size:13px;margin:0 0 7px}
+.round{display:grid;grid-template-columns:96px minmax(0,1fr);gap:14px;padding:10px 0;border-top:1px solid var(--rule)}
+.round .n{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.round h3{font-size:14.5px;margin:0 0 3px}
+.round p{color:var(--ink-2);font-size:13px;margin:0}
 .empty{color:var(--ink-3);font-size:13px}
-footer{margin-top:56px;border-top:1px solid var(--rule);padding-top:12px;font-family:var(--mono);
+footer{margin-top:52px;border-top:1px solid var(--rule);padding-top:12px;font-family:var(--mono);
   font-size:10.5px;color:var(--ink-3);line-height:1.7}
-</style></head><body><div class="wrap"><nav class="variants"><a href="index.html">Prototypes</a><a href="1-log.html">Log</a><a href="2-by-task.html">By task</a><a href="3-digest.html" class="on">Digest first</a></nav><header class="run">
+</style></head><body><div class="wrap"><nav class="variants"><a href="index.html">Prototypes</a><a href="1-log.html">Log</a><a href="2-by-task.html">By task</a><a href="3-digest.html" class="on">Digest first</a><a href="4-mix.html" class="pick">Mix · chosen</a></nav><header class="run">
   <div class="proj">examples</div>
   <h1>Read two sources and produce one short brief that a person can read</h1>
   <p class="done">brief.html exists, has a section for each source, and contains no TODO or TBD.</p>
@@ -69,22 +68,20 @@ footer{margin-top:56px;border-top:1px solid var(--rule);padding-top:12px;font-fa
     <span><b>355,834</b> tokens</span>
     <span><b>3</b> threads</span>
     <span><b>5</b> tasks</span>
-    <span>messages: <b>round</b></span>
+    <details style="margin:0;display:inline"><summary>full goal</summary><pre>Read two sources and produce one short brief that a person can read. The sources are ../docs/security.md and ../docs/provider-contract.md, relative to this goal file. The brief is brief.html: one &lt;section&gt; for each source, with a short summary of what the source says.</pre></details>
   </div>
-  <details class="goal" style="margin:10px 0 0"><summary>Full goal</summary><pre>Read two sources and produce one short brief that a person can read. The sources are ../docs/security.md and ../docs/provider-contract.md, relative to this goal file. The brief is brief.html: one &lt;section&gt; for each source, with a short summary of what the source says.</pre></details>
 </header>
-<h2 class="sec">What happened, by round</h2>
-<div class="round">
-  <h3>Round 0 <span class="chip fail">block</span></h3>
-  <p class="why">3 task(s): orchestrator, reader-1, reader-2 — failed: file_exists brief.html; text_absent brief.html.</p>
+<h2 class="sec">What happened, by round</h2><div class="round">
+  <div class="n">round 0</div>
+  <div><h3>3 task(s) <span class="chip fail">block</span></h3>
+  <p>orchestrator, reader-1, reader-2 — failed: file_exists brief.html; text_absent brief.html.</p></div>
 </div><div class="round">
-  <h3>Round 1 <span class="chip pass">pass</span></h3>
-  <p class="why">2 task(s): orchestrator, reader-1 — every check passed.</p>
+  <div class="n">round 1</div>
+  <div><h3>2 task(s) <span class="chip pass">pass</span></h3>
+  <p>orchestrator, reader-1 — every check passed.</p></div>
 </div>
-<h2 class="sec">Checks</h2>
-<table><thead><tr><th>Round</th><th>Check</th><th>Detail</th><th></th></tr></thead><tbody><tr><td class="num">round 0</td><td>file_exists brief.html</td><td class="num">missing: runsartifacts/brief.html</td><td><span class="chip fail">fail</span></td></tr><tr><td class="num">round 0</td><td>text_absent brief.html</td><td class="num">cannot read runsartifacts/brief.html: No such file or directory (os error 2)</td><td><span class="chip fail">fail</span></td></tr><tr><td class="num">round 1</td><td>file_exists brief.html</td><td class="num">found</td><td><span class="chip pass">pass</span></td></tr><tr><td class="num">round 1</td><td>text_absent brief.html</td><td class="num">none of the listed text is present</td><td><span class="chip pass">pass</span></td></tr></tbody></table>
-<h2 class="sec">Full board</h2>
-<div class="row">
+<h2 class="sec">Checks</h2><table><thead><tr><th>Round</th><th>Check</th><th>Detail</th><th></th></tr></thead><tbody><tr><td class="num">round 0</td><td>file_exists brief.html</td><td class="num">missing: runsartifacts/brief.html</td><td><span class="chip fail">fail</span></td></tr><tr><td class="num">round 0</td><td>text_absent brief.html</td><td class="num">cannot read runsartifacts/brief.html: No such file or directory (os error 2)</td><td><span class="chip fail">fail</span></td></tr><tr><td class="num">round 1</td><td>file_exists brief.html</td><td class="num">found</td><td><span class="chip pass">pass</span></td></tr><tr><td class="num">round 1</td><td>text_absent brief.html</td><td class="num">none of the listed text is present</td><td><span class="chip pass">pass</span></td></tr></tbody></table>
+<h2 class="sec">Full board</h2><div class="row">
   <div class="who">runner<span>intent</span></div>
   <div><p>Goal:
 Read two sources and produce one short brief that a person can read. The sources are ../docs/security.md and ../docs/provider-contract.md, relative to this goal file. The brief is brief.html: one &lt;section&gt; for each source, with a short summary of what the source says.
@@ -132,6 +129,5 @@ Failing checks:
   <div class="who">reader-1<span>finding</span></div>
   <div><p>Wrote brief.html in my thread folder with two sections: a security model section summarizing security-notes.md and a provider contract section summarizing provider-contract-notes.md, each with a heading and plain-language summary. The file contains no TODO or TBD text (grep count 0). No other files were touched, and the two notes files were only read.</p><div class="scope">brief.html</div></div>
 </div>
-<h2 class="sec">Artifacts</h2>
-<table><thead><tr><th>Kind</th><th>Path</th><th>Bytes</th><th>sha256</th></tr></thead><tbody><tr><td>note</td><td class="scope"><a href="artifacts/rounds/r0/reader-1/security-notes.md">artifacts/rounds/r0/reader-1/security-notes.md</a></td><td class="num">1,839</td><td class="scope">229299c6f71a</td></tr><tr><td>note</td><td class="scope"><a href="artifacts/rounds/r0/reader-2/provider-contract-notes.md">artifacts/rounds/r0/reader-2/provider-contract-notes.md</a></td><td class="num">2,756</td><td class="scope">b416e8840139</td></tr><tr><td>report</td><td class="scope"><a href="artifacts/rounds/r1/reader-1/brief.html">artifacts/rounds/r1/reader-1/brief.html</a></td><td class="num">4,018</td><td class="scope">f0a24ba13441</td></tr></tbody></table>
+<h2 class="sec">Artifacts</h2><table><thead><tr><th>Kind</th><th>Path</th><th>Bytes</th><th>sha256</th></tr></thead><tbody><tr><td>note</td><td class="scope"><a href="artifacts/rounds/r0/reader-1/security-notes.md">artifacts/rounds/r0/reader-1/security-notes.md</a></td><td class="num">1,839</td><td class="scope">229299c6f71a</td></tr><tr><td>note</td><td class="scope"><a href="artifacts/rounds/r0/reader-2/provider-contract-notes.md">artifacts/rounds/r0/reader-2/provider-contract-notes.md</a></td><td class="num">2,756</td><td class="scope">b416e8840139</td></tr><tr><td>report</td><td class="scope"><a href="artifacts/rounds/r1/reader-1/brief.html">artifacts/rounds/r1/reader-1/brief.html</a></td><td class="num">4,018</td><td class="scope">f0a24ba13441</td></tr></tbody></table>
 <footer>Layout 3 — a short digest of each round first, then the same log underneath.<br>Fixture: run 7ec8388e-1c89-4ed8-b05d-7aca049dcc9a · 13 board entries · generated from the exported run, nothing invented.</footer></div></body></html>

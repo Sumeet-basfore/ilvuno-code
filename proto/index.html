@@ -10,77 +10,79 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
   font-size:15.5px;line-height:1.6;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1100px;margin:0 auto;padding:40px 36px 96px}
+.wrap{max-width:1060px;margin:0 auto;padding:38px 34px 96px}
 a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-soft)}
 nav.variants{display:flex;gap:18px;font-family:var(--mono);font-size:11px;letter-spacing:.11em;
   text-transform:uppercase;color:var(--ink-3);margin-bottom:26px;flex-wrap:wrap}
 nav.variants a{color:var(--ink-3);border-bottom:1px solid transparent;padding-bottom:2px}
 nav.variants a.on{color:var(--accent);border-bottom-color:var(--accent)}
 nav.variants a:hover{color:var(--ink)}
-header.run{border-bottom:1.4px solid var(--ink);padding-bottom:16px;margin-bottom:26px}
+nav.variants .pick{color:var(--green)}
+header.run{border-bottom:1.4px solid var(--ink);padding-bottom:14px;margin-bottom:8px}
 header.run .proj{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--ink-3);
   overflow-wrap:anywhere}
-header.run h1{font-size:26px;line-height:1.18;letter-spacing:-.018em;margin:6px 0 10px;font-weight:700}
-header.run p.done{color:var(--ink-2);font-size:14px;margin:0 0 14px;max-width:78ch}
-.meta{display:flex;gap:22px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+header.run h1{font-size:27px;line-height:1.16;letter-spacing:-.02em;margin:6px 0 8px;font-weight:700}
+header.run p.done{color:var(--ink-2);font-size:14px;margin:0 0 12px;max-width:80ch}
+.meta{display:flex;gap:20px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--ink-3);
+  align-items:baseline}
 .meta b{color:var(--ink);font-weight:500}
-.chip{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
-  padding:2px 7px;border:1px solid var(--rule);color:var(--ink-2);margin-right:6px}
+.chip{display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  padding:2px 6px;border:1px solid var(--rule);color:var(--ink-2)}
 .chip.pass{color:var(--green);border-color:#b9c9b6;background:#eef2ea}
 .chip.fail{color:var(--accent);border-color:#e0c3b7;background:var(--accent-soft)}
-.chip.block{color:var(--accent);border-color:#e0c3b7}
-.kind{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
-h2.sec{font-size:12px;letter-spacing:.13em;text-transform:uppercase;font-family:var(--mono);
-  color:var(--ink-3);font-weight:400;margin:44px 0 12px;border-top:1px solid var(--rule);padding-top:12px}
-table{width:100%;border-collapse:collapse;font-size:13.5px}
-th{text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
-  color:var(--ink-3);font-weight:400;padding:0 10px 6px 0;border-bottom:1.1px solid var(--ink)}
-td{padding:7px 10px 7px 0;border-bottom:1px solid var(--rule);vertical-align:top}
-td.num{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);white-space:nowrap}
-details.goal{margin:0 0 12px}
-details.goal pre{max-height:200px;overflow:auto}
+h2.sec{font-size:11px;letter-spacing:.13em;text-transform:uppercase;font-family:var(--mono);
+  color:var(--ink-3);font-weight:400;margin:40px 0 10px;border-top:1px solid var(--rule);padding-top:11px;
+  display:flex;justify-content:space-between;align-items:baseline}
+h2.sec span{letter-spacing:.04em;text-transform:none;color:var(--ink-3)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:400;padding:0 10px 5px 0;border-bottom:1.1px solid var(--ink)}
+td{padding:6px 10px 6px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+td.num{font-family:var(--mono);font-size:11px;color:var(--ink-3);white-space:nowrap}
 .mono{font-family:var(--mono);font-size:.86em;background:var(--code);padding:1px 4px;color:#2a2620}
-.scope{font-family:var(--mono);font-size:11px;color:var(--ink-3);overflow-wrap:anywhere}
-.row{display:grid;grid-template-columns:88px minmax(0,1fr);gap:16px;padding:12px 0;
-  border-bottom:1px solid var(--rule)}
-.row .who{font-family:var(--mono);font-size:11px;color:var(--ink-2);line-height:1.5}
-.row .who span{display:block;color:var(--ink-3);font-size:10px}
-.row p{margin:0;max-width:80ch}
-.row .scope{margin-top:5px}
-details{margin-top:6px}
-summary{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
-details pre{background:var(--code);padding:10px 12px;overflow-x:auto;font-size:12px;line-height:1.45;
-  white-space:pre-wrap;margin:8px 0 0}
-.card{border:1px solid var(--rule);padding:16px 18px;margin:0 0 14px;background:#fbfaf6}
-.card h3{font-size:15.5px;margin:0 0 4px;letter-spacing:-.008em}
-.card .head{display:flex;justify-content:space-between;gap:14px;align-items:baseline;margin-bottom:8px}
-.card .sub{color:var(--ink-2);font-size:13.5px;margin:0 0 8px}
-.round{border-top:1px solid var(--rule);padding:14px 0}
-.round h3{font-size:15px;margin:0 0 6px}
-.round .why{color:var(--ink-2);font-size:13.5px;margin:0}
+.scope{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);overflow-wrap:anywhere}
+.row{display:grid;grid-template-columns:84px minmax(0,1fr);gap:14px;padding:10px 0;border-bottom:1px solid var(--rule)}
+.row .who{font-family:var(--mono);font-size:10.5px;color:var(--ink-2);line-height:1.5}
+.row .who span{display:block;color:var(--ink-3);font-size:9.5px}
+.row p{margin:0;max-width:82ch}
+details{margin-top:5px}
+summary{cursor:pointer;font-family:var(--mono);font-size:10.5px;color:var(--ink-3)}
+details pre{background:var(--code);padding:10px 12px;overflow:auto;font-size:12px;line-height:1.45;
+  white-space:pre-wrap;margin:7px 0 0;max-height:220px}
+.card{border:1px solid var(--rule);padding:14px 16px;margin:0 0 10px;background:#fbfaf6}
+.card h3{font-size:15px;margin:0 0 3px;letter-spacing:-.008em}
+.card .head{display:flex;justify-content:space-between;gap:14px;align-items:baseline;margin-bottom:7px}
+.card .sub{color:var(--ink-2);font-size:13px;margin:0 0 7px}
+.round{display:grid;grid-template-columns:96px minmax(0,1fr);gap:14px;padding:10px 0;border-top:1px solid var(--rule)}
+.round .n{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.round h3{font-size:14.5px;margin:0 0 3px}
+.round p{color:var(--ink-2);font-size:13px;margin:0}
 .empty{color:var(--ink-3);font-size:13px}
-footer{margin-top:56px;border-top:1px solid var(--rule);padding-top:12px;font-family:var(--mono);
+footer{margin-top:52px;border-top:1px solid var(--rule);padding-top:12px;font-family:var(--mono);
   font-size:10.5px;color:var(--ink-3);line-height:1.7}
 </style></head><body><div class="wrap">
-<div class="proj" style="font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--ink-3)">
-PROTOTYPES · ONE REAL RUN, THREE ARRANGEMENTS</div>
-<h1 style="font-size:30px;letter-spacing:-.02em;margin:8px 0 12px">The same board, three ways</h1>
+<div style="font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--ink-3)">
+PROTOTYPES · ONE REAL RUN, FOUR ARRANGEMENTS</div>
+<h1 style="font-size:30px;letter-spacing:-.02em;margin:8px 0 12px">The same board, four ways</h1>
 <p style="color:var(--ink-2);max-width:70ch;margin:0 0 28px">
-All three read the same exported run: 3 threads, 5 tasks, 2 rounds,
-13 board entries, one round that failed and one that passed. Nothing here is invented.
-Pick the one you would actually want to look at.</p>
+Same exported run: 3 threads, 5 tasks, 2 rounds, 13 board entries,
+one round that failed and one that passed. Nothing is invented.</p>
 <ol style="list-style:none;padding:0;margin:0;border-top:1.2px solid var(--ink)">
+<li style="border-bottom:1px solid var(--rule)"><a href="4-mix.html" style="display:flex;justify-content:space-between;gap:18px;padding:18px 4px;color:inherit;border:0">
+  <span><b style="font-size:17px">4 · Mix</b> <span class="chip pass" style="margin-left:6px">chosen</span>
+  <div style="color:var(--ink-2);font-size:13.5px;margin-top:3px">Round digest, then task cards, log behind the fold.</div></span>
+  <span style="font-family:var(--mono);font-size:11px;color:var(--accent);white-space:nowrap;align-self:center">open →</span></a></li>
 <li style="border-bottom:1px solid var(--rule)"><a href="1-log.html" style="display:flex;justify-content:space-between;gap:18px;padding:18px 4px;color:inherit;border:0">
   <span><b style="font-size:17px">1 · Log</b>
-  <div style="color:var(--ink-2);font-size:13.5px;margin-top:3px">Every entry in order, with who wrote it. Honest, complete, noisy.</div></span>
+  <div style="color:var(--ink-2);font-size:13.5px;margin-top:3px">Every entry in order. Honest, complete, noisy.</div></span>
   <span style="font-family:var(--mono);font-size:11px;color:var(--accent);white-space:nowrap;align-self:center">open →</span></a></li>
 <li style="border-bottom:1px solid var(--rule)"><a href="2-by-task.html" style="display:flex;justify-content:space-between;gap:18px;padding:18px 4px;color:inherit;border:0">
   <span><b style="font-size:17px">2 · By task</b>
-  <div style="color:var(--ink-2);font-size:13.5px;margin-top:3px">One card per job: who, what was asked, what came back. Best if you care what each agent did.</div></span>
+  <div style="color:var(--ink-2);font-size:13.5px;margin-top:3px">One card per job: who, what was asked, what came back.</div></span>
   <span style="font-family:var(--mono);font-size:11px;color:var(--accent);white-space:nowrap;align-self:center">open →</span></a></li>
 <li style="border-bottom:1px solid var(--rule)"><a href="3-digest.html" style="display:flex;justify-content:space-between;gap:18px;padding:18px 4px;color:inherit;border:0">
   <span><b style="font-size:17px">3 · Digest first</b>
-  <div style="color:var(--ink-2);font-size:13.5px;margin-top:3px">A short "what happened this round" at the top, then the log. Best if you want the state in ten seconds.</div></span>
+  <div style="color:var(--ink-2);font-size:13.5px;margin-top:3px">Round digest at the top, log underneath. No task cards.</div></span>
   <span style="font-family:var(--mono);font-size:11px;color:var(--accent);white-space:nowrap;align-self:center">open →</span></a></li>
 </ol>
 <footer>Generated by tools/render-prototype.py from fixtures/board-experiment/run.json.</footer>
