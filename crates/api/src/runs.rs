@@ -5,7 +5,7 @@ use crate::drive::spawn_drive;
 use crate::error::{ApiError, ApiResult};
 use crate::state::AppState;
 use axum::body::Bytes;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use cli::ops;
@@ -15,6 +15,13 @@ use runner::{export, ledger, query, Home};
 use rusqlite::OptionalExtension;
 use serde_json::{json, Value};
 use std::path::Path as FsPath;
+
+#[derive(serde::Deserialize)]
+pub struct JournalParams {
+    after: Option<i64>,
+    kinds: Option<String>,
+    limit: Option<usize>,
+}
 
 pub async fn list<P>(State(state): State<AppState<P>>) -> ApiResult<Json<Vec<Value>>>
 where
@@ -41,6 +48,59 @@ where
     })
     .await?;
     Ok(Json(run))
+}
+
+/// `GET /runs/:id/journal`: bounded journal history for the conversation and other read views.
+pub async fn journal<P>(
+    State(state): State<AppState<P>>,
+    Path(run_id): Path<String>,
+    Query(params): Query<JournalParams>,
+) -> ApiResult<Json<Vec<Value>>>
+where
+    P: Send + Sync + 'static,
+{
+    let after = params.after.unwrap_or(0);
+    if after < 0 {
+        return Err(ApiError::BadRequest("after must be zero or greater".into()));
+    }
+    let kinds = match params.kinds {
+        Some(raw) => {
+            let mut kinds = Vec::new();
+            for kind in raw.split(',').map(str::trim) {
+                if !query::JOURNAL_KINDS.contains(&kind) {
+                    return Err(ApiError::BadRequest(format!("unknown journal kind: {kind}")));
+                }
+                let kind = kind.to_string();
+                if !kinds.contains(&kind) {
+                    kinds.push(kind);
+                }
+            }
+            kinds
+        }
+        None => Vec::new(),
+    };
+    let limit = params.limit.unwrap_or(200).min(1000);
+    let home = state.home.clone();
+    let rows = blocking(move || {
+        let store = open_store(&home)?;
+        require_run(&store, &run_id)?;
+        let rows = query::journal_page(store.conn(), &run_id, after, &kinds, limit)?;
+        Ok(rows
+            .into_iter()
+            .map(|row| {
+                json!({
+                    "seq": row.seq,
+                    "at": row.at,
+                    "kind": row.kind,
+                    "round": row.round,
+                    "thread": row.thread,
+                    "payload": row.payload,
+                })
+            })
+            .collect())
+    })
+    .await?;
+    Ok(Json(rows))
 }
 
 /// `GET /runs/:id/threads/:name/diff`: the bounded patch and full diffstat for one checkout.
