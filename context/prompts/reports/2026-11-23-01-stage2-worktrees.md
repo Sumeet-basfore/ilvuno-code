@@ -58,13 +58,14 @@ The merge and gate code was not touched. Landing is goal 02.
 - **The window still reads a folder-mode run:** `tools/shot.sh /tmp/folder-mode.png 1440 900` against the
   `.demo-home` demo run (created before this change, so `git_root` is null). The board, gate and
   conversation render; `/tmp/desktop.log` has only the GTK font-key and Mesa DRI3 warnings.
+- **A git-mode run also renders in the window:** `tools/shot.sh /tmp/git-mode.png 1440 900` against the
+  real run's home shows the `writer` thread, its report, the artifact and the open gate. The UI ignores
+  `branch` and `has_checkout`; they are export-only for now.
 
 ## Could not verify
 
 - **A worktree that fails to be created.** The per-thread fallback path is code-inspected, not simulated.
   The dirty-project test covers the run-level fallback, not the `git worktree add` failure.
-- **A git-mode run through the window.** The window has no git fields; it ignores `branch` and
-  `has_checkout`. The regression check used a folder-mode run, as the goal asked.
 - **A goal whose base is a subfolder of a repository.** The worktree is the repository root, so the
   agent's cwd is the root, not the goal folder. The real run and the tests use the repository root.
   This is a design consequence, not a bug, but it has not been exercised with a subfolder base.
