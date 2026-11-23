@@ -62,4 +62,4 @@ The table above stops at 20:56. Three commits landed after it, and the audit rou
 |---|---|---|
 | 21:10–21:11 | **Memory** | `context/` became the project's record (`e3cbabe`), then two claims were narrowed to what was actually run (`1be8c08`). |
 | 22:02 | **Prompts** | Seven loop goals and the house rules (`51273ad`). |
-| 22:36 | **Audit** | `00-verify-and-harden`: 141 tests, all 20 screenshots read, four widths, contrast recomputed; gate and budget copy, path shortening, control borders, the shots script, README; nine generated pages untracked (`499c4b6`). Report: `context/prompts/reports/2026-11-23-00-verify-and-harden.md`. |
+| 22:05–22:52 | **Audit** | `00-verify-and-harden`: 141 tests, all 20 screenshots read, four widths, contrast recomputed; gate and budget copy, path shortening, control borders, the shots script, README; nine generated pages untracked (`499c4b6`, `ab708a6`). Report: `context/prompts/reports/2026-11-23-00-verify-and-harden.md`. |

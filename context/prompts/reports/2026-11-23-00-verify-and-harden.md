@@ -18,7 +18,7 @@
   `/agents` probe took **5.36 s** on this machine). It now opens the board from **View all**, returns with
   Escape, selects reader-1 for the conversation and returns to orchestrator, warms the agent cache and
   waits 7 s for the list, and blurs the last clicked button before the settings and offline shots. It
-  also refuses to start when the runner is not answering.
+  also refuses to start when the runner is not answering. The shots-script follow-up is `ab708a6`.
 - `README.md`: a goal file is supported; the sentence saying it was not is gone.
 - Nine generated pages under `context/prompts/` are no longer tracked; `context/**/*.html` is ignored.
   `gate.png` was re-shot from the current run, and `offline.png` is now tracked.
