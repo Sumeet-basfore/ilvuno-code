@@ -34,6 +34,7 @@ is not.
 ```bash
 RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace
 RUSTUP_TOOLCHAIN=1.100.0 cargo run -p ilvuno -- run --goal examples/board-experiment.json
+RUSTUP_TOOLCHAIN=1.100.0 cargo run -p api --bin ilvunod   # the app's local API on 127.0.0.1:4737 (docs/api.md)
 ```
 
 A change is not done until `cargo test --workspace` passes and `ilvuno run` still reaches a gate on the

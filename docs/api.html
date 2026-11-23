@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local API (ilvunod)</title>
+<style>
+:root{
+  --paper:#f6f4ef; --paper-2:#efece4; --ink:#16150f; --ink-2:#56524a; --ink-3:#8a857a;
+  --rule:#d8d3c7; --accent:#9e3b22; --accent-soft:#f1e5dd; --code-bg:#efece4;
+  --mono:"JetBrains Mono","Liberation Mono",ui-monospace,monospace;
+  --sans:"Liberation Sans","Noto Sans",Inter,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0; color:var(--ink); background:var(--paper);
+  font-family:var(--sans); font-size:16.5px; line-height:1.62;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility}
+.wrap{display:grid; grid-template-columns:248px minmax(0,1fr); gap:52px;
+  max-width:1180px; margin:0 auto; padding:56px 40px 120px}
+/* ---------- sidebar ---------- */
+aside{position:sticky; top:40px; align-self:start; max-height:calc(100vh - 80px);
+  overflow:auto; padding-left:16px; border-left:2px solid var(--accent)}
+aside .kicker{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+aside .meta{font-family:var(--mono); font-size:11px; color:var(--ink-3); line-height:1.7; margin-top:10px}
+aside nav{margin-top:22px}
+aside nav a{display:block; color:var(--ink-2); text-decoration:none; font-size:13px;
+  line-height:1.35; padding:4px 0 4px 10px; border-left:1px solid transparent; margin-left:-11px}
+aside nav a:hover{color:var(--ink); border-left-color:var(--rule)}
+aside nav a.lvl3{padding-left:22px; font-size:12.2px; color:var(--ink-3)}
+aside .back{display:inline-block; margin-top:26px; font-family:var(--mono); font-size:11px;
+  color:var(--ink-3); text-decoration:none; border-bottom:1px solid var(--rule)}
+/* ---------- content ---------- */
+main{max-width:74ch}
+h1,h1 a,h2,h2 a,h3,h3 a,h4,h4 a{color:inherit}
+h1{font-size:36px; line-height:1.08; letter-spacing:-.022em; margin:0 0 10px; font-weight:700}
+h1 + p, h1 + blockquote{color:var(--ink-2); font-size:16.5px}
+h2{font-size:23px; line-height:1.2; letter-spacing:-.014em; margin:52px 0 14px; padding-top:16px;
+  border-top:1px solid var(--rule); font-weight:700}
+h2:first-of-type{border-top:0; padding-top:0; margin-top:34px}
+h3{font-size:17px; margin:30px 0 8px; letter-spacing:-.006em}
+h4{font-size:14.5px; margin:22px 0 6px; color:var(--ink-2)}
+p{margin:0 0 14px}
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--accent-soft)}
+a:hover{border-bottom-color:var(--accent)}
+ul,ol{margin:0 0 16px; padding-left:22px}
+li{margin:5px 0}
+li::marker{color:var(--ink-3)}
+hr{border:0; border-top:1px solid var(--rule); margin:38px 0}
+/* a markdown --- right before a heading already gets the heading's rule */
+hr:has(+ h2){display:none}
+hr + h2{border-top:0; padding-top:0; margin-top:44px}
+blockquote{margin:22px 0; padding:2px 0 2px 18px; border-left:2px solid var(--accent);
+  color:var(--ink-2)}
+blockquote p{margin:0 0 8px}
+blockquote p:last-child{margin:0}
+code{font-family:var(--mono); font-size:.855em; background:var(--code-bg);
+  padding:1.5px 5px; border-radius:2px; color:#2a2620; overflow-wrap:break-word}
+pre{background:var(--code-bg); padding:15px 17px; overflow-x:auto; margin:0 0 20px;
+  border-left:2px solid var(--ink-3); line-height:1.5}
+pre code{background:none; padding:0; font-size:12.6px; white-space:pre}
+table{width:100%; border-collapse:collapse; margin:8px 0 26px; font-size:13.6px}
+thead th{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:400; text-align:left; padding:0 12px 7px 0;
+  border-bottom:1.2px solid var(--ink); vertical-align:bottom}
+tbody td{padding:8px 12px 8px 0; border-bottom:1px solid var(--rule); vertical-align:top; line-height:1.45}
+tbody td:first-child{font-weight:700}
+td code,th code{font-size:12px}
+/* ---------- index ---------- */
+.index{max-width:1020px; margin:0 auto; padding:64px 40px 120px}
+.index .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+.index h1{margin-top:14px}
+.index .lede{color:var(--ink-2); font-size:18px; max-width:62ch; margin:14px 0 38px; line-height:1.55}
+.index ol{list-style:none; padding:0; margin:0; border-top:1.2px solid var(--ink)}
+.index li{border-bottom:1px solid var(--rule)}
+.index a.row{display:grid; grid-template-columns:34px minmax(0,1fr) 76px; gap:18px;
+  align-items:start; padding:16px 4px 16px 0; text-decoration:none; border:0; color:inherit}
+.index a.row:hover{background:var(--paper-2)}
+.index .n{font-family:var(--mono); font-size:11.5px; color:var(--accent); white-space:nowrap;
+  padding-top:4px}
+.index .t{font-size:17px; font-weight:700; letter-spacing:-.008em; line-height:1.3}
+.index .d{font-size:13.4px; color:var(--ink-2); margin-top:4px; line-height:1.5}
+.index .w{font-family:var(--mono); font-size:11px; color:var(--ink-3); text-align:right; padding-top:4px}
+@media (max-width:980px){
+  .wrap{grid-template-columns:1fr; gap:0; padding:32px 20px 80px}
+  aside{position:static; max-height:none; margin-bottom:28px}
+  aside nav{display:none}
+  .index{padding:32px 20px 80px}
+  .index a.row{grid-template-columns:1fr; gap:4px}
+  .index .w{text-align:left}
+  table{display:block; overflow-x:auto; white-space:nowrap}
+  table td,table th{white-space:normal}
+}
+@media print{
+  aside{display:none} .wrap{grid-template-columns:1fr; max-width:100%; padding:0}
+  body{font-size:11pt} h2{break-after:avoid} table,pre{break-inside:avoid}
+  a{color:inherit; border:0}
+}
+</style>
+</head><body>
+<div class="wrap">
+<aside>
+  <div class="kicker">Project document</div>
+  <div class="meta">568 words<br>4 sections<br>73 lines of source</div>
+  <nav><a class="lvl2" href="#safety-in-v1">Safety in v1</a>
+<a class="lvl2" href="#endpoints">Endpoints</a>
+<a class="lvl3" href="#events">Events</a>
+<a class="lvl2" href="#errors">Errors</a>
+<a class="lvl2" href="#limits-in-v1">Limits in v1</a></nav>
+  <a class="back" href="index.html">&larr; index</a>
+</aside>
+<main>
+<h1>Local API (<code>ilvunod</code>)</h1>
+<p>The door the desktop app uses to start, watch and decide runs. It is a thin HTTP layer. Every action calls
+the same function the <code>ilvuno</code> CLI calls, and the run data has the same shape as an export's <code>run.json</code>.</p>
+<p>Run it:</p>
+<pre><code class="language-bash">RUSTUP_TOOLCHAIN=1.100.0 cargo run -p api --bin ilvunod
+# http://127.0.0.1:4737   ILVUNO_PORT=… changes the port, ILVUNO_HOME the data folder
+</code></pre>
+<h2 id="safety-in-v1">Safety in v1</h2>
+<ul>
+<li><strong>Loopback only.</strong> It listens on <code>127.0.0.1</code>. It is not reachable from another machine.</li>
+<li><strong>No authentication.</strong> Any program running as your user can start runs and send tasks. Do not put it
+behind a proxy or a port forward.</li>
+<li>Agents run under the same rules as the CLI. The API adds no permission.</li>
+</ul>
+<h2 id="endpoints">Endpoints</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>What it does</th>
+<th>Success</th>
+<th>Runner function</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/health</code></td>
+<td>Is the process up</td>
+<td><code>200 {&quot;ok&quot;:true,&quot;version&quot;:&quot;0.0.1&quot;}</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/runs</code></td>
+<td>Run summaries, newest first</td>
+<td><code>200 [{id,status,title,project,rounds_used,tokens_used,started_at}]</code></td>
+<td><code>query::list_runs</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/runs/:id</code></td>
+<td>One run, as <code>run.json</code> in an export</td>
+<td><code>200</code> export shape</td>
+<td><code>export::run_json</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/runs/:id/board</code></td>
+<td>The board a thread reads</td>
+<td><code>200 {&quot;markdown&quot;:&quot;…&quot;}</code></td>
+<td><code>ledger::render_board</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/runs/:id/events</code></td>
+<td>Live journal, server-sent events</td>
+<td><code>200 text/event-stream</code></td>
+<td><code>query::journal_after</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/runs</code></td>
+<td>Start a run from goal JSON, drive it in the background</td>
+<td><code>202 {&quot;run_id&quot;,&quot;status&quot;:&quot;working&quot;}</code></td>
+<td><code>cli::ops::create_run</code>, <code>drive_with</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/runs/:id/tasks</code></td>
+<td>Add a task: <code>{&quot;thread&quot;,&quot;prompt&quot;,&quot;scope&quot;:[…]}</code></td>
+<td><code>201 {&quot;task_id&quot;}</code></td>
+<td><code>tasks::submit_task</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/runs/:id/gate</code></td>
+<td><code>{&quot;decision&quot;:&quot;accept&quot;}</code> or <code>{&quot;decision&quot;:&quot;send_back&quot;,&quot;note&quot;:&quot;…&quot;}</code></td>
+<td><code>200 {&quot;run_id&quot;,&quot;status&quot;}</code></td>
+<td><code>run_status::decide_gate_and_render</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/runs/:id/resume</code></td>
+<td>Continue a run, as <code>ilvuno run --resume</code> does</td>
+<td><code>202 {&quot;run_id&quot;,&quot;status&quot;}</code></td>
+<td><code>goal::load_snapshot</code>, <code>drive_with</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>POST /runs</code> takes the same keys as <code>examples/board-experiment.json</code>. The body is the goal itself.</p>
+<h3 id="events">Events</h3>
+<p>Each journal row appended while you are connected sends one event:</p>
+<pre><code>event: journal
+id: 6
+data: {&quot;seq&quot;:6,&quot;kind&quot;:&quot;dispatch.queued&quot;,&quot;at&quot;:1795417142551}
+
+</code></pre>
+<ul>
+<li><code>id</code> is the journal <code>seq</code>. A client that reconnects sends it back as <code>Last-Event-ID</code>, and the stream
+resumes from the row after it.</li>
+<li>Without <code>Last-Event-ID</code>, the stream starts from the newest row at connect time.</li>
+<li>An empty comment line (a single <code>:</code>) is sent every 15 seconds so the connection stays open.</li>
+</ul>
+<h2 id="errors">Errors</h2>
+<p>Every error is JSON with the same two keys:</p>
+<pre><code class="language-json">{&quot;error&quot;: &quot;unknown thread nobody&quot;, &quot;kind&quot;: &quot;conflict&quot;}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Status</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bad_request</code></td>
+<td>400</td>
+<td>The body is not valid JSON, a field is missing, the goal is invalid, or the decision is unknown</td>
+</tr>
+<tr>
+<td><code>not_found</code></td>
+<td>404</td>
+<td>No run has that id, or no such route</td>
+</tr>
+<tr>
+<td><code>conflict</code></td>
+<td>409</td>
+<td>The runner refused the command (the <code>error</code> text is the runner's reason, word for word), or another run is already being driven by this process</td>
+</tr>
+<tr>
+<td><code>internal</code></td>
+<td>500</td>
+<td>Something broke inside. The detail goes to the <code>ilvunod</code> log; the response only says so</td>
+</tr>
+</tbody>
+</table>
+<h2 id="limits-in-v1">Limits in v1</h2>
+<ul>
+<li><strong>One run is driven at a time per process.</strong> A second start, resume or send-back returns 409 until the
+first reaches the gate or stops. Tasks and gate accepts do not need that slot.</li>
+<li><strong>Relative paths in a goal sent over HTTP resolve from the run's folder</strong> (<code>&lt;home&gt;/runs/&lt;id&gt;</code>), because
+there is no goal file to be next to. Use absolute paths for sources and checks in those goals. The goal
+as sent is kept in <code>&lt;home&gt;/runs/&lt;id&gt;/goal.json</code>; the engine reads the copy taken at start.</li>
+</ul>
+
+</main>
+</div>
+</body></html>
