@@ -78,8 +78,8 @@ svg.ic.sm{width:12px;height:12px}
 .rail-switch{flex:none;padding:10px 12px;border-bottom:1px solid var(--line)}
 .rail-project{display:block;margin:0 4px 4px;font-family:var(--mono);font-size:9.5px;line-height:1;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rsw{position:relative;display:flex;align-items:center}
-.rsw-select{appearance:none;-webkit-appearance:none;width:100%;height:32px;padding:0 26px 0 9px;border:1px solid var(--line);border-radius:6px;background:var(--raised);color:var(--ink);font-size:12.5px;line-height:1.4;cursor:pointer;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
-.rsw-select:hover{border-color:var(--line-2)}
+.rsw-select{appearance:none;-webkit-appearance:none;width:100%;height:32px;padding:0 26px 0 9px;border:1px solid var(--control-line);border-radius:6px;background:var(--raised);color:var(--ink);font-size:12.5px;line-height:1.4;cursor:pointer;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
+.rsw-select:hover{border-color:var(--ink-3)}
 .rsw-select:focus-visible{border-color:var(--accent)}
 .rsw-chev{position:absolute;right:9px;pointer-events:none;color:var(--ink-3)}
 .rsw-select option{background:var(--overlay);color:var(--ink)}
@@ -478,7 +478,7 @@ svg.ic.sm{width:12px;height:12px}
 .num-input{width:104px;height:30px;flex:none;background:var(--raised);border:1px solid var(--control-line);border-radius:6px;padding:0 8px;text-align:right;font-family:var(--mono);font-size:11.5px;color:var(--ink);font-variant-numeric:tabular-nums}
 .num-input:hover{border-color:var(--ink-3)}
 .num-input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.seg{display:inline-flex;flex:none;gap:2px;padding:2px;background:var(--pane);border:1px solid var(--line);border-radius:6px}
+.seg{display:inline-flex;flex:none;gap:2px;padding:2px;background:var(--pane);border:1px solid var(--control-line);border-radius:6px}
 .seg label{position:relative;display:block;cursor:pointer}
 .seg input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
 .seg span{display:inline-flex;align-items:center;height:24px;padding:0 8px;border:1px solid transparent;border-radius:4px;font-size:11.5px;line-height:1;color:var(--ink-3);white-space:nowrap;transition:background .1s,color .1s}

@@ -7,7 +7,7 @@ write the goal, name the threads, and say what finished looks like.
 Status: the engine, the board, the gate, the replay and the local API work. The window is organised the
 way you work: threads on the left, the selected thread's conversation in the middle, the run's shared work
 on the right. From it you can read a run, message a thread, stop a run, resume it, and accept or send back at
-the gate. Starting a run from a file is not there yet: the New run box takes a pasted goal.
+the gate. You can start a run from a goal file or paste the goal JSON.
 
 ## Run it
 

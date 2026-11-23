@@ -41,8 +41,9 @@ sleep "${ILVUNO_SETTLE:-6}"
 
 step "thread view, newest turn"
 shot threads.png
-click 700 400
+click 150 264
 shot conversation.png
+click 150 205
 
 step "command palette"
 key "ctrl+k"
@@ -53,7 +54,7 @@ step "settings"
 click 26 879 1.2
 shot settings.png
 step "settings: agents"
-click 413 265 3.2
+click 413 265 7.0
 shot settings-agents.png
 step "settings: defaults"
 click 434 297 1.2
@@ -62,8 +63,9 @@ key Escape
 sleep 0.6
 
 step "board, as a full view"
-click 1400 69 1.2
+click 1400 238 1.2
 shot board.png
+key Escape
 
 step "a task in the drawer"
 click 337 68 1.2

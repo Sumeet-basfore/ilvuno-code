@@ -497,7 +497,7 @@
     let s = String(text ?? '');
     const root = rootPath();
     if (root) s = s.split(root + '/').join('');
-    s = s.replace(/\/(?:[\w.\-]+\/)*runs\/([0-9a-f\-]{36})\//g, 'run/');
+    s = s.replace(/\/(?:[\w.\-]+\/)*runs\/([0-9a-f\-]{36})\//g, '/run/');
     return s;
   }
 
@@ -1190,7 +1190,7 @@
         <label class="field-label" for="gate-note">Note to the team <span>needed only to send back</span></label>
         <textarea class="gate-note" id="gate-note" rows="2" placeholder="What should change before this is accepted?">${esc(draft)}</textarea>
         <div class="gate-actions">
-          <button class="btn primary" data-act="accept-gate"${state.gateBusy ? ' disabled' : ''}>Accept and merge</button>
+          <button class="btn primary" data-act="accept-gate"${state.gateBusy ? ' disabled' : ''}>Accept</button>
           <button class="btn" data-act="send-back"${state.gateBusy ? ' disabled' : ''}>Send back with note</button>
         </div>
         <p class="gate-inline" id="gateInline" role="status" hidden></p>
@@ -1404,9 +1404,11 @@
     if (state.health === false) return 'The runner is not answering.';
     if (!thread) return 'No thread is selected.';
     if (!run) return 'No run is selected.';
+    if (run.status === 'reviewed') return 'This run is at the gate. Accept it or send it back.';
+    if (run.status === 'budget_exhausted') return 'This run spent its budget. Start a new run with a larger budget.';
     if (run.status !== 'working') {
       // A stopped run is not finished: Resume picks it up, and saying "start a new run" would hide that.
-      const resumable = ['blocked', 'budget_exhausted', 'no_progress', 'human_paused'].includes(run.status);
+      const resumable = ['blocked', 'no_progress', 'human_paused'].includes(run.status);
       return `This run is ${statusWord(run.status)}. ${resumable ? 'Resume it to continue.' : 'Start a new run to continue.'}`;
     }
     return '';
@@ -1786,12 +1788,12 @@
   function paletteActions() {
     const status = state.detail?.run?.status;
     const atGate = status === 'reviewed';
-    const canResume = ['blocked', 'budget_exhausted', 'no_progress', 'human_paused'].includes(status);
+    const canResume = ['blocked', 'no_progress', 'human_paused'].includes(status);
     const out = [{ act: 'new-run', label: 'New run', icon: 'plus', keys: 'new run start', on: true }];
     if (state.view !== 'board') out.push({ act: 'board', label: 'Show the board', icon: 'board', keys: 'board entries ledger view all', on: !!state.detail });
     if (state.view === 'board') out.push({ act: 'back-thread', label: 'Back to the conversation', icon: 'message', keys: 'conversation thread back', on: !!currentThread() || !!state.thread });
     if (atGate) {
-      out.push({ act: 'accept-gate', label: 'Accept and merge', icon: 'check', keys: 'accept merge gate done', on: true });
+      out.push({ act: 'accept-gate', label: 'Accept', icon: 'check', keys: 'accept gate done', on: true });
       out.push({ act: 'send-back', label: 'Send back with a note', icon: 'x', keys: 'send back reject gate note', on: true });
     }
     if (canResume) out.push({ act: 'resume', label: 'Resume run', icon: 'chevron-right', keys: 'resume continue blocked budget', on: true });

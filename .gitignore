@@ -9,6 +9,7 @@ runs/
 research/*.html
 docs/*.html
 context/*.html
+context/**/*.html
 # Generated prototypes and design mocks. Run tools/render-prototype.py / tools/render-app-v3.py.
 proto/
 mock/
