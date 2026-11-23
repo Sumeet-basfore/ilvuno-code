@@ -102,11 +102,11 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">1,014 words<br>9 sections<br>116 lines of source</div>
+  <div class="meta">1,044 words<br>9 sections<br>123 lines of source</div>
   <nav><a class="lvl2" href="#1-the-product-in-one-paragraph">1. The product in one paragraph</a>
 <a class="lvl2" href="#2-who-it-is-for">2. Who it is for</a>
-<a class="lvl2" href="#3-jobs-to-be-done">3. Jobs to be done</a>
-<a class="lvl2" href="#4-the-two-templates">4. The two templates</a>
+<a class="lvl2" href="#3-what-the-app-is">3. What the app is</a>
+<a class="lvl2" href="#4-what-a-task-is">4. What a task is</a>
 <a class="lvl2" href="#5-the-flow-the-ui-must-support">5. The flow the UI must support</a>
 <a class="lvl2" href="#6-non-goals-for-v1">6. Non-goals for v1</a>
 <a class="lvl2" href="#7-what-v0-must-prove-before-any-ui-exists">7. What v0 must prove before any UI exists</a>
@@ -132,70 +132,82 @@ more chat pane&quot; — it is that a handoff loses the reason for the work.</p>
 <p><strong>Secondary: the small team that has to show review evidence.</strong> They pay $24–72 per seat per month for
 AI review that never sees the conversation that produced the code.</p>
 <p>Not the user in v1: enterprises, non-coders, anyone expecting a hosted service.</p>
-<h2 id="3-jobs-to-be-done">3. Jobs to be done</h2>
+<h2 id="3-what-the-app-is">3. What the app is</h2>
+<p><strong>An interface with abilities, not a workflow with roles.</strong></p>
+<p>The app provides six things and decides nothing else:</p>
 <table>
 <thead>
 <tr>
-<th>Job</th>
-<th>Today</th>
-<th>With Ilvuno</th>
+<th>Ability</th>
+<th>What it means</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Summarise a body of sources into something cited</td>
-<td>paste sources into one agent, re-paste context, hope</td>
-<td>Goal + deliverable stated once; agents split the sources, findings land on a board, one report comes out with citations checked</td>
+<td>Threads</td>
+<td>any number, each on any agent the user has configured</td>
 </tr>
 <tr>
-<td>Ship a feature with review</td>
-<td>write with one agent, copy the diff into another, paste findings back</td>
-<td>One round: build, review, fix, then a readiness report you approve</td>
+<td>A loop</td>
+<td>turns run, the user or an orchestrator decides what happens next, a budget stops it</td>
 </tr>
 <tr>
-<td>Know what the team did</td>
-<td>scroll three transcripts</td>
-<td>One journal: every round, every dispatch, every decision</td>
+<td>A shared board</td>
+<td>every thread reads it; intents, findings, questions, decisions</td>
+</tr>
+<tr>
+<td>Messages</td>
+<td>a thread can reach another, within the policy the user picked</td>
+</tr>
+<tr>
+<td>Isolation</td>
+<td>each thread works in its own copy of the workspace, on its own branch</td>
+</tr>
+<tr>
+<td>A gate</td>
+<td>nothing lands until a human accepts, and the whole run replays from a record</td>
 </tr>
 </tbody>
 </table>
-<h2 id="4-the-two-templates">4. The two templates</h2>
-<p><strong>Agents are choices, not roles.</strong> A slot (<code>researcher-a</code>, <code>builder</code>, <code>reviewer</code>, <code>synthesizer</code>) is a
-job. Which agent fills it is the user's decision, per run. Nothing in the engine may say &quot;Claude codes,
-Codex reviews&quot;. A user who pays for one subscription must be able to fill every slot with it. The template
-offers a default; it never refuses a choice.</p>
-<p>If the reviewer is the same provider as the builder, the readiness report says so in one line — you lose
-the second opinion. That is a warning, not a refusal. The user decides.</p>
-<p><strong>Research run.</strong> Roles: orchestrator, 2–4 researchers, one synthesizer, one citation checker.
-Loop: <code>plan → gather → compare → synthesize → verify → report</code>.
-Done in v0: every <code>&lt;section&gt;</code> of the brief carries a citation that resolves to a real section of the
-source; all required sections are cited; no placeholder markers. Then the human gate.</p>
-<p>Two further checks — <em>every recorded finding is cited or rejected</em> and <em>contradictions are resolved</em> —
-are named in the goal but <strong>not implemented in v0</strong>. They are reported as <code>skip</code> with a reason at the
-gate, never as <code>pass</code>. Claim extraction is the work that would make them real; until then the human gate
-is the judge of those two, and the readiness report says so.</p>
-<p><strong>Feature run.</strong> Roles: orchestrator, builder, reviewer, merger.
-Loop: <code>plan → build → review → fix → verify → ready</code>.
-Done: the named test command exits 0; reviewer verdict is not blocking; the diff touches only declared
-paths; no new warnings in touched files. Then the human gate, then merge.</p>
-<p><code>reviewer</code> defaults to a <em>different</em> provider than <code>builder</code> because that is where the second opinion
-comes from. It is a default, not a rule: any slot can be any agent, including all slots the same.</p>
-<p>Deliverable format is a parameter in both: HTML, PDF, markdown, a diff, a test suite. Format changes the
-machine checks, never the loop.</p>
+<p><strong>No roles. No modes.</strong> There is no &quot;research mode&quot; and no &quot;coding mode&quot;. There is no
+&quot;this agent is for review&quot;. A thread is an agent plus a prompt. What the threads do is whatever the user
+asks for. The same agent can build on Monday and review on Tuesday, in the same project, without any
+setting changing.</p>
+<p><strong>The orchestrator is a thread, not a feature.</strong> If the user starts one, it is an ordinary thread with a
+system prompt that helps it plan and ask questions. It may create tasks for other threads. It has no
+special authority: the same budget, the same gate, the same record. A user who does not want one simply
+does not start one and prompts each thread by hand.</p>
+<p><strong>Research and coding are examples, not product surface.</strong> &quot;Summarise these papers&quot; and &quot;write this
+feature and have another agent review it&quot; are prompts a user writes. They are useful as example files;
+they are not modes in the engine, and the engine must not branch on them.</p>
+<h2 id="4-what-a-task-is">4. What a task is</h2>
+<p>A task is the unit of work the loop moves: a prompt, a target thread, and a declared scope (files or
+sources it may touch). Tasks come from two places, and both are normal:</p>
+<ol>
+<li><strong>The user</strong> writes a task and points it at a thread.</li>
+<li><strong>An orchestrator thread</strong> creates tasks as it plans, using the same command the user uses.</li>
+</ol>
+<p>The runner enforces only bounds, never content: how many tasks per round, the budget, the scope, and
+whether the thread's agent is configured. It does not know or care whether a task is research, code,
+review or a haiku.</p>
+<p>&quot;What done means&quot; is written by the user for the run: free text plus optional machine checks (a command
+that exits 0, a file that exists, a citation that resolves). If only free text is given, the human gate is
+the judge.</p>
 <h2 id="5-the-flow-the-ui-must-support">5. The flow the UI must support</h2>
 <ol>
-<li><strong>New run.</strong> Five fields: goal, deliverable, done checks, message policy (<code>anytime | round | never</code>),
-budget (rounds and tokens). Templates prefill everything except the goal.</li>
-<li><strong>Watch.</strong> A board (ledger) and per-thread transcripts. Board is the default view: intents, findings,
-decisions, questions — with the thread that wrote each.</li>
-<li><strong>Gate.</strong> A readiness report: which checks passed, which were skipped and why, diffs per branch, the
-reviewer's verdict. Two buttons: accept, or send back with a note.</li>
-<li><strong>Merge.</strong> Only offered after acceptance. The human decides; the runner executes, or the agent does on
+<li><strong>Project.</strong> Pick a folder and the agents you have (each an instance of a CLI you already use).</li>
+<li><strong>Threads.</strong> Add threads: name, agent, and a prompt. Or add one orchestrator thread and let it plan.</li>
+<li><strong>Tasks.</strong> The user or the orchestrator creates them: prompt + thread + scope.</li>
+<li><strong>Watch.</strong> The board is the default view — intents, findings, questions, decisions, with who wrote
+each. Per-thread transcripts behind it.</li>
+<li><strong>Gate.</strong> Readiness: what ran, what passed, what was skipped and why, diffs per branch. Accept, or
+send back with a note.</li>
+<li><strong>Merge.</strong> Only after acceptance. The human decides; the runner executes, or the agent does on
 explicit instruction. Both actors recorded.</li>
-<li><strong>Recover.</strong> A run can be parked and resumed. A crash resumes at the last journal row.</li>
+<li><strong>Recover.</strong> Park and resume; a crash resumes at the last journal row.</li>
 </ol>
-<p>Screens in v1: run list, run detail (board + transcript tabs), gate review, settings (provider instances,
-defaults, budget). Nothing else.</p>
+<p>Screens in v1: projects, project (board + threads + transcripts), gate, settings (agents, defaults,
+budget). Nothing else.</p>
 <h2 id="6-non-goals-for-v1">6. Non-goals for v1</h2>
 <p>Cloud execution, teleport, remote runners, mobile, embedded browser, computer use, org sharing,
 marketplace, scheduler/cron, merge arbitration, PTY-only agents, more than five concurrent threads,

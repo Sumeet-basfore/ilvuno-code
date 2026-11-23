@@ -25,59 +25,66 @@ AI review that never sees the conversation that produced the code.
 
 Not the user in v1: enterprises, non-coders, anyone expecting a hosted service.
 
-## 3. Jobs to be done
+## 3. What the app is
 
-| Job | Today | With Ilvuno |
-|---|---|---|
-| Summarise a body of sources into something cited | paste sources into one agent, re-paste context, hope | Goal + deliverable stated once; agents split the sources, findings land on a board, one report comes out with citations checked |
-| Ship a feature with review | write with one agent, copy the diff into another, paste findings back | One round: build, review, fix, then a readiness report you approve |
-| Know what the team did | scroll three transcripts | One journal: every round, every dispatch, every decision |
+**An interface with abilities, not a workflow with roles.**
 
-## 4. The two templates
+The app provides six things and decides nothing else:
 
-**Agents are choices, not roles.** A slot (`researcher-a`, `builder`, `reviewer`, `synthesizer`) is a
-job. Which agent fills it is the user's decision, per run. Nothing in the engine may say "Claude codes,
-Codex reviews". A user who pays for one subscription must be able to fill every slot with it. The template
-offers a default; it never refuses a choice.
+| Ability | What it means |
+|---|---|
+| Threads | any number, each on any agent the user has configured |
+| A loop | turns run, the user or an orchestrator decides what happens next, a budget stops it |
+| A shared board | every thread reads it; intents, findings, questions, decisions |
+| Messages | a thread can reach another, within the policy the user picked |
+| Isolation | each thread works in its own copy of the workspace, on its own branch |
+| A gate | nothing lands until a human accepts, and the whole run replays from a record |
 
-If the reviewer is the same provider as the builder, the readiness report says so in one line — you lose
-the second opinion. That is a warning, not a refusal. The user decides.
+**No roles. No modes.** There is no "research mode" and no "coding mode". There is no
+"this agent is for review". A thread is an agent plus a prompt. What the threads do is whatever the user
+asks for. The same agent can build on Monday and review on Tuesday, in the same project, without any
+setting changing.
 
-**Research run.** Roles: orchestrator, 2–4 researchers, one synthesizer, one citation checker.
-Loop: `plan → gather → compare → synthesize → verify → report`.
-Done in v0: every `<section>` of the brief carries a citation that resolves to a real section of the
-source; all required sections are cited; no placeholder markers. Then the human gate.
+**The orchestrator is a thread, not a feature.** If the user starts one, it is an ordinary thread with a
+system prompt that helps it plan and ask questions. It may create tasks for other threads. It has no
+special authority: the same budget, the same gate, the same record. A user who does not want one simply
+does not start one and prompts each thread by hand.
 
-Two further checks — *every recorded finding is cited or rejected* and *contradictions are resolved* —
-are named in the goal but **not implemented in v0**. They are reported as `skip` with a reason at the
-gate, never as `pass`. Claim extraction is the work that would make them real; until then the human gate
-is the judge of those two, and the readiness report says so.
+**Research and coding are examples, not product surface.** "Summarise these papers" and "write this
+feature and have another agent review it" are prompts a user writes. They are useful as example files;
+they are not modes in the engine, and the engine must not branch on them.
 
-**Feature run.** Roles: orchestrator, builder, reviewer, merger.
-Loop: `plan → build → review → fix → verify → ready`.
-Done: the named test command exits 0; reviewer verdict is not blocking; the diff touches only declared
-paths; no new warnings in touched files. Then the human gate, then merge.
+## 4. What a task is
 
-`reviewer` defaults to a *different* provider than `builder` because that is where the second opinion
-comes from. It is a default, not a rule: any slot can be any agent, including all slots the same.
+A task is the unit of work the loop moves: a prompt, a target thread, and a declared scope (files or
+sources it may touch). Tasks come from two places, and both are normal:
 
-Deliverable format is a parameter in both: HTML, PDF, markdown, a diff, a test suite. Format changes the
-machine checks, never the loop.
+1. **The user** writes a task and points it at a thread.
+2. **An orchestrator thread** creates tasks as it plans, using the same command the user uses.
+
+The runner enforces only bounds, never content: how many tasks per round, the budget, the scope, and
+whether the thread's agent is configured. It does not know or care whether a task is research, code,
+review or a haiku.
+
+"What done means" is written by the user for the run: free text plus optional machine checks (a command
+that exits 0, a file that exists, a citation that resolves). If only free text is given, the human gate is
+the judge.
 
 ## 5. The flow the UI must support
 
-1. **New run.** Five fields: goal, deliverable, done checks, message policy (`anytime | round | never`),
-   budget (rounds and tokens). Templates prefill everything except the goal.
-2. **Watch.** A board (ledger) and per-thread transcripts. Board is the default view: intents, findings,
-   decisions, questions — with the thread that wrote each.
-3. **Gate.** A readiness report: which checks passed, which were skipped and why, diffs per branch, the
-   reviewer's verdict. Two buttons: accept, or send back with a note.
-4. **Merge.** Only offered after acceptance. The human decides; the runner executes, or the agent does on
+1. **Project.** Pick a folder and the agents you have (each an instance of a CLI you already use).
+2. **Threads.** Add threads: name, agent, and a prompt. Or add one orchestrator thread and let it plan.
+3. **Tasks.** The user or the orchestrator creates them: prompt + thread + scope.
+4. **Watch.** The board is the default view — intents, findings, questions, decisions, with who wrote
+   each. Per-thread transcripts behind it.
+5. **Gate.** Readiness: what ran, what passed, what was skipped and why, diffs per branch. Accept, or
+   send back with a note.
+6. **Merge.** Only after acceptance. The human decides; the runner executes, or the agent does on
    explicit instruction. Both actors recorded.
-5. **Recover.** A run can be parked and resumed. A crash resumes at the last journal row.
+7. **Recover.** Park and resume; a crash resumes at the last journal row.
 
-Screens in v1: run list, run detail (board + transcript tabs), gate review, settings (provider instances,
-defaults, budget). Nothing else.
+Screens in v1: projects, project (board + threads + transcripts), gate, settings (agents, defaults,
+budget). Nothing else.
 
 ## 6. Non-goals for v1
 
