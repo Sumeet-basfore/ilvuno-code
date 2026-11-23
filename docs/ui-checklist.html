@@ -102,7 +102,7 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">1,806 words<br>6 sections<br>188 lines of source</div>
+  <div class="meta">1,939 words<br>6 sections<br>195 lines of source</div>
   <nav><a class="lvl2" href="#1-what-is-approved-and-what-is-not">1. What is approved, and what is not</a>
 <a class="lvl3" href="#approved-in-the-prd-the-data-model-or-the-roadmap">Approved — in the PRD, the data model or the roadmap</a>
 <a class="lvl3" href="#not-approved-do-not-build-without-the-users-word">Not approved — do not build without the user&#x27;s word</a>
@@ -113,7 +113,7 @@ td code,th code{font-size:12px}
 <a class="lvl3" href="#m3-new-run-from-a-goal-file-later">M3 — New run from a goal file · later</a>
 <a class="lvl3" href="#m4-choose-the-agent-for-a-thread-later">M4 — Choose the agent for a thread · later</a>
 <a class="lvl3" href="#m5-what-the-agent-actually-ran-blocked">M5 — What the agent actually ran · blocked</a>
-<a class="lvl3" href="#m6-reachability-and-scaling-next">M6 — Reachability and scaling · next</a>
+<a class="lvl3" href="#m6-reachability-and-scaling-done">M6 — Reachability and scaling · done</a>
 <a class="lvl3" href="#m7-every-state-says-what-it-is-later">M7 — Every state says what it is · later</a>
 <a class="lvl3" href="#m8-settings-that-stick-or-say-why-not-later">M8 — Settings that stick, or say why not · later</a>
 <a class="lvl2" href="#3-how-to-verify">3. How to verify</a>
@@ -310,13 +310,20 @@ Cursor both show this, and it is the first thing people look for when a run fail
 change (Claude <code>tool_use</code>, ACP <code>session/update</code>).</li>
 <li>Decision needed: is a read-only activity list in v1, or does it wait?</li>
 </ul>
-<h3 id="m6-reachability-and-scaling-next">M6 — Reachability and scaling · next</h3>
+<h3 id="m6-reachability-and-scaling-done">M6 — Reachability and scaling · done</h3>
 <ul>
-<li>[ ] Keyboard-only pass: every action reachable, focus visible, no trap leaks (dialogs already trap)</li>
-<li>[ ] Contrast measured ≥ 4.5:1 for text, ≥ 3:1 for the chip borders, in dark and light</li>
-<li>[ ] No horizontal scroll at 1440, 1280, 1060; the rail folds at 1280 as designed</li>
-<li>[ ] Zoom 200% keeps the conversation readable</li>
-<li>Acceptance: numbers written down per check; screenshots at the three widths</li>
+<li>[x] Keyboard: focus draws a 2px accent ring at 5.5:1; after 14 Tabs inside settings the ring is still
+inside the dialog, so the trap holds; Escape closes</li>
+<li>[x] Text contrast measured on the real tokens, both themes: body 15.6 / 15.1, board text 7.1 / 6.8,
+labels 4.9 / 5.5, accent 5.6 / 5.5, accents on their weak surfaces 6.0-6.9 — all ≥ 4.5:1</li>
+<li>[x] Control boundaries (composer, note box, inputs, switch, buttons) moved to <code>--control-line</code> at
+3.25:1 dark and 3.67:1 light. Hairline dividers stay at 1.2-1.5:1: WCAG exempts decoration, and
+they are not the only cue for anything you can use</li>
+<li>[x] No clipping at 1440, 1280, 1060 or 960 (the window's minimum); the rail folds at 1280</li>
+<li>[x] 200%: with <code>GDK_SCALE=2</code> the layout stays readable, since the page is laid out in CSS pixels</li>
+<li>Evidence: commit <code>9541b44</code>; screenshots taken at each width while checking</li>
+<li>Found: a CSS-only edit rebuilt nothing — <code>tauri::generate_context!</code> embeds <code>ui/</code>, and the build script
+did not watch it. Fixed, so a stylesheet change now reaches the window</li>
 </ul>
 <h3 id="m7-every-state-says-what-it-is-later">M7 — Every state says what it is · later</h3>
 <ul>

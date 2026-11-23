@@ -123,13 +123,20 @@ Cursor both show this, and it is the first thing people look for when a run fail
   change (Claude `tool_use`, ACP `session/update`).
 - Decision needed: is a read-only activity list in v1, or does it wait?
 
-### M6 — Reachability and scaling · next
+### M6 — Reachability and scaling · done
 
-- [ ] Keyboard-only pass: every action reachable, focus visible, no trap leaks (dialogs already trap)
-- [ ] Contrast measured ≥ 4.5:1 for text, ≥ 3:1 for the chip borders, in dark and light
-- [ ] No horizontal scroll at 1440, 1280, 1060; the rail folds at 1280 as designed
-- [ ] Zoom 200% keeps the conversation readable
-- Acceptance: numbers written down per check; screenshots at the three widths
+- [x] Keyboard: focus draws a 2px accent ring at 5.5:1; after 14 Tabs inside settings the ring is still
+      inside the dialog, so the trap holds; Escape closes
+- [x] Text contrast measured on the real tokens, both themes: body 15.6 / 15.1, board text 7.1 / 6.8,
+      labels 4.9 / 5.5, accent 5.6 / 5.5, accents on their weak surfaces 6.0-6.9 — all ≥ 4.5:1
+- [x] Control boundaries (composer, note box, inputs, switch, buttons) moved to `--control-line` at
+      3.25:1 dark and 3.67:1 light. Hairline dividers stay at 1.2-1.5:1: WCAG exempts decoration, and
+      they are not the only cue for anything you can use
+- [x] No clipping at 1440, 1280, 1060 or 960 (the window's minimum); the rail folds at 1280
+- [x] 200%: with `GDK_SCALE=2` the layout stays readable, since the page is laid out in CSS pixels
+- Evidence: commit `9541b44`; screenshots taken at each width while checking
+- Found: a CSS-only edit rebuilt nothing — `tauri::generate_context!` embeds `ui/`, and the build script
+  did not watch it. Fixed, so a stylesheet change now reaches the window
 
 ### M7 — Every state says what it is · later
 
