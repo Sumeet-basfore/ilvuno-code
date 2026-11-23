@@ -104,6 +104,11 @@ Writes `run.json`, `board.md`, `journal.jsonl`, `artifacts/`. `fixtures/board-ex
 accepted run: use it for UI work instead of inventing data. The shape is documented in
 `docs/data-model.md` under "Export bundle".
 
+## Board prototypes
+
+`tools/render-prototype.py fixtures/<name> proto` renders three layouts from one exported run:
+`proto/index.html` links them. Same real data, three arrangements; the chosen one becomes the app's run page.
+
 ## Reports are HTML, not markdown
 
 Markdown is the source; HTML is the reading artifact. Never hand-write report HTML.
