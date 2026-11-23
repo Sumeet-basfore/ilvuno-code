@@ -106,7 +106,7 @@ A thread gets the **worker** text, or the **orchestrator** text when it is the t
 The goal's `threads` entry supplies the thread's standing job; the task supplies what to do now and the
 scope. Both texts are the same text the code uses.
 
-**Worker preamble** (`worker-preamble/4`, adapted from orca's `worker-dispatch-preamble`, the design that
+**Worker preamble** (`worker-preamble/5`, adapted from orca's `worker-dispatch-preamble`, the design that
 survives uninstrumentable CLIs):
 
 ```text
@@ -119,7 +119,7 @@ Message policy for this run: <round|anytime|never>.
 
 Rules:
 - Before you touch a file, say so: `<bin> note --task <task_id> --kind intent --body "what you are about to do"`.
-- Write only inside your folder. Never switch branches. Never merge.
+- Write only inside your folder. Never switch branches. Never merge.<checkout>
 - When you need a decision you cannot make, ask and stop your turn:
   `<bin> note --task <task_id> --kind question --body "the question"`.
 - When you finish: report exactly once with `<bin> report --task <task_id> --status ok|failed
@@ -129,6 +129,9 @@ Rules:
 === TASK ===
 <task text>
 ```
+
+`<checkout>` is empty in folder mode. With a git worktree it becomes:
+`- This is a real git checkout on branch <branch>. Do not switch branches. Every change you want to keep must be left in the working tree.`
 
 **Orchestrator preamble** (`orchestrator-preamble/1`). The orchestrator plans and delegates through the
 same `ilvuno task` command the user uses. It has no authority over the gate.

@@ -26,7 +26,8 @@
 ## Technical risks, in the order they are likely to bite
 
 1. **An agent with a real checkout can destroy its branch.** Recoverable — nothing merges until the gate
-   accepts — but the diff must be readable *before* phase B turns this on for real.
+   accepts — but the diff must be readable *before* accepting. Phase B is now live (worktrees and per-task
+   commits); phase C (the gate's diff) is still missing.
 2. **A hanging hook or a custom merge driver.** Hooks are skipped on our snapshot commits (`--no-verify`).
    A custom merge driver runs inside `git merge`; it must be detected and refused before phase C merges.
 3. **A conflict mid-merge.** `git.rs` aborts and names the files, and refuses a dirty project before it

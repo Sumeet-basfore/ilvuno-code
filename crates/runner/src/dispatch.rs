@@ -3,6 +3,7 @@
 
 use crate::commands;
 use crate::execution;
+use crate::git;
 use crate::goal::{GoalPlan, MAX_USD_PER_CALL};
 use crate::home::Home;
 use crate::policy::{decision_payload, Policy, PolicyKind};
@@ -59,6 +60,9 @@ pub async fn execute<P: Provider>(
             Ok(Outcome::Applied(()))
         })?;
     }
+    // A thread's checkout is created once, before its first task. The folder path is in the DB by the
+    // time start_dispatch reads it; folder-mode runs have no branch and keep today's path.
+    let branch = ensure_checkout(store, cx, run_id, &task)?;
     crate::ledger::render_board(store.conn(), run_id, &cx.home.board_path(run_id))?;
 
     let start = match store.transact("dispatch.start", None, |tx, p| commands::start_dispatch(tx, p, run_id, task_id))? {
@@ -113,7 +117,15 @@ pub async fn execute<P: Provider>(
         ilvuno_bin: bin.clone(),
     };
     let version = if task.is_orchestrator { ORCHESTRATOR_PREAMBLE_VERSION } else { WORKER_PREAMBLE_VERSION };
-    let target = Target { run_id, task: &task, task_id, round_index, thread_dir: &thread_dir, bin: &bin };
+    let target = Target {
+        run_id,
+        task: &task,
+        task_id,
+        round_index,
+        thread_dir: &thread_dir,
+        branch: branch.as_deref(),
+        bin: &bin,
+    };
     let prompt = render_prompt(store.conn(), cx, &target)?;
     store.transact("dispatch.prompt", None, |_tx, p| {
         p.push(
@@ -149,6 +161,7 @@ pub async fn execute<P: Provider>(
         turn_text = NUDGE.to_string();
     }
     session.shutdown().await;
+    commit_turn(store, run_id, &task, task_id, &thread_dir, branch.as_deref())?;
 
     if status_of(store.conn(), task_id)? == "running" {
         fail(store, run_id, task_id, "no_report: the thread did not report after two turns")?;
@@ -211,6 +224,7 @@ struct Target<'a> {
     task_id: &'a str,
     round_index: u32,
     thread_dir: &'a Path,
+    branch: Option<&'a str>,
     bin: &'a str,
 }
 
@@ -249,8 +263,143 @@ fn render_prompt(conn: &Connection, cx: &ExecCtx<'_>, target: &Target<'_>) -> Re
         run: &run,
         message_policy: &cx.plan.file.message_policy,
         bin: target.bin,
+        branch: target.branch,
         task: &text,
     }))
+}
+
+/// The thread's checkout, created on its first task. `None` means folder mode: not a git run, or the
+/// worktree could not be made and this thread fell back. A fallback is journaled, never silent, and the
+/// task still runs.
+fn ensure_checkout(store: &mut Store, cx: &ExecCtx<'_>, run_id: &str, task: &TaskRow) -> Result<Option<String>> {
+    let (root, base): (Option<String>, Option<String>) = store.conn().query_row(
+        "SELECT git_root, git_base FROM runs WHERE id = ?1",
+        params![run_id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )?;
+    let (Some(root), Some(base)) = (root, base) else {
+        return Ok(None);
+    };
+    let (branch, path): (Option<String>, Option<String>) = store.conn().query_row(
+        "SELECT branch, worktree_path FROM threads WHERE id = ?1",
+        params![task.thread_id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )?;
+    let Some(branch) = branch else {
+        return Ok(None);
+    };
+    let folder = path.map(PathBuf::from).unwrap_or_else(|| cx.home.threads_dir(run_id).join(&task.thread));
+    let intended = cx.home.worktree_dir(run_id, &task.thread);
+    let root = PathBuf::from(root);
+
+    // Reuse a checkout that is already there. The path in the DB can lag behind a restart.
+    if intended.join(".git").exists() {
+        if folder != intended {
+            record_checkout(store, run_id, task, &intended, &branch, &base, true)?;
+        }
+        return Ok(Some(branch));
+    }
+    // A stale empty folder from an interrupted run is ours to remove.
+    if intended.exists() {
+        let _ = std::fs::remove_dir_all(&intended);
+    }
+    match git::add_worktree(&root, &intended, &branch, &base) {
+        Ok(()) => {
+            record_checkout(store, run_id, task, &intended, &branch, &base, false)?;
+            Ok(Some(branch))
+        }
+        Err(e) => {
+            let _ = git::remove_worktree(&root, &intended);
+            let _ = git::delete_branch(&root, &branch);
+            let fallback = cx.home.threads_dir(run_id).join(&task.thread);
+            store.transact("git.fallback", None, |tx, p| {
+                tx.execute(
+                    "UPDATE threads SET branch = NULL, worktree_path = ?2 WHERE id = ?1",
+                    params![task.thread_id, fallback.to_string_lossy()],
+                )?;
+                p.push(
+                    run_id,
+                    Some(&task.round_id),
+                    Some(&task.thread_id),
+                    "git.fallback",
+                    json!({ "thread": task.thread, "reason": format!("worktree not created: {e}") }),
+                );
+                Ok(Outcome::Applied(()))
+            })?;
+            Ok(None)
+        }
+    }
+}
+
+fn record_checkout(
+    store: &mut Store,
+    run_id: &str,
+    task: &TaskRow,
+    path: &Path,
+    branch: &str,
+    base: &str,
+    reused: bool,
+) -> Result<()> {
+    store.transact("git.worktree", None, |tx, p| {
+        tx.execute(
+            "UPDATE threads SET worktree_path = ?2 WHERE id = ?1",
+            params![task.thread_id, path.to_string_lossy()],
+        )?;
+        p.push(
+            run_id,
+            Some(&task.round_id),
+            Some(&task.thread_id),
+            "git.worktree",
+            json!({ "branch": branch, "path": path.to_string_lossy(), "base": base, "reused": reused }),
+        );
+        Ok(Outcome::Applied(()))
+    })?;
+    Ok(())
+}
+
+/// Commit what the turn changed, on the thread's own branch. A failed commit is journaled and the task
+/// keeps its report: the files are still in the worktree for the gate to read.
+fn commit_turn(
+    store: &mut Store,
+    run_id: &str,
+    task: &TaskRow,
+    task_id: &str,
+    folder: &Path,
+    branch: Option<&str>,
+) -> Result<()> {
+    let Some(branch) = branch else {
+        return Ok(());
+    };
+    let short: String = task_id.chars().take(8).collect();
+    let message = format!("{}: task {short}", task.thread);
+    match git::commit_all(folder, &message) {
+        Ok(Some(sha)) => {
+            store.transact("git.commit", None, |_tx, p| {
+                p.push(
+                    run_id,
+                    Some(&task.round_id),
+                    Some(&task.thread_id),
+                    "git.commit",
+                    json!({ "branch": branch, "task_id": task_id, "sha": sha }),
+                );
+                Ok(Outcome::Applied(()))
+            })?;
+        }
+        Ok(None) => {}
+        Err(e) => {
+            store.transact("git.commit_failed", None, |_tx, p| {
+                p.push(
+                    run_id,
+                    Some(&task.round_id),
+                    Some(&task.thread_id),
+                    "git.commit_failed",
+                    json!({ "branch": branch, "task_id": task_id, "reason": e.to_string() }),
+                );
+                Ok(Outcome::Applied(()))
+            })?;
+        }
+    }
+    Ok(())
 }
 
 fn worker_names(conn: &Connection, run_id: &str) -> Result<Vec<String>> {

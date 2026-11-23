@@ -41,6 +41,8 @@ Use `PRAGMA journal_mode=WAL`, `foreign_keys=ON`, `synchronous=NORMAL`.
 | `tokens_used` | INTEGER | summed from provider usage events |
 | `blocked_reason` | TEXT | nullable |
 | `accepted_by`, `merged_by` | TEXT | `human` \| `agent:<thread>` |
+| `git_root` | TEXT | nullable; the repository root when the run uses worktrees |
+| `git_base` | TEXT | nullable; the commit each thread's branch starts from |
 
 ### `threads`
 
@@ -53,8 +55,8 @@ Use `PRAGMA journal_mode=WAL`, `foreign_keys=ON`, `synchronous=NORMAL`.
 | `role` | TEXT | `orchestrator` \| `worker` (what the policy allows the thread) |
 | `provider` | TEXT | agent id (a key of `goals.providers`), e.g. `claude-main`, `codex-main` |
 | `native_session_id` | TEXT | provider's own id; nullable until created |
-| `branch` | TEXT | `run/<run>/<slug>`; null for roles without a branch |
-| `worktree_path` | TEXT | null for roles without a worktree |
+| `branch` | TEXT | `run/<run8>/<thread>` when the run uses worktrees; null in folder mode |
+| `worktree_path` | TEXT | the thread's checkout: `<home>/worktrees/<run8>/<thread>` once created, otherwise its folder under the run |
 | `status` | TEXT | `idle` \| `working` \| `waiting` \| `parked` \| `dead` |
 | `created_at`, `last_active_at` | INTEGER | |
 
@@ -206,6 +208,8 @@ The first five are what `GET /settings` and `PUT /settings` serve; see `docs/api
 3. No `merge` action unless `rounds.verdict ∈ {pass, pass_with_notes}` **and** `runs.status = accepted`.
 4. No write to a worktree other than the thread's own.
 5. `same request_id` twice ⇒ one dispatch, one receipt.
+6. No commit, checkout or merge in the project's own working tree; a thread commits only inside its own
+   worktree, on its own branch.
 
 ---
 
@@ -227,7 +231,7 @@ artifacts/      the files the run produced
 |---|---|
 | `run` | id, status, rounds_used, tokens_used, started_at, ended_at, blocked_reason, **project** (the goal file's folder) |
 | `goal` | text, done, checks, message_policy, budget |
-| `threads[]` | name, agent, role, prompt, status, native_session |
+| `threads[]` | name, agent, role, prompt, status, native_session, branch, has_checkout |
 | `rounds[]` | index, status, verdict, readiness (checks + failing), tokens, cost_usd |
 | `tasks[]` | prompt, status, created_by, scope, thread, result, **message**, round |
 | `ledger[]` | id, kind, body, scope, round, thread |

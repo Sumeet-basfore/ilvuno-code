@@ -15,10 +15,10 @@ Below half, the loop is decoration.
 Done: engine (threads, tasks, rounds, gate, budget), board, replay, export, two agent types
 (Claude native, ACP/Codex), local API with live events, four board layouts, the window (threads on the
 left, conversation in the middle, the run's work on the right), starting a run from a goal file, stopping
-and resuming it, choosing a thread's agent, honest states, tests.
+and resuming it, choosing a thread's agent, honest states, tests. A clean git project now gives each
+thread its own worktree and branch, with a commit after every task; folder mode is the fallback.
 
-Not done: git — a thread is still a folder under the run, not a branch of the project, so agents cannot
-change the project's code yet. No packaging.
+Not done: the gate's diff and accept-merge (goal 02), so nothing can land yet. No packaging.
 
 ---
 
@@ -59,7 +59,9 @@ spawn. Detect, then let the user correct.
 **Kill rule:** if starting a run needs a paragraph of instructions, the form is wrong.
 
 ### 2 · Git
-The biggest gap. Today a thread is a folder under the run; code needs a branch of the real repo.
+Phase A/B is done: a thread on a clean git project works in `ILVUNO_HOME/worktrees/<run8>/<thread>` on
+`run/<run8>/<thread>`, and the runner commits after each task. A non-repo, a dirty tree or old git falls
+back to folder mode and journals why. Phase C (the gate's diff, accept-merge) is goal 02.
 
 - One branch and one worktree per thread: `run/<run>/<thread>`.
 - Workers commit; the runner never pushes.

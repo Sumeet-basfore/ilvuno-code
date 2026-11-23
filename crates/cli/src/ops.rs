@@ -28,12 +28,16 @@ fn own_bin_dir() -> Option<PathBuf> {
 /// goal resolve from; it may depend on the new run's id. Returns the run id and the plan read back from the
 /// snapshot, so later steps use exactly what was recorded.
 pub fn create_run(store: &mut Store, home: &Home, raw: &str, base_for: impl Fn(&str) -> PathBuf) -> Result<(String, GoalPlan)> {
-    // Validate, and refuse a driver this build lacks, before any run row is written.
-    let probe = GoalPlan::from_raw(raw, home.root())?;
-    providers::build(&probe)?;
-    let new_goal = probe.new_goal()?;
+    // Validate, and refuse a driver this build lacks, before any run row is written. The preview base
+    // is the one the run will use: the goal's `base` key wins, otherwise the caller's folder.
+    let preview = GoalPlan::from_raw(raw, &base_for(""))?;
+    providers::build(&preview)?;
+    let new_goal = preview.new_goal()?;
+    // Decided once, before the transaction: the answer never changes for this run.
+    let project = runner::git::project_git(preview.base());
     let run_id = match store.transact("run.create", None, |tx, p| {
         let run_id = commands::create_run(tx, p, &new_goal, home)?;
+        commands::record_run_git(tx, p, &run_id, &new_goal.threads, &project)?;
         goal::snapshot(tx, &run_id, raw, &base_for(&run_id))?;
         Ok(Outcome::Applied(run_id))
     })? {

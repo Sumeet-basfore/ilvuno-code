@@ -20,6 +20,7 @@ Evidence, not adjectives. A row without a commit, a test or a file is a row to d
 | Choose a thread's agent, journaled with from/to | `run_status::set_thread_agent` (`d36828b`) |
 | Replay and export (run.json, board.md, journal.jsonl, artifacts) | `crates/runner/src/replay.rs`, `export.rs` |
 | Git core: worktree per thread, commit per turn, diff, merge, conflict abort | `crates/runner/src/git.rs`, 5 tests (`37e6296`) |
+| A thread works in a worktree of a clean git project, on `run/<run8>/<thread>`; one commit per task; folder mode is the fallback | `crates/api/tests/worktrees.rs` (4 tests), a real run on a throwaway repo |
 
 ### Providers
 
@@ -64,7 +65,6 @@ design mocks).
 
 | Missing | Blocks | Stage |
 |---|---|---|
-| **Threads working in real checkouts** (worktree wiring, commit per turn) | everything about changing code | 2-B |
 | **The gate showing a diff, accept merging** | landing anything | 2-C |
 | **Tool activity in the conversation** | seeing what the agent ran — the data is already journaled | 3 / M5 |
 | Budget bar, permission log, reopen-after-kill honesty | roadmap stage 3 | 3 |
@@ -80,7 +80,7 @@ an agent's shell touching `main` · inventing money figures.
 ## How to see it working
 
 ```bash
-RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace     # 141 tests
+RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace     # 147 tests
 tools/demo.sh                                       # one real run, ~12 cents of Claude
 tools/window.sh                                     # the runner and the window
 ```

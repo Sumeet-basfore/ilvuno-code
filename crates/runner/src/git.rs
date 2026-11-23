@@ -63,10 +63,51 @@ pub fn head(root: &Path) -> Result<String> {
     git_ok(root, &["rev-parse", "HEAD"])
 }
 
+/// The first eight letters and digits of a run id. The branch and the worktree folder share it.
+pub fn run8(run_id: &str) -> String {
+    run_id.chars().filter(|c| c.is_ascii_alphanumeric()).take(8).collect()
+}
+
 /// A branch name for one thread of one run: `run/<run8>/<thread>`.
 pub fn branch_name(run_id: &str, thread: &str) -> String {
-    let short: String = run_id.chars().filter(|c| c.is_ascii_alphanumeric()).take(8).collect();
-    format!("run/{short}/{}", thread.replace(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '_', "-"))
+    format!(
+        "run/{}/{}",
+        run8(run_id),
+        thread.replace(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '_', "-")
+    )
+}
+
+/// Whether a run's project can use per-thread worktrees. Decided once, at run creation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProjectGit {
+    Eligible { root: PathBuf, base: String },
+    NotEligible { reason: String },
+}
+
+/// A clean git repository at HEAD, on a git new enough for the flags we use. Anything else stays in
+/// folder mode; the reason is journaled so the fallback is visible, never silent.
+pub fn project_git(project: &Path) -> ProjectGit {
+    let Some(root) = root_of(project) else {
+        return ProjectGit::NotEligible { reason: format!("{} is not a git repository", project.display()) };
+    };
+    let version = match version() {
+        Ok(v) => v,
+        Err(e) => return ProjectGit::NotEligible { reason: format!("git --version failed: {e}") },
+    };
+    if !meets_floor(version) {
+        return ProjectGit::NotEligible {
+            reason: format!("git {}.{}.{} is older than the {}.{}.{} floor", version.0, version.1, version.2, FLOOR.0, FLOOR.1, FLOOR.2),
+        };
+    }
+    match is_clean(&root) {
+        Ok(true) => {}
+        Ok(false) => return ProjectGit::NotEligible { reason: format!("{} has uncommitted changes", root.display()) },
+        Err(e) => return ProjectGit::NotEligible { reason: format!("cannot read the git status of {}: {e}", root.display()) },
+    }
+    match head(&root) {
+        Ok(base) => ProjectGit::Eligible { root, base },
+        Err(e) => ProjectGit::NotEligible { reason: format!("{} has no commit to branch from: {e}", root.display()) },
+    }
 }
 
 /// Create the thread's worktree on a new branch at `base`. The folder must not exist yet.

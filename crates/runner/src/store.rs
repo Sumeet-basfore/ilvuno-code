@@ -12,6 +12,7 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("0003_tasks", include_str!("../migrations/0003_tasks.sql")),
     ("0004_messages", include_str!("../migrations/0004_messages.sql")),
     ("0005_messages", include_str!("../migrations/0005_messages.sql")),
+    ("0006_git", include_str!("../migrations/0006_git.sql")),
 ];
 
 pub fn now_ms() -> i64 {

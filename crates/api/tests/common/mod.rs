@@ -97,6 +97,40 @@ fn scripted_agent(home: Home) -> Box<dyn FnMut(&str) + Send> {
     })
 }
 
+/// A scripted orchestrator queues two tasks on reader-1; the worker writes one file per task and, on
+/// the second, proves it can see the first task's file. Used by the worktree tests.
+pub fn two_task_script(home: Home) -> Box<dyn FnMut(&str) + Send> {
+    Box::new(move |prompt: &str| {
+        let task_id = between(prompt, "Your task id is ", ".");
+        if prompt.contains("You are the orchestrator") {
+            let first = run_task(&home, Some(&task_id), "reader-1", "Write notes.md from the source.", &["notes.md".to_string()])
+                .expect("first task command");
+            assert!(matches!(first, Outcome::Applied(_)), "first task refused: {first:?}");
+            let second = run_task(
+                &home,
+                Some(&task_id),
+                "reader-1",
+                "Add second.md. notes.md must already be there.",
+                &["second.md".to_string()],
+            )
+            .expect("second task command");
+            assert!(matches!(second, Outcome::Applied(_)), "second task refused: {second:?}");
+            report(&home, &task_id, &[]);
+            return;
+        }
+        let folder = PathBuf::from(between(prompt, "Work only inside your folder: ", ". You may read"));
+        if prompt.contains("Add second.md") {
+            assert!(folder.join("notes.md").is_file(), "the second task sees the first task's file");
+            std::fs::write(folder.join("second.md"), "second\n").expect("second file");
+            report(&home, &task_id, &["second.md".to_string()]);
+        } else {
+            std::fs::create_dir_all(&folder).expect("worker folder");
+            std::fs::write(folder.join("notes.md"), "notes\n").expect("first file");
+            report(&home, &task_id, &["notes.md".to_string()]);
+        }
+    })
+}
+
 fn report(home: &Home, task_id: &str, files: &[String]) {
     let outcome = run_report(home, task_id, ReportStatus::Ok, "three sentences of summary.", files).expect("report command");
     assert!(matches!(outcome, Outcome::Applied(())), "report refused: {outcome:?}");

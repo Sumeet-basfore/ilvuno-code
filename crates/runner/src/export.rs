@@ -53,10 +53,16 @@ pub fn run_json(conn: &Connection, run_id: &str) -> Result<Value> {
     // The project is the folder the goal file was written in: no separate table yet.
     let project = goal::load_snapshot(conn, run_id).ok().map(|p| p.base().to_string_lossy().to_string());
 
-    let threads = rows(conn, "SELECT name, provider, role, prompt, status, native_session_id FROM threads WHERE run_id = ?1 ORDER BY name", run_id, |r| {
+    let threads = rows(conn, "SELECT name, provider, role, prompt, status, native_session_id, branch, worktree_path FROM threads WHERE run_id = ?1 ORDER BY name", run_id, |r| {
+        let branch: Option<String> = r.get(6)?;
+        let worktree: Option<String> = r.get(7)?;
+        // The checkout exists only after the thread's first task created it. A branch alone is the
+        // plan to make one, not the checkout itself.
+        let has_checkout = branch.is_some() && worktree.as_deref().is_some_and(|p| Path::new(p).join(".git").exists());
         Ok(json!({
             "name": r.get::<_, String>(0)?, "agent": r.get::<_, String>(1)?, "role": r.get::<_, String>(2)?,
             "prompt": r.get::<_, String>(3)?, "status": r.get::<_, String>(4)?, "native_session": r.get::<_, Option<String>>(5)?,
+            "branch": branch, "has_checkout": has_checkout,
         }))
     })?;
 
