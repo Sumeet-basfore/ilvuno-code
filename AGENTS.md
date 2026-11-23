@@ -116,11 +116,14 @@ accepted run: use it for UI work instead of inventing data. The shape is documen
 ## Board prototypes
 
 `tools/render-prototype.py fixtures/<name> proto` renders three layouts from one exported run:
-`proto/index.html` links them. Same real data, three arrangements; the chosen one becomes the app's run page.
+`proto/index.html` links them. Same real data, three arrangements; the chosen one becomes the app's run
+page. Generated, not committed.
 
 ## Reports are HTML, not markdown
 
-Markdown is the source; HTML is the reading artifact. Never hand-write report HTML.
+Markdown is the source; HTML is the reading artifact. Never hand-write report HTML. The generated HTML is
+for reading here and is **not committed** — `research/*.html`, `docs/*.html`, `proto/` and `mock/` are in
+`.gitignore`. GitHub renders the Markdown; the tool makes the HTML when you want it.
 
 ```bash
 python3 tools/render-report.py --index research "Ilvuno — research reports" "<lede>"

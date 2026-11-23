@@ -63,13 +63,14 @@ Endpoints and error shapes: `docs/api.md`. Loopback only, no auth in v1.
 tools/window.sh      # starts the runner if it is not running, then opens the window
 ```
 
-The window is a plain page in `crates/desktop/ui/` (no npm, no bundler). It only reads the local API and
-accepts or sends back a run at the gate. The layout is `proto/4-mix.html`.
+The window is a plain page in `crates/desktop/ui/` (no npm, no bundler). It reads the local API: threads
+on the left, the selected thread's conversation in the middle, the run's board, checks and gate on the
+right.
 
 ## The board prototypes
 
-`proto/index.html` — four layouts of one real run, `4-mix.html` is the chosen one. They read
-`fixtures/board-experiment/`, nothing invented. Regenerate with:
+Four layouts of one real run, from `fixtures/board-experiment/`, nothing invented. The fourth became the
+run page. The output is generated and not committed; make it with:
 
 ```bash
 python3 tools/render-prototype.py fixtures/board-experiment proto
