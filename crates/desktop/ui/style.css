@@ -220,9 +220,12 @@ svg.ic.sm{width:12px;height:12px}
 
 /* ---------- centre: run banners and empty ---------- */
 .runstop{margin:16px 0 0;border:1px solid var(--red-line);border-left:2px solid var(--red);border-radius:8px;background:var(--red-weak);padding:11px 13px}
+.waiting-note{display:flex;align-items:flex-start;gap:7px;margin:2px 0 14px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--pane);font-size:12px;line-height:1.5;color:var(--ink-2)}
+.waiting-note .ic{flex:none;margin-top:1px;color:var(--ink-3)}
 .runstop-head{display:flex;align-items:center;gap:7px;color:var(--red);font-size:12.5px;font-weight:600}
 .runstop p{margin:5px 0 9px;font-size:12px;line-height:1.5;color:var(--ink-2);max-width:66ch;white-space:pre-wrap;overflow-wrap:anywhere}
 .runstop-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.runstop-next{font-size:11.5px;line-height:1.4;color:var(--ink-2)}
 .runstop-meta{font-family:var(--mono);font-size:9.5px;color:var(--ink-3)}
 .empty-state{min-height:calc(100vh - 44px - 40px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 24px}
 .empty-gem{color:var(--accent);font-size:16px;line-height:1;margin-bottom:14px;opacity:.9}

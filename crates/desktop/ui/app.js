@@ -506,6 +506,17 @@
     return d?.run?.rounds_used ?? d?.rounds?.length ?? 0;
   }
 
+  // `working` means the drive has not stopped. It can still be doing nothing: the round is closed and no
+  // task is queued. Saying "working" there is true on paper and false on screen, so the window says the
+  // thing a person can check: nothing is running, and a message starts the next round.
+  function runIsWaiting() {
+    const d = state.detail;
+    if (!d || d.run?.status !== 'working') return false;
+    const running = (d.tasks || []).some((t) => t.status === 'running');
+    const open = (d.rounds || []).some((r) => r.status === 'open');
+    return !running && !open;
+  }
+
   function statusWord(status) {
     return String(status || 'unknown').replace(/_/g, ' ');
   }
@@ -849,7 +860,7 @@
     const budget = d.goal?.budget || {};
     const atGate = run.status === 'reviewed';
     return [
-      statusChip(run.status),
+      statusChip(runIsWaiting() ? 'waiting' : run.status),
       chip(`${roundsUsed()}/${budget.rounds ?? '—'} rounds · ${compact(run.tokens_used)}/${budget.tokens ? compact(budget.tokens) : '—'} tokens`, 'num'),
       atGate ? `<button class="meta-btn" data-act="focus-gate">${ic('check', 'ic sm')}Gate open</button>` : '',
       // One click, no dialog: nothing is merged, and Resume sits in the stop banner afterwards.
@@ -963,17 +974,29 @@
     renderAll();
   }
 
+  // A stopped run has to say what stopped it and whether asking again would change anything. Resume is
+  // offered only where it can; a spent token budget cannot be resumed by pressing a button.
   function runStopBanner() {
     const run = state.detail.run;
-    if (!['blocked', 'budget_exhausted', 'no_progress', 'human_paused'].includes(run.status)) return '';
-    const reason = run.blocked_reason || 'The run stopped and nothing was merged.';
+    const shapes = {
+      blocked: { title: 'Run blocked', resume: true, fallback: 'The round did not pass, so nothing was merged.' },
+      no_progress: { title: 'No progress', resume: true, fallback: 'Two rounds ended the same way, so nothing was merged.' },
+      budget_exhausted: { title: 'Token budget spent', resume: false, fallback: 'The run reached its token budget, so nothing was merged.' },
+      human_paused: { title: 'Run paused', resume: true, fallback: 'A person stopped this run. The turn in flight finished.' },
+    };
+    const shape = shapes[run.status];
+    if (!shape) return '';
+    const budget = state.detail.goal?.budget || {};
+    const spent = `${fmt(run.tokens_used)}${budget.tokens ? ' of ' + fmt(budget.tokens) : ''} tokens`;
     return `
-      <section class="runstop" role="alert">
-        <div class="runstop-head">${ic('alert-triangle')}<span>Run ${esc(statusWord(run.status))}</span></div>
-        <p>${esc(reason)}</p>
+      <section class="runstop">
+        <div class="runstop-head">${ic('alert-triangle')}<span>${esc(shape.title)}</span></div>
+        <p>${esc(run.blocked_reason || shape.fallback)}</p>
         <div class="runstop-actions">
-          <button class="btn" data-act="resume">Resume run</button>
-          <span class="runstop-meta">${fmt(run.tokens_used)} tokens · ${roundsUsed()} round${roundsUsed() === 1 ? '' : 's'}</span>
+          ${shape.resume
+            ? '<button class="btn" data-act="resume">Resume run</button>'
+            : '<span class="runstop-next">A new run with a larger budget is the way forward.</span>'}
+          <span class="runstop-meta">${spent} · ${roundsUsed()} round${roundsUsed() === 1 ? '' : 's'}</span>
         </div>
       </section>`;
   }
@@ -1002,6 +1025,9 @@
         <p class="th-sub">${thread.tasks.length} ${thread.tasks.length === 1 ? 'task' : 'tasks'} in this run${task ? ` · last in round ${esc(task.round ?? '—')}` : ''}</p>
       </div>
       ${runStopBanner()}
+      ${runIsWaiting()
+        ? `<p class="waiting-note">${ic('alert-triangle', 'ic sm')}Nothing is running. The round is closed and no task is waiting — message a thread to start the next one.</p>`
+        : ''}
       <div class="conv" role="log" aria-label="Conversation with ${esc(thread.name)}">
         ${thread.tasks.length
           ? thread.tasks.map((t) => `<article class="ex">${askHtml(t)}${replyHtml(t)}</article>`).join('')
@@ -1107,7 +1133,7 @@
           <span class="empty-gem" aria-hidden="true">◆</span>
           <p>No runs yet — start one when you have a goal for your agents.</p>
           <div class="empty-actions"><button class="btn primary" data-act="new-run">${ic('plus')}New run</button></div>
-          <p class="empty-note">POST /runs on 127.0.0.1:4737</p>
+          <p class="empty-note">A goal says what to do, what done looks like, and which agents may work on it.</p>
         </div>`;
     }
     return '<p class="facts-empty" style="padding:24px">Reading the run…</p>';
@@ -1121,7 +1147,9 @@
     return rounds.map((r) => {
       const checks = r.readiness?.checks || [];
       // A round with a failed task never runs its checks, so `failing` is the only reason it has.
-      const failing = (r.readiness?.failing || []).map((f) => String(f).replace(/^task-failed:/, 'task failed: '));
+      const failing = (r.readiness?.failing || [])
+        .filter((f) => String(f).startsWith('task-failed:'))
+        .map((f) => String(f).replace(/^task-failed:/, 'task failed: '));
       return `
         <div class="chk-round">Round ${esc(r.index)}${r.verdict ? ' · ' + esc(statusWord(r.verdict)) : ''}</div>
         ${checks.map((c) => `
@@ -1201,7 +1229,11 @@
           <div class="path">${esc(shortProject() || '—')}</div>
           <div class="frow"><span>Runs</span><span class="v">${state.runs.length}</span></div>
         </div>
-        <p class="facts-empty">${state.health === false ? 'The runner is not answering, so there is nothing to check.' : 'The board fills in as threads report.'}</p>`;
+        <p class="facts-empty">${state.health === false
+          ? 'The runner is not answering, so there is nothing to check.'
+          : state.runs.length
+            ? 'Pick a run to see its board, checks and gate.'
+            : 'A run puts its board, checks and gate here.'}</p>`;
     }
 
     const { rounds = [], threads = [], ledger = [] } = state.detail;
@@ -1291,7 +1323,7 @@
     const pct = cap ? Math.min(100, Math.round((tokens / cap) * 100)) : 0;
     return `
       <section class="fsec" aria-labelledby="sec-run">
-        <div class="fsec-head"><h2 id="sec-run">Run</h2><span class="n">${esc(statusWord(run.status))}</span></div>
+        <div class="fsec-head"><h2 id="sec-run">Run</h2><span class="n">${esc(runIsWaiting() ? 'waiting' : statusWord(run.status))}</span></div>
         <div class="frow"><span>Folder</span><span class="v" title="${esc(run.project || '')}">${esc(tailPath(run.project) || '—')}</span></div>
         <div class="frow"><span>Id</span><span class="v" title="${esc(run.id || '')}">${esc(String(run.id || '—').slice(0, 8))}</span></div>
         <div class="frow"><span>Ran for</span><span class="v">${esc(ranFor)}</span></div>
