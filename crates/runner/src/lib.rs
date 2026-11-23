@@ -6,6 +6,7 @@ pub mod dispatch;
 pub mod driver;
 pub mod execution;
 pub mod export;
+pub mod git;
 pub mod goal;
 pub mod home;
 pub mod ledger;
