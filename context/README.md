@@ -14,6 +14,7 @@ Read it in this order if you are new:
 | [`disagreements.md`](disagreements.md) | Where the user corrected the agent, where the agent pushed back, and how each ended. |
 | [`features.md`](features.md) | What exists, what does not, what we refused — with the evidence. |
 | [`risks.md`](risks.md) | Open questions, known limits, and what would change the plan. |
+| [`prompts/`](prompts/README.md) | One goal per file, ready to run in an agent loop. House rules live there. |
 
 ## The short version
 

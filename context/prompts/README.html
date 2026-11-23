@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompts to run in a loop</title>
+<style>
+:root{
+  --paper:#f6f4ef; --paper-2:#efece4; --ink:#16150f; --ink-2:#56524a; --ink-3:#6e6a5e;
+  --rule:#d8d3c7; --accent:#9e3b22; --accent-soft:#f1e5dd; --code-bg:#efece4;
+  --mono:"JetBrains Mono","Liberation Mono",ui-monospace,monospace;
+  --sans:"Liberation Sans","Noto Sans",Inter,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0; color:var(--ink); background:var(--paper);
+  font-family:var(--sans); font-size:16.5px; line-height:1.62;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility}
+.wrap{display:grid; grid-template-columns:248px minmax(0,1fr); gap:52px;
+  max-width:1180px; margin:0 auto; padding:56px 40px 120px}
+/* ---------- sidebar ---------- */
+aside{position:sticky; top:40px; align-self:start; max-height:calc(100vh - 80px);
+  overflow:auto; padding-left:16px; border-left:2px solid var(--accent)}
+aside .kicker{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+aside .meta{font-family:var(--mono); font-size:11px; color:var(--ink-3); line-height:1.7; margin-top:10px}
+aside nav{margin-top:22px}
+aside nav a{display:block; color:var(--ink-2); text-decoration:none; font-size:13px;
+  line-height:1.35; padding:4px 0 4px 10px; border-left:1px solid transparent; margin-left:-11px}
+aside nav a:hover{color:var(--ink); border-left-color:var(--rule)}
+aside nav a.lvl3{padding-left:22px; font-size:12.2px; color:var(--ink-3)}
+aside .back{display:inline-block; margin-top:26px; font-family:var(--mono); font-size:11px;
+  color:var(--ink-3); text-decoration:none; border-bottom:1px solid var(--rule)}
+/* ---------- content ---------- */
+main{max-width:74ch}
+h1,h1 a,h2,h2 a,h3,h3 a,h4,h4 a{color:inherit}
+h1{font-size:36px; line-height:1.08; letter-spacing:-.022em; margin:0 0 10px; font-weight:700}
+h1 + p, h1 + blockquote{color:var(--ink-2); font-size:16.5px}
+h2{font-size:23px; line-height:1.2; letter-spacing:-.014em; margin:52px 0 14px; padding-top:16px;
+  border-top:1px solid var(--rule); font-weight:700}
+h2:first-of-type{border-top:0; padding-top:0; margin-top:34px}
+h3{font-size:17px; margin:30px 0 8px; letter-spacing:-.006em}
+h4{font-size:14.5px; margin:22px 0 6px; color:var(--ink-2)}
+p{margin:0 0 14px}
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--accent-soft)}
+a:hover{border-bottom-color:var(--accent)}
+ul,ol{margin:0 0 16px; padding-left:22px}
+li{margin:5px 0}
+li::marker{color:var(--ink-3)}
+hr{border:0; border-top:1px solid var(--rule); margin:38px 0}
+/* a markdown --- right before a heading already gets the heading's rule */
+hr:has(+ h2){display:none}
+hr + h2{border-top:0; padding-top:0; margin-top:44px}
+blockquote{margin:22px 0; padding:2px 0 2px 18px; border-left:2px solid var(--accent);
+  color:var(--ink-2)}
+blockquote p{margin:0 0 8px}
+blockquote p:last-child{margin:0}
+code{font-family:var(--mono); font-size:.855em; background:var(--code-bg);
+  padding:1.5px 5px; border-radius:2px; color:#2a2620; overflow-wrap:break-word}
+pre{background:var(--code-bg); padding:15px 17px; overflow-x:auto; margin:0 0 20px;
+  border-left:2px solid var(--ink-3); line-height:1.5}
+pre code{background:none; padding:0; font-size:12.6px; white-space:pre}
+table{width:100%; border-collapse:collapse; margin:8px 0 26px; font-size:13.6px}
+thead th{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:400; text-align:left; padding:0 12px 7px 0;
+  border-bottom:1.2px solid var(--ink); vertical-align:bottom}
+tbody td{padding:8px 12px 8px 0; border-bottom:1px solid var(--rule); vertical-align:top; line-height:1.45}
+tbody td:first-child{font-weight:700}
+td code,th code{font-size:12px}
+/* ---------- index ---------- */
+.index{max-width:1020px; margin:0 auto; padding:64px 40px 120px}
+.index .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+.index h1{margin-top:14px}
+.index .lede{color:var(--ink-2); font-size:18px; max-width:62ch; margin:14px 0 38px; line-height:1.55}
+.index ol{list-style:none; padding:0; margin:0; border-top:1.2px solid var(--ink)}
+.index li{border-bottom:1px solid var(--rule)}
+.index a.row{display:grid; grid-template-columns:34px minmax(0,1fr) 76px; gap:18px;
+  align-items:start; padding:16px 4px 16px 0; text-decoration:none; border:0; color:inherit}
+.index a.row:hover{background:var(--paper-2)}
+.index .n{font-family:var(--mono); font-size:11.5px; color:var(--accent); white-space:nowrap;
+  padding-top:4px}
+.index .t{font-size:17px; font-weight:700; letter-spacing:-.008em; line-height:1.3}
+.index .d{font-size:13.4px; color:var(--ink-2); margin-top:4px; line-height:1.5}
+.index .w{font-family:var(--mono); font-size:11px; color:var(--ink-3); text-align:right; padding-top:4px}
+@media (max-width:980px){
+  .wrap{grid-template-columns:1fr; gap:0; padding:32px 20px 80px}
+  aside{position:static; max-height:none; margin-bottom:28px}
+  aside nav{display:none}
+  .index{padding:32px 20px 80px}
+  .index a.row{grid-template-columns:1fr; gap:4px}
+  .index .w{text-align:left}
+  table{display:block; overflow-x:auto; white-space:nowrap}
+  table td,table th{white-space:normal}
+}
+@media print{
+  aside{display:none} .wrap{grid-template-columns:1fr; max-width:100%; padding:0}
+  body{font-size:11pt} h2{break-after:avoid} table,pre{break-inside:avoid}
+  a{color:inherit; border:0}
+}
+</style>
+</head><body>
+<div class="wrap">
+<aside>
+  <div class="kicker">Research report</div>
+  <div class="meta">672 words<br>1 sections<br>83 lines of source</div>
+  <nav><a class="lvl2" href="#the-house-rules-every-prompt-inherits-these">The house rules — every prompt inherits these</a>
+<a class="lvl3" href="#the-project">The project</a>
+<a class="lvl3" href="#read-before-acting">Read before acting</a>
+<a class="lvl3" href="#always">Always</a>
+<a class="lvl3" href="#never">Never</a>
+<a class="lvl3" href="#delegation">Delegation</a>
+<a class="lvl3" href="#verification-a-milestone-is-not-done-because-it-compiles">Verification — a milestone is not done because it compiles</a>
+<a class="lvl3" href="#loop-discipline">Loop discipline</a>
+<a class="lvl3" href="#the-report-you-leave">The report you leave</a></nav>
+  <a class="back" href="index.html">&larr; index</a>
+</aside>
+<main>
+<h1>Prompts to run in a loop</h1>
+<p>Each file here is one <strong>goal</strong> for an agent loop. Paste the block as the goal, let it iterate, read the
+report it leaves.</p>
+<table>
+<thead>
+<tr>
+<th>Order</th>
+<th>File</th>
+<th>Goal</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>—</td>
+<td><a href="00-verify-and-harden.md"><code>00-verify-and-harden.md</code></a></td>
+<td>prove the current build still works; fix regressions, add nothing</td>
+<td>run any time</td>
+</tr>
+<tr>
+<td>1</td>
+<td><a href="01-stage2-worktrees.md"><code>01-stage2-worktrees.md</code></a></td>
+<td>a thread works in a git worktree of the project, on its own branch</td>
+<td>ready</td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="02-stage2-gate-diff-and-merge.md"><code>02-stage2-gate-diff-and-merge.md</code></a></td>
+<td>the gate shows the diff; accepting merges it</td>
+<td>after 01</td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="03-tool-activity.md"><code>03-tool-activity.md</code></a></td>
+<td>the conversation shows what the agent actually ran</td>
+<td><strong>needs the owner's yes</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="04-first-dogfood-change.md"><code>04-first-dogfood-change.md</code></a></td>
+<td>Ilvuno changes Ilvuno, once, for real</td>
+<td>after 01 + 02</td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="05-truth-in-the-ui.md"><code>05-truth-in-the-ui.md</code></a></td>
+<td>budget bar, permission log, an honest reopen after a kill</td>
+<td>after 02</td>
+</tr>
+<tr>
+<td>6</td>
+<td><a href="06-packaging.md"><code>06-packaging.md</code></a></td>
+<td>an installable Linux build</td>
+<td>last</td>
+</tr>
+</tbody>
+</table>
+<p>Run them <strong>in order</strong>. 01 and 02 together are stage 2, and 04 cannot begin before both.</p>
+<hr />
+<h2 id="the-house-rules-every-prompt-inherits-these">The house rules — every prompt inherits these</h2>
+<p>Every prompt below starts with &quot;read this file and follow the house rules&quot;. This is that file. Do not
+copy these rules into a prompt; change them here.</p>
+<h3 id="the-project">The project</h3>
+<p><code>/home/sumeet/personal-repo/projects/ilvuno-second</code> — Ilvuno. A desktop app where several coding-agent CLIs
+work on one project in recorded rounds, share a written board, and nothing lands until a person accepts it.
+Rust engine (<code>crates/runner</code>), local HTTP API (<code>crates/api</code>, 127.0.0.1:4737), Tauri window (<code>crates/desktop</code>).</p>
+<h3 id="read-before-acting">Read before acting</h3>
+<ol>
+<li><code>context/README.md</code>, then <code>context/story.md</code>, <code>context/decisions.md</code>, <code>context/features.md</code>,
+<code>context/risks.md</code> — the project's memory, including what was tried and refused.</li>
+<li><code>AGENTS.md</code> — the project rules.</li>
+<li>Whatever the prompt names.</li>
+</ol>
+<h3 id="always">Always</h3>
+<ul>
+<li><code>RUSTUP_TOOLCHAIN=1.100.0</code> on <strong>every</strong> cargo command. Plain <code>cargo</code> uses a broken toolchain on this
+machine.</li>
+<li>Work on a <strong>new branch</strong>. Commit after each verified milestone. Push the branch. <strong>Do not merge to main
+and do not push main</strong> — the human merges.</li>
+<li>The smallest change that fully works. No new dependency without asking. Match the surrounding code.</li>
+<li>Plain English in docs and UI copy: short sentences, everyday words. English is the reader's second
+language.</li>
+<li>Update <code>context/</code> as part of the work: a line in <code>timeline.md</code>, any decision in <code>decisions.md</code>, and — if
+you were wrong about something — an entry in <code>disagreements.md</code>. <strong>Append, never rewrite.</strong></li>
+</ul>
+<h3 id="never">Never</h3>
+<ul>
+<li>force-push, <code>git reset --hard</code>, <code>git clean -fdx</code>, or delete a branch you did not create.</li>
+<li><code>pkill</code> / <code>killall</code>. Kill only a PID you started.</li>
+<li>touch <code>.env</code>, credentials, or any secret.</li>
+<li>let an agent's shell touch <code>main</code>.</li>
+<li>add PTY agents, a scheduler, cloud or multi-user support (<code>docs/prd.md</code> §6).</li>
+<li>commit generated pages (<code>research/*.html</code>, <code>docs/*.html</code>, <code>context/*.html</code>, <code>proto/</code>, <code>mock/</code>).</li>
+</ul>
+<h3 id="delegation">Delegation</h3>
+<p>Sub-agents are allowed <strong>only</strong> on model <code>gpt-6-luna</code> with <code>reasoningEffort: &quot;xhigh&quot;</code>. No other model, no
+exceptions. If you cannot set exactly that, do the work yourself. Never delegate the final verification of a
+milestone.</p>
+<h3 id="verification-a-milestone-is-not-done-because-it-compiles">Verification — a milestone is not done because it compiles</h3>
+<ul>
+<li><code>RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace</code> passes, with new tests for new behaviour.</li>
+<li>Anything visual: build and <strong>look at the real window</strong> (<code>tools/shot.sh out.png 1440 900</code>), then read the
+image. Never claim a layout works unseen.</li>
+<li>Anything about a run: a real run, or the scripted provider in the API tests. Never a mock written for the
+occasion.</li>
+<li>Report numbers, not adjectives: test counts, measured contrast, real token counts.</li>
+</ul>
+<h3 id="loop-discipline">Loop discipline</h3>
+<ul>
+<li>Each iteration ends with a <strong>commit</strong> or a <strong>written blocker</strong>. No silent loops.</li>
+<li>If the goal is already met, stop and say so.</li>
+<li>If you cannot verify something, say exactly what you could not verify and stop. Do not claim it.</li>
+</ul>
+<h3 id="the-report-you-leave">The report you leave</h3>
+<p>A short file at <code>context/prompts/reports/&lt;date&gt;-&lt;prompt&gt;.md</code>: what changed (with commit hashes), what you
+verified and how, what you could not verify, and what is still open. Five short sections. No prose.</p>
+
+</main>
+</div>
+</body></html>
