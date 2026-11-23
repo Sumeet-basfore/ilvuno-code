@@ -38,7 +38,10 @@ fi
 for p in $(pgrep -fx "./target/debug/desktop" || true); do kill "$p" 2>/dev/null || true; done
 cargo build -q -p desktop
 
-DISPLAY="$DISP" ./target/debug/desktop >/tmp/desktop.log 2>&1 &
+# The window opens at 1440x900 from tauri.conf.json unless we say otherwise; resizing the X window
+# afterwards does not resize the page without a window manager.
+ILVUNO_WINDOW_SIZE="${W}x${H}" DISPLAY="$DISP" ./target/debug/desktop >/tmp/desktop.log 2>&1 &
 sleep "${ILVUNO_SETTLE:-6}"
+
 DISPLAY="$DISP" import -window root "$OUT"
 identify "$OUT"

@@ -19,6 +19,14 @@ step() { echo "→ $1"; }
 for p in $(pgrep -fx "./target/debug/desktop" || true); do kill "$p" 2>/dev/null || true; done
 cargo build -q -p desktop
 
+# The screen size is fixed when the display starts; another size means a fresh display.
+if xdpyinfo -display "$DISP" >/dev/null 2>&1; then
+  have=$(xdpyinfo -display "$DISP" | awk '/dimensions:/ {print $2}')
+  if [ "$have" != "${W}x${H}" ]; then
+    for p in $(pgrep -x Xvfb); do tr '\0' ' ' < "/proc/$p/cmdline" | grep -q "$DISP" && kill "$p"; done
+    sleep 0.8
+  fi
+fi
 if ! xdpyinfo -display "$DISP" >/dev/null 2>&1; then
   Xvfb "$DISP" -screen 0 "${W}x${H}x24" >/tmp/xvfb.log 2>&1 &
   sleep 1.2
@@ -28,7 +36,7 @@ shot() { DISPLAY="$DISP" xdotool mousemove 720 640; sleep 0.3; DISPLAY="$DISP" i
 click() { DISPLAY="$DISP" xdotool mousemove "$1" "$2" click 1; sleep "${3:-0.7}"; }
 key() { DISPLAY="$DISP" xdotool key "$1"; sleep "${2:-0.7}"; }
 
-DISPLAY="$DISP" ./target/debug/desktop >/tmp/desktop.log 2>&1 &
+ILVUNO_WINDOW_SIZE="${W}x${H}" DISPLAY="$DISP" ./target/debug/desktop >/tmp/desktop.log 2>&1 &
 sleep "${ILVUNO_SETTLE:-6}"
 
 step "thread view, newest turn"

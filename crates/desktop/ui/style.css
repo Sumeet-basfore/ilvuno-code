@@ -279,8 +279,11 @@ svg.ic.sm{width:12px;height:12px}
 .fsec-link{margin-left:auto;font-family:var(--mono);font-size:9.5px;line-height:1;letter-spacing:.04em;color:var(--ink-3);text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line-2);white-space:nowrap}
 .fsec-link:hover{color:var(--ink);text-decoration-color:var(--ink-3)}
 .frow{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:3px 0;font-size:12px;line-height:1.4;color:var(--ink-2)}
-.frow .v{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.frow .v{min-width:0;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 .frow .v b{font-weight:400;color:var(--ink)}
+.bar{height:3px;margin:7px 0 1px;border-radius:2px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar.hot i{background:var(--red)}
 .chk-round{margin:7px 0 2px;font-family:var(--mono);font-size:9px;line-height:1.2;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
 .chk-round:first-child{margin-top:0}
 .chk{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px;padding:3px 0}

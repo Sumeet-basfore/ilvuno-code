@@ -462,6 +462,13 @@
     return String(path || '').replace(/^\/home\/[^/]+/, '~');
   }
 
+  // The rail has room for two folder names, not the whole path; the title attribute keeps the rest.
+  function tailPath(path, keep = 2) {
+    const parts = String(path || '').split('/').filter(Boolean);
+    if (parts.length <= keep) return parts.join('/');
+    return '…/' + parts.slice(-keep).join('/');
+  }
+
   // Paths are shown relative to the repo root, the same way the export does it.
   function rootPath() {
     const project = projectPath();
@@ -1183,6 +1190,7 @@
     }).join('');
 
     return `
+      ${runFactsHtml(state.detail.run)}
       <section class="fsec" aria-labelledby="sec-board">
         <div class="fsec-head"><h2 id="sec-board">Board</h2><span class="n">${ledger.length}</span>
           <button class="fsec-link" data-act="board">View all</button></div>
@@ -1210,6 +1218,35 @@
   function roundOfArtifact(a) {
     const m = String(a.path || '').match(/\/rounds\/r(\d+)\//);
     return m ? Number(m[1]) : -1;
+  }
+
+  function fmtDuration(ms) {
+    const s = Math.max(0, Math.round(Number(ms) / 1000));
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ${s % 60}s`;
+    return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
+  }
+
+  // What the run is, in one block. Every value is a field on GET /runs/:id; nothing is estimated,
+  // and a missing value shows a dash rather than a zero.
+  function runFactsHtml(run) {
+    const budget = state.detail?.goal?.budget || {};
+    const started = Number(run.started_at || 0);
+    const ranFor = started ? fmtDuration((run.ended_at ? Number(run.ended_at) : Date.now()) - started) : '—';
+    const tokens = Number(run.tokens_used || 0);
+    const cap = Number(budget.tokens || 0);
+    const pct = cap ? Math.min(100, Math.round((tokens / cap) * 100)) : 0;
+    return `
+      <section class="fsec" aria-labelledby="sec-run">
+        <div class="fsec-head"><h2 id="sec-run">Run</h2><span class="n">${esc(statusWord(run.status))}</span></div>
+        <div class="frow"><span>Folder</span><span class="v" title="${esc(run.project || '')}">${esc(tailPath(run.project) || '—')}</span></div>
+        <div class="frow"><span>Id</span><span class="v" title="${esc(run.id || '')}">${esc(String(run.id || '—').slice(0, 8))}</span></div>
+        <div class="frow"><span>Ran for</span><span class="v">${esc(ranFor)}</span></div>
+        <div class="frow"><span>Rounds</span><span class="v"><b>${roundsUsed()}</b>${budget.rounds ? ' / ' + esc(budget.rounds) : ''}</span></div>
+        <div class="frow"><span>Tokens</span><span class="v"><b>${compact(tokens)}</b>${cap ? ' / ' + compact(cap) : ''}</span></div>
+        ${cap ? `<div class="bar${pct >= 90 ? ' hot' : ''}" role="img" aria-label="${pct}% of this run's token budget used"><i style="width:${pct}%"></i></div>` : ''}
+      </section>`;
   }
 
   function renderFacts() {
