@@ -1887,6 +1887,41 @@
     el.hidden = !message;
   }
 
+  // The goal lives in a file. The picker returns a path; the window asks the shell to read it, because
+  // the page itself has no file access.
+  async function openGoalFrom(path) {
+    if (!path) return;
+    try {
+      const text = await window.__TAURI__.core.invoke('read_goal', { path });
+      JSON.parse(text); // a goal must be JSON; the runner says the rest when Start is pressed
+      const area = $('#nr-goal');
+      if (area) area.value = text;
+      const shown = $('#nr-path');
+      if (shown) shown.value = path;
+      newRunError('');
+      showToast(`Read ${path.split('/').pop()}.`);
+    } catch (err) {
+      newRunError(err && err.message ? err.message : String(err));
+    }
+  }
+
+  async function browseGoal() {
+    if (!window.__TAURI__ || !window.__TAURI__.dialog) {
+      newRunError('This window has no file picker. Type the path and press Open.');
+      return;
+    }
+    try {
+      const picked = await window.__TAURI__.dialog.open({
+        multiple: false,
+        directory: false,
+        filters: [{ name: 'Goal', extensions: ['json'] }],
+      });
+      if (picked) await openGoalFrom(typeof picked === 'string' ? picked : picked.path);
+    } catch (err) {
+      newRunError(err && err.message ? err.message : String(err));
+    }
+  }
+
   async function startRun() {
     if (state.startBusy) return;
     const raw = $('#nr-goal')?.value.trim() || '';
@@ -2231,6 +2266,12 @@
       }
       case 'start-run':
         startRun();
+        break;
+      case 'browse-goal':
+        browseGoal();
+        break;
+      case 'open-goal':
+        openGoalFrom($('#nr-path')?.value.trim());
         break;
       case 'reload-agents':
         state.agentsError = '';
