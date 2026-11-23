@@ -48,10 +48,17 @@ crates/
   provider-claude/   stream-json + control protocol
   provider-acp/      agent-client-protocol wrapper
   cli/               `ilvuno run | status | gate | freeze | replay`
+  api/               `ilvunod`, the local HTTP API on 127.0.0.1:4737
+  desktop/           the Tauri window
+    ui/              plain HTML/CSS/JS, built from the approved v3 design
+    shots/           real screenshots of the window, not mockups
 docs/                prd, data-model, provider-contract, security
 research/            reports (.md source, .html to read)
 tools/render-report.py
 ```
+
+The window lives in `crates/desktop/ui/` and is built from the v3 design
+(`tools/app-v3-template.html`); it reads the local API and holds no fixture data.
 
 ## Conventions
 

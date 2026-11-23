@@ -25,7 +25,7 @@ Not done: starting a run from the window (stage 1). No git. No packaging.
 | # | Stage | Job | Done when | Effort |
 |---|---|---|---|---|
 | 0 | ~~**Window reads**~~ **done** | a Tauri app showing a real run | open app → run list → run page (mix) with live data; accept a gate from the app — **verified on 2026-11-23** | done |
-| 1 | **Window starts** | create and drive a run without the CLI | start a goal from the app, watch rounds appear, stop it, resume it | 1–2 w |
+| 1 | **Window starts** *(in progress)* | create and drive a run without the CLI | start a goal from the app (JSON paste works; a file picker does not), watch rounds appear, stop it, resume it | 1–2 w |
 | 2 | **Git** | threads work in real branches | each thread has its own branch and worktree; the runner commits, diffs and merges; `main` untouched until accept | 2–3 w |
 | 3 | **Truth in the UI** | safety and cost are visible | each thread shows its safety level; permission log; budget bar; kill the app mid-run and reopen to an honest state | 1–2 w |
 | 4 | **Dogfood** | Ilvuno builds Ilvuno | one small change in this repo is produced by a run, reviewed by another agent, merged by the runner, and the commit names the run | 1 w |
