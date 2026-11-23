@@ -9,6 +9,7 @@ use std::path::Path;
 const MIGRATIONS: &[(&str, &str)] = &[
     ("0001_init", include_str!("../migrations/0001_init.sql")),
     ("0002_providers", include_str!("../migrations/0002_providers.sql")),
+    ("0003_tasks", include_str!("../migrations/0003_tasks.sql")),
 ];
 
 pub fn now_ms() -> i64 {

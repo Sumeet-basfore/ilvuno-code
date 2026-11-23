@@ -1,50 +1,76 @@
-//! Goal files: the user's statement of a run. Validated at load (system boundary), then turned into the
-//! `goals` row and the research plan.
+//! Goal files: the user's statement of a run. Validated at load (a system boundary), then stored as the
+//! `goals` and `threads` rows and a snapshot, so `--resume` never reads a file that changed since.
 
-use crate::commands::NewGoal;
-use crate::research::SYNTH_SLOT;
+use crate::commands::{NewGoal, NewThread};
 use anyhow::{bail, Context, Result};
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 /// The most any single agent call may spend (AGENTS.md non-negotiable).
 pub const MAX_USD_PER_CALL: f64 = 0.20;
 
-/// Driver names this build can run. `codex` (native app-server) is not built yet; use `acp` for Codex.
+/// Driver names this build can run.
 pub const DRIVERS: &[&str] = &["claude", "acp"];
 
-/// Provider id used when a goal declares no providers at all (the v0 behaviour).
-pub const DEFAULT_PROVIDER: &str = "claude-main";
+/// The reserved thread name of the planning thread. It is the only thread that may create tasks from a
+/// task. The runner gives it the orchestrator policy; nothing else about it is special.
+pub const ORCHESTRATOR: &str = "orchestrator";
+
+pub const MESSAGE_POLICIES: &[&str] = &["anytime", "round", "never"];
+
+const MAX_NAME_LEN: usize = 40;
+const TITLE_LEN: usize = 80;
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GoalFile {
-    pub title: String,
-    pub goal_text: String,
-    pub template: String,
-    /// Source document, relative to the goal file's directory.
-    pub source: String,
+    pub goal: String,
     #[serde(default)]
-    pub deliverable: Value,
-    pub groups: Vec<Group>,
-    pub required_sections: Vec<u32>,
-    pub checks: Vec<String>,
+    pub done: Option<String>,
+    #[serde(default)]
+    pub checks: Vec<Check>,
+    pub providers: BTreeMap<String, ProviderSpec>,
+    pub threads: Vec<ThreadSpec>,
     #[serde(default = "default_policy")]
     pub message_policy: String,
     pub budget: Budget,
-    /// Provider instances the run may use, in file order. Empty means one Claude instance.
-    #[serde(default, deserialize_with = "ordered_providers")]
-    pub providers: Vec<(String, ProviderSpec)>,
-    /// Slot → provider id. A slot not listed here uses the run default.
+}
+
+/// A machine check. An unknown `type` is refused when the goal loads, never skipped.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Check {
+    FileExists { path: String },
+    CommandExitZero { command: String },
+    TextAbsent { path: String, needles: Vec<String> },
+}
+
+impl Check {
+    /// The name used in the readiness report and in the no-progress rule.
+    pub fn label(&self) -> String {
+        match self {
+            Check::FileExists { path } => format!("file_exists {path}"),
+            Check::CommandExitZero { command } => format!("command_exit_zero {command}"),
+            Check::TextAbsent { path, .. } => format!("text_absent {path}"),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct ThreadSpec {
+    pub name: String,
+    /// Key of an entry in `providers`: the agent this thread runs on.
+    pub agent: String,
+    /// The thread's standing job. Sent with every task on this thread.
     #[serde(default)]
-    pub assignments: BTreeMap<String, String>,
-    /// Run default. Filled at load: the explicit value, else the first entry of `providers`.
-    #[serde(default, rename = "default")]
-    pub default_provider: Option<String>,
+    pub prompt: String,
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct ProviderSpec {
     pub driver: String,
     /// Binary (claude) or adapter command (acp). Required for acp.
@@ -58,32 +84,8 @@ pub struct ProviderSpec {
     pub mode: Option<String>,
 }
 
-/// Reads the providers map keeping its order: the first entry is the run default.
-fn ordered_providers<'de, D: Deserializer<'de>>(de: D) -> Result<Vec<(String, ProviderSpec)>, D::Error> {
-    struct Ordered;
-    impl<'de> serde::de::Visitor<'de> for Ordered {
-        type Value = Vec<(String, ProviderSpec)>;
-        fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.write_str("a map from provider id to { driver, command, model }")
-        }
-        fn visit_map<A: serde::de::MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
-            let mut out = Vec::new();
-            while let Some(entry) = map.next_entry::<String, ProviderSpec>()? {
-                out.push(entry);
-            }
-            Ok(out)
-        }
-    }
-    de.deserialize_map(Ordered)
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct Group {
-    pub slot: String,
-    pub sections: Vec<u32>,
-}
-
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Budget {
     pub rounds: u32,
     pub tokens: u64,
@@ -99,109 +101,67 @@ fn default_usd() -> f64 {
     MAX_USD_PER_CALL
 }
 
-/// A validated goal plus the source text the checker needs.
+/// A validated goal plus the folder it was written in. Relative command paths resolve from that folder.
 #[derive(Debug)]
 pub struct GoalPlan {
     pub file: GoalFile,
-    pub source_abs: PathBuf,
-    /// File name used in `data-src` citations (e.g. `09-spike.md`).
-    pub source_name: String,
-    pub source_text: String,
+    pub base: PathBuf,
 }
 
 impl GoalPlan {
     pub fn load(goal_path: &Path) -> Result<Self> {
         let raw = std::fs::read_to_string(goal_path).with_context(|| format!("read {}", goal_path.display()))?;
-        let base = goal_path.parent().unwrap_or_else(|| Path::new("."));
-        Self::from_raw(&raw, base)
+        let parent = goal_path.parent().unwrap_or_else(|| Path::new("."));
+        // Absolute, so every path handed to an agent or a check is the same wherever ilvuno was started.
+        let base = std::fs::canonicalize(parent).with_context(|| format!("goal folder {}", parent.display()))?;
+        Self::from_raw(&raw, &base)
     }
 
-    /// Validate goal JSON. `base` is the directory relative paths in the goal resolve against.
+    /// Validate goal JSON. `base` is the folder the goal file sits in.
     pub fn from_raw(raw: &str, base: &Path) -> Result<Self> {
-        let mut file: GoalFile = serde_json::from_str(raw).context("parse goal")?;
-        if file.template != "research" {
-            bail!("only the research template exists in v0 (got {:?})", file.template);
-        }
-        if file.budget.max_usd_per_call <= 0.0 || file.budget.max_usd_per_call > MAX_USD_PER_CALL {
-            bail!("budget.max_usd_per_call must be in (0, {MAX_USD_PER_CALL}]");
-        }
-        if file.budget.rounds == 0 {
-            bail!("budget.rounds must be at least 1");
-        }
-        let source_abs = base.join(&file.source);
-        let source_abs = std::fs::canonicalize(&source_abs)
-            .with_context(|| format!("source {} is not readable", source_abs.display()))?;
-        let source_text = std::fs::read_to_string(&source_abs)
-            .with_context(|| format!("source {} is not readable", source_abs.display()))?;
-        let headings = source_sections(&source_text);
-        if let Some(missing) = file.required_sections.iter().find(|n| !headings.contains(n)) {
-            bail!("required section {missing} does not exist in {}", source_abs.display());
-        }
-        let covered: BTreeSet<u32> = file.groups.iter().flat_map(|g| g.sections.iter().copied()).collect();
-        if let Some(uncovered) = file.required_sections.iter().find(|n| !covered.contains(n)) {
-            bail!("required section {uncovered} is not assigned to any researcher group");
-        }
-        if file.groups.is_empty() {
-            bail!("goal has no researcher groups");
-        }
-        resolve_providers(&mut file)?;
-        let source_name = source_abs
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or_default()
-            .to_string();
-        Ok(Self { file, source_abs, source_name, source_text })
+        let file: GoalFile = serde_json::from_str(raw).context("parse goal")?;
+        validate(&file)?;
+        Ok(Self { file, base: base.to_path_buf() })
     }
 
-    pub fn new_goal(&self) -> NewGoal {
-        NewGoal {
-            title: self.file.title.clone(),
-            goal_text: self.file.goal_text.clone(),
-            template: self.file.template.clone(),
-            deliverable: self.file.deliverable.clone(),
-            done_spec: self.done_spec(),
-            budget_rounds: self.file.budget.rounds,
-            budget_tokens: self.file.budget.tokens,
-            budget_usd: Some(self.file.budget.max_usd_per_call),
-            providers: self.providers_json(),
-            assignments: Value::Object(
-                self.file.assignments.iter().map(|(slot, id)| (slot.clone(), Value::String(id.clone()))).collect(),
-            ),
-        }
+    pub fn base(&self) -> &Path {
+        &self.base
     }
 
-    pub fn done_spec(&self) -> Value {
-        json!({
-            "type": "research",
-            "checks": self.file.checks,
-            "human_gate": "accept the report",
-            "max_rounds": self.file.budget.rounds,
-            "required_sections": self.file.required_sections,
-        })
+    pub fn checks(&self) -> &[Check] {
+        &self.file.checks
+    }
+
+    pub fn providers(&self) -> &BTreeMap<String, ProviderSpec> {
+        &self.file.providers
+    }
+
+    pub fn provider_spec(&self, id: &str) -> Option<&ProviderSpec> {
+        self.file.providers.get(id)
     }
 
     pub fn usd_per_call(&self) -> f64 {
         self.file.budget.max_usd_per_call
     }
 
-    /// Every provider instance the run may use, in file order.
-    pub fn providers(&self) -> &[(String, ProviderSpec)] {
-        &self.file.providers
-    }
-
-    pub fn provider_spec(&self, id: &str) -> Option<&ProviderSpec> {
-        self.file.providers.iter().find(|(p, _)| p == id).map(|(_, spec)| spec)
-    }
-
-    /// The provider id a slot runs on: its assignment, or the run default. Never a fallback that is
-    /// not declared in the goal; validation already checked every assignment.
-    pub fn provider_for_slot(&self, slot: &str) -> &str {
-        self.file
-            .assignments
-            .get(slot)
-            .or(self.file.default_provider.as_ref())
-            .map(String::as_str)
-            .unwrap_or(DEFAULT_PROVIDER)
+    pub fn new_goal(&self) -> Result<NewGoal> {
+        Ok(NewGoal {
+            title: title_of(&self.file.goal),
+            goal_text: self.file.goal.clone(),
+            done: self.file.done.clone(),
+            checks: serde_json::to_value(&self.file.checks)?,
+            message_policy: self.file.message_policy.clone(),
+            budget_rounds: self.file.budget.rounds,
+            budget_tokens: self.file.budget.tokens,
+            budget_usd: Some(self.file.budget.max_usd_per_call),
+            providers: self.providers_json(),
+            threads: self
+                .file
+                .threads
+                .iter()
+                .map(|t| NewThread { name: t.name.clone(), agent: t.agent.clone(), prompt: t.prompt.clone() })
+                .collect(),
+        })
     }
 
     fn providers_json(&self) -> Value {
@@ -215,18 +175,71 @@ impl GoalPlan {
     }
 }
 
-/// Fill the defaults, then refuse anything the run could not honour. Every refusal names the slot or
-/// provider id involved, so the user can find the line to fix.
-fn resolve_providers(file: &mut GoalFile) -> Result<()> {
-    if file.providers.is_empty() {
-        let spec = ProviderSpec { driver: "claude".into(), command: None, model: None, mode: None };
-        file.providers.push((DEFAULT_PROVIDER.into(), spec));
+fn title_of(goal: &str) -> String {
+    goal.lines().next().unwrap_or_default().trim().chars().take(TITLE_LEN).collect()
+}
+
+/// Fill nothing in; refuse anything the run could not honour. Every refusal names the field involved.
+fn validate(file: &GoalFile) -> Result<()> {
+    if file.goal.trim().is_empty() {
+        bail!("goal is empty: say what you want");
     }
-    let mut seen = BTreeSet::new();
-    for (id, spec) in &file.providers {
-        if !seen.insert(id.as_str()) {
-            bail!("provider {id:?} is listed twice in providers");
+    if file.done.as_deref().is_some_and(|d| d.trim().is_empty()) {
+        bail!("done is empty: write what finished looks like, or leave the field out");
+    }
+    let budget = &file.budget;
+    if budget.rounds == 0 {
+        bail!("budget.rounds must be at least 1");
+    }
+    if budget.tokens == 0 {
+        bail!("budget.tokens must be at least 1");
+    }
+    if budget.max_usd_per_call <= 0.0 || budget.max_usd_per_call > MAX_USD_PER_CALL {
+        bail!("budget.max_usd_per_call must be in (0, {MAX_USD_PER_CALL}]");
+    }
+    if !MESSAGE_POLICIES.contains(&file.message_policy.as_str()) {
+        bail!("message_policy {:?}: use one of {}", file.message_policy, MESSAGE_POLICIES.join(", "));
+    }
+    for check in &file.checks {
+        validate_check(check)?;
+    }
+    validate_providers(file)?;
+    validate_threads(file)
+}
+
+fn validate_check(check: &Check) -> Result<()> {
+    match check {
+        Check::FileExists { path } => relative_path(path),
+        Check::TextAbsent { path, needles } => {
+            relative_path(path)?;
+            if needles.is_empty() || needles.iter().any(|n| n.is_empty()) {
+                bail!("text_absent {path}: needles must be a non-empty list of non-empty text");
+            }
+            Ok(())
         }
+        Check::CommandExitZero { command } => {
+            if command.trim().is_empty() {
+                bail!("command_exit_zero: command is empty");
+            }
+            Ok(())
+        }
+    }
+}
+
+/// Check paths name files in the run's artifacts folder: relative, and never above it.
+fn relative_path(path: &str) -> Result<()> {
+    let p = Path::new(path);
+    if path.trim().is_empty() || p.is_absolute() || p.components().any(|c| matches!(c, Component::ParentDir)) {
+        bail!("check path {path:?} must be relative to the artifacts folder, with no ..");
+    }
+    Ok(())
+}
+
+fn validate_providers(file: &GoalFile) -> Result<()> {
+    if file.providers.is_empty() {
+        bail!("providers is empty: name at least one agent");
+    }
+    for (id, spec) in &file.providers {
         if !DRIVERS.contains(&spec.driver.as_str()) {
             bail!("provider {id:?} uses driver {:?}; this build runs only: {}", spec.driver, DRIVERS.join(", "));
         }
@@ -234,37 +247,33 @@ fn resolve_providers(file: &mut GoalFile) -> Result<()> {
             bail!("provider {id:?} uses driver acp and needs a command");
         }
     }
-    let default = match file.default_provider.take() {
-        Some(id) if file.providers.iter().any(|(p, _)| *p == id) => id,
-        Some(id) => bail!("default provider {id:?} is not in providers"),
-        None => file.providers[0].0.clone(),
-    };
-    file.default_provider = Some(default);
-    let slots: BTreeSet<&str> = file.groups.iter().map(|g| g.slot.as_str()).chain([SYNTH_SLOT]).collect();
-    for (slot, id) in &file.assignments {
-        if !slots.contains(slot.as_str()) {
-            bail!("assignment for slot {slot:?}: this template has no such slot");
+    Ok(())
+}
+
+fn validate_threads(file: &GoalFile) -> Result<()> {
+    if file.threads.is_empty() {
+        bail!("threads is empty: add at least one thread");
+    }
+    let mut seen = BTreeSet::new();
+    for thread in &file.threads {
+        if !valid_name(&thread.name) {
+            bail!("thread name {:?}: use 1 to {MAX_NAME_LEN} letters, digits, - or _, starting with a letter or digit", thread.name);
         }
-        if !file.providers.iter().any(|(p, _)| p == id) {
-            bail!("slot {slot:?} is assigned provider {id:?}, which is not in providers");
+        if !seen.insert(thread.name.as_str()) {
+            bail!("thread {:?} is listed twice", thread.name);
+        }
+        if !file.providers.contains_key(&thread.agent) {
+            bail!("thread {:?} uses agent {:?}, which is not in providers", thread.name, thread.agent);
         }
     }
     Ok(())
 }
 
-/// Numbers from `## N. ...` headings in the source.
-pub fn source_sections(text: &str) -> BTreeSet<u32> {
-    text.lines()
-        .filter_map(|line| {
-            let rest = line.strip_prefix("## ")?;
-            let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
-            let after = &rest[digits.len()..];
-            if digits.is_empty() || !after.starts_with('.') {
-                return None;
-            }
-            digits.parse().ok()
-        })
-        .collect()
+fn valid_name(name: &str) -> bool {
+    let starts_ok = name.chars().next().is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit());
+    starts_ok
+        && name.len() <= MAX_NAME_LEN
+        && name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
 }
 
 const SNAPSHOT_PREFIX: &str = "goal_snapshot:";
@@ -297,112 +306,131 @@ pub fn load_snapshot(conn: &rusqlite::Connection, run_id: &str) -> Result<GoalPl
 mod tests {
     use super::*;
 
-    fn research_dir() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../research")
-    }
-
-    /// A goal with the given `providers` / `assignments` / `default` fragments, on the real source.
-    fn goal(extra: &str) -> String {
+    /// A goal with the given fragments spliced into the valid base. `extra` must start with a comma.
+    fn goal_with(threads: &str, extra: &str) -> String {
         format!(
             r#"{{
-              "title": "t", "goal_text": "g", "template": "research", "source": "09-spike.md",
-              "groups": [{{"slot": "researcher-a", "sections": [1, 2]}}, {{"slot": "researcher-b", "sections": [3, 4]}}],
-              "required_sections": [1, 2, 3, 4], "checks": [],
+              "goal": "read two sources", "providers": {{"claude-main": {{"driver": "claude"}}}},
+              "threads": [{threads}],
               "budget": {{"rounds": 2, "tokens": 1000}}{extra}
             }}"#
         )
     }
 
-    fn load(extra: &str) -> Result<GoalPlan> {
-        GoalPlan::from_raw(&goal(extra), &research_dir())
+    const ONE_THREAD: &str = r#"{"name": "reader-1", "agent": "claude-main", "prompt": "read"}"#;
+
+    fn load(raw: &str) -> Result<GoalPlan> {
+        GoalPlan::from_raw(raw, Path::new("."))
     }
 
-    fn err(extra: &str) -> String {
-        format!("{:#}", load(extra).expect_err("goal must be refused"))
-    }
-
-    #[test]
-    fn goal_without_providers_runs_on_one_claude_instance() {
-        let plan = load("").expect("valid goal");
-        assert_eq!(plan.providers().len(), 1);
-        assert_eq!(plan.provider_for_slot("researcher-a"), DEFAULT_PROVIDER);
-        assert_eq!(plan.provider_for_slot("synthesizer"), DEFAULT_PROVIDER);
-        assert_eq!(plan.provider_spec(DEFAULT_PROVIDER).map(|s| s.driver.as_str()), Some("claude"));
+    fn err(raw: &str) -> String {
+        format!("{:#}", load(raw).expect_err("goal must be refused"))
     }
 
     #[test]
-    fn each_slot_gets_its_assigned_provider() {
-        let plan = load(
-            r#", "providers": {"fake-a": {"driver": "claude"}, "fake-b": {"driver": "claude"}},
-                 "assignments": {"researcher-a": "fake-a", "researcher-b": "fake-b", "synthesizer": "fake-b"}"#,
-        )
+    fn valid_goal_loads_threads_checks_and_budget() {
+        let plan = load(&goal_with(
+            ONE_THREAD,
+            r#", "done": "brief.html exists", "checks": [{"type": "file_exists", "path": "brief.html"}]"#,
+        ))
         .expect("valid goal");
-        assert_eq!(plan.provider_for_slot("researcher-a"), "fake-a");
-        assert_eq!(plan.provider_for_slot("researcher-b"), "fake-b");
-        assert_eq!(plan.provider_for_slot("synthesizer"), "fake-b");
+        assert_eq!(plan.checks(), &[Check::FileExists { path: "brief.html".into() }]);
+        assert_eq!(plan.file.threads[0].name, "reader-1");
+        assert_eq!(plan.provider_spec("claude-main").map(|s| s.driver.as_str()), Some("claude"));
+        assert_eq!(plan.usd_per_call(), MAX_USD_PER_CALL);
     }
 
     #[test]
-    fn same_provider_for_every_slot_is_allowed() {
-        let plan = load(
-            r#", "providers": {"only": {"driver": "claude"}},
-                 "assignments": {"researcher-a": "only", "researcher-b": "only", "synthesizer": "only"}"#,
-        )
-        .expect("valid goal");
-        assert!(["researcher-a", "researcher-b", "synthesizer"].iter().all(|s| plan.provider_for_slot(s) == "only"));
+    fn done_and_checks_are_optional() {
+        assert!(load(&goal_with(ONE_THREAD, "")).expect("valid").checks().is_empty());
     }
 
     #[test]
-    fn unassigned_slots_use_the_first_listed_provider() {
-        let plan = load(
-            r#", "providers": {"first": {"driver": "claude"}, "second": {"driver": "claude"}},
-                 "assignments": {"synthesizer": "second"}"#,
-        )
-        .expect("valid goal");
-        assert_eq!(plan.provider_for_slot("researcher-a"), "first");
-        assert_eq!(plan.provider_for_slot("synthesizer"), "second");
+    fn unknown_check_type_is_refused_at_load() {
+        let message = err(&goal_with(ONE_THREAD, r#", "checks": [{"type": "llm_judge", "question": "good?"}]"#));
+        assert!(message.contains("llm_judge"), "{message}");
     }
 
     #[test]
-    fn explicit_default_overrides_the_first_listed_provider() {
-        let plan = load(r#", "providers": {"first": {"driver": "claude"}, "second": {"driver": "claude"}}, "default": "second""#)
-            .expect("valid goal");
-        assert_eq!(plan.provider_for_slot("researcher-a"), "second");
+    fn old_research_fields_are_refused_at_load() {
+        let raw = goal_with(ONE_THREAD, "").replace("\"goal\":", "\"template\": \"research\", \"goal\":");
+        let message = err(&raw);
+        assert!(message.contains("template"), "{message}");
     }
 
     #[test]
-    fn unknown_provider_id_is_refused_naming_slot_and_id() {
-        let message = err(r#", "providers": {"fake-a": {"driver": "claude"}}, "assignments": {"researcher-b": "fake-z"}"#);
-        assert!(message.contains("\"researcher-b\"") && message.contains("\"fake-z\""), "{message}");
+    fn thread_naming_an_unknown_agent_is_refused() {
+        let message = err(&goal_with(r#"{"name": "reader-1", "agent": "codex-main"}"#, ""));
+        assert!(message.contains("\"reader-1\"") && message.contains("\"codex-main\""), "{message}");
     }
 
     #[test]
-    fn unknown_driver_is_refused_naming_the_provider() {
-        let message = err(r#", "providers": {"codex-main": {"driver": "codex"}}"#);
-        assert!(message.contains("\"codex-main\"") && message.contains("\"codex\""), "{message}");
+    fn duplicate_thread_name_is_refused() {
+        let message = err(&goal_with(&format!("{ONE_THREAD}, {ONE_THREAD}"), ""));
+        assert!(message.contains("\"reader-1\""), "{message}");
+    }
+
+    #[test]
+    fn thread_name_that_is_not_a_plain_folder_name_is_refused() {
+        let message = err(&goal_with(r#"{"name": "../escape", "agent": "claude-main"}"#, ""));
+        assert!(message.contains("thread name"), "{message}");
+    }
+
+    #[test]
+    fn absolute_or_parent_check_path_is_refused() {
+        let message = err(&goal_with(ONE_THREAD, r#", "checks": [{"type": "file_exists", "path": "/etc/passwd"}]"#));
+        assert!(message.contains("/etc/passwd"), "{message}");
+        let message = err(&goal_with(ONE_THREAD, r#", "checks": [{"type": "file_exists", "path": "../x"}]"#));
+        assert!(message.contains("../x"), "{message}");
+    }
+
+    #[test]
+    fn empty_needles_are_refused() {
+        let message = err(&goal_with(ONE_THREAD, r#", "checks": [{"type": "text_absent", "path": "a.html", "needles": []}]"#));
+        assert!(message.contains("needles"), "{message}");
+    }
+
+    #[test]
+    fn empty_done_is_refused() {
+        let message = err(&goal_with(ONE_THREAD, r#", "done": "  ""#));
+        assert!(message.contains("done is empty"), "{message}");
     }
 
     #[test]
     fn acp_provider_without_command_is_refused() {
-        let message = err(r#", "providers": {"codex-main": {"driver": "acp"}}"#);
+        let raw = goal_with(r#"{"name": "reader-1", "agent": "codex-main"}"#, "")
+            .replace(r#""claude-main": {"driver": "claude"}"#, r#""codex-main": {"driver": "acp"}"#);
+        let message = err(&raw);
         assert!(message.contains("\"codex-main\"") && message.contains("command"), "{message}");
     }
 
     #[test]
-    fn assignment_to_a_slot_the_template_lacks_is_refused() {
-        let message = err(r#", "providers": {"a": {"driver": "claude"}}, "assignments": {"researcher_b": "a"}"#);
-        assert!(message.contains("researcher_b"), "{message}");
+    fn unknown_driver_is_refused_naming_the_provider() {
+        let raw = goal_with(ONE_THREAD, "").replace(r#""driver": "claude""#, r#""driver": "codex""#);
+        let message = err(&raw);
+        assert!(message.contains("\"claude-main\"") && message.contains("\"codex\""), "{message}");
     }
 
     #[test]
-    fn unknown_default_is_refused() {
-        let message = err(r#", "providers": {"a": {"driver": "claude"}}, "default": "b""#);
-        assert!(message.contains("\"b\""), "{message}");
+    fn unknown_message_policy_is_refused() {
+        let message = err(&goal_with(ONE_THREAD, r#", "message_policy": "sometimes""#));
+        assert!(message.contains("sometimes"), "{message}");
     }
 
     #[test]
-    fn duplicate_provider_id_is_refused() {
-        let message = err(r#", "providers": {"a": {"driver": "claude"}, "a": {"driver": "claude"}}"#);
-        assert!(message.contains("\"a\""), "{message}");
+    fn usd_above_the_per_call_cap_is_refused() {
+        let raw = goal_with(ONE_THREAD, "").replace("\"tokens\": 1000", "\"tokens\": 1000, \"max_usd_per_call\": 0.5");
+        let message = err(&raw);
+        assert!(message.contains("max_usd_per_call"), "{message}");
+    }
+
+    #[test]
+    fn orchestrator_is_an_ordinary_named_thread_with_the_reserved_name() {
+        let plan = load(&goal_with(
+            &format!(r#"{{"name": "{ORCHESTRATOR}", "agent": "claude-main"}}, {ONE_THREAD}"#),
+            "",
+        ))
+        .expect("valid");
+        assert_eq!(plan.file.threads[0].name, ORCHESTRATOR);
     }
 }

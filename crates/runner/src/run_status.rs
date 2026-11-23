@@ -1,9 +1,10 @@
 //! Run-level transitions: status, token accounting, verdicts, the human gate, merge and freeze.
 
-use crate::commands::{latest_round, load_run};
+use crate::commands::{self, latest_round, load_run};
 use crate::ledger;
 use crate::state::{check_merge, RunStatus, Verdict};
 use crate::store::{Outcome, Pending};
+use crate::tasks::{self, CreatedBy, NewTask};
 use anyhow::{anyhow, Result};
 use rusqlite::{params, Transaction};
 use serde_json::{json, Value};
@@ -125,6 +126,24 @@ pub fn gate_decide(
             );
             ledger::append(tx, pending, run_id, Some(&round.id), None, "constraint", &[], note, json!({"source": "human"}))?;
             set_run_status(tx, pending, run_id, RunStatus::Working, Some("sent back by human"))?;
+            if let Some(orchestrator) = commands::orchestrator_name(tx, run_id)? {
+                let prompt = format!(
+                    "The human sent the run back with this note:\n{note}\n\nPlan the next step: create the tasks that answer \
+                     the note. Do not write the deliverable yourself."
+                );
+                let scope = [commands::RUN_SCOPE.to_string()];
+                let task = NewTask {
+                    run_id,
+                    thread: &orchestrator,
+                    prompt: &prompt,
+                    scope: &scope,
+                    created_by: CreatedBy::User,
+                    author_thread: None,
+                };
+                if let Outcome::Refused(reason) = tasks::create_task(tx, pending, &task)? {
+                    set_run_status(tx, pending, run_id, RunStatus::Blocked, Some(&reason))?;
+                }
+            }
             pending.push(run_id, Some(&round.id), None, "gate.decided", json!({ "decision": "send_back", "note": note }));
         }
     }

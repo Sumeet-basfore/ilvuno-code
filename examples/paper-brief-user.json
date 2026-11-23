@@ -1,0 +1,35 @@
+{
+  "goal": "Summarise the spike report into one HTML page. Every section of the page must cite the section of the report it summarises. The report is ../research/09-spike.md, relative to this goal file. The page is brief.html.",
+  "done": "brief.html exists, every section cites a section of the report that exists, and no TODO or TBD is left.",
+  "checks": [
+    {"type": "file_exists", "path": "brief.html"},
+    {"type": "command_exit_zero", "command": "python3 ../tools/check_citations.py \"$ILVUNO_ARTIFACTS/brief.html\" ../research/09-spike.md 1,2,3,4"},
+    {"type": "text_absent", "path": "brief.html", "needles": ["TODO", "TBD", "[citation needed]"]}
+  ],
+  "providers": {
+    "claude-main": {"driver": "claude"}
+  },
+  "threads": [
+    {
+      "name": "reader-1",
+      "agent": "claude-main",
+      "prompt": "You read the sections of the report you are given and write findings. Each finding starts with [§N], where N is the section it comes from."
+    },
+    {
+      "name": "reader-2",
+      "agent": "claude-main",
+      "prompt": "You read the sections of the report you are given and write findings. Each finding starts with [§N], where N is the section it comes from."
+    },
+    {
+      "name": "writer",
+      "agent": "claude-main",
+      "prompt": "You write brief.html from the findings files you are given. Each section of the page cites the report section it summarises, with <cite data-src=\"09-spike.md\" data-section=\"N\">§N</cite>."
+    }
+  ],
+  "message_policy": "round",
+  "budget": {
+    "rounds": 3,
+    "tokens": 600000,
+    "max_usd_per_call": 0.2
+  }
+}

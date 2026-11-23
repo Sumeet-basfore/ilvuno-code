@@ -1,5 +1,5 @@
-//! Replay: rebuild rounds, dispatches and verdicts from the journal alone, then compare with the
-//! projection tables. If they differ, the journal is not the source of truth and we say so.
+//! Replay: rebuild rounds, tasks and verdicts from the journal alone, then compare with the projection
+//! tables. If they differ, the journal is not the source of truth and we say so.
 
 use anyhow::Result;
 use rusqlite::{params, Connection};
@@ -10,8 +10,8 @@ pub struct RoundSummary {
     pub index: u32,
     pub round_id: String,
     pub verdict: Option<String>,
-    /// (slot, status) in plan order.
-    pub dispatches: Vec<(String, String)>,
+    /// (task id, thread name, status) in task order.
+    pub dispatches: Vec<(String, String, String)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,9 +23,7 @@ pub struct Replay {
 }
 
 pub fn replay(conn: &Connection, run_id: &str) -> Result<Replay> {
-    let mut stmt = conn.prepare(
-        "SELECT seq, kind, round_id, payload FROM journal WHERE run_id = ?1 ORDER BY seq",
-    )?;
+    let mut stmt = conn.prepare("SELECT seq, kind, round_id, payload FROM journal WHERE run_id = ?1 ORDER BY seq")?;
     let rows: Vec<(i64, String, Option<String>, String)> = stmt
         .query_map(params![run_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
         .collect::<rusqlite::Result<_>>()?;
@@ -43,7 +41,8 @@ pub fn replay(conn: &Connection, run_id: &str) -> Result<Replay> {
             }),
             "dispatch.queued" => {
                 if let Some(round) = round_mut(&mut out, round_id.as_deref()) {
-                    round.dispatches.push((str_of(&value, "slot"), "queued".into()));
+                    let entry = (str_of(&value, "dispatch_id"), str_of(&value, "thread"), "queued".to_string());
+                    round.dispatches.push(entry);
                 }
             }
             "dispatch.requeued" | "dispatch.started" | "dispatch.reported" | "dispatch.failed" => {
@@ -53,12 +52,10 @@ pub fn replay(conn: &Connection, run_id: &str) -> Result<Replay> {
                     "dispatch.reported" => "reported",
                     _ => "failed",
                 };
+                let dispatch_id = str_of(&value, "dispatch_id");
                 if let Some(round) = round_mut(&mut out, round_id.as_deref()) {
-                    let dispatch_id = str_of(&value, "dispatch_id");
-                    if let Some(slot) = slot_for(conn, &dispatch_id)? {
-                        if let Some(entry) = round.dispatches.iter_mut().find(|(s, _)| *s == slot) {
-                            entry.1 = status.into();
-                        }
+                    if let Some(entry) = round.dispatches.iter_mut().find(|(id, _, _)| *id == dispatch_id) {
+                        entry.2 = status.into();
                     }
                 }
             }
@@ -68,7 +65,7 @@ pub fn replay(conn: &Connection, run_id: &str) -> Result<Replay> {
                 }
             }
             "run.transition" => out.final_status = value["to"].as_str().map(str::to_string),
-            "round.refused" | "dispatch.refused" | "merge.refused" => {
+            "task.refused" | "dispatch.refused" | "merge.refused" => {
                 out.refusals.push(value["reason"].as_str().unwrap_or_default().to_string())
             }
             _ => {}
@@ -95,12 +92,15 @@ pub fn compare_with_projection(conn: &Connection, run_id: &str, replayed: &Repla
         if from_journal.verdict != *verdict {
             problems.push(format!("round {index} verdict: projection {verdict:?} vs journal {:?}", from_journal.verdict));
         }
-        let mut dstmt = conn.prepare("SELECT slot, status FROM dispatch WHERE round_id = ?1 ORDER BY rowid")?;
-        let dispatches: Vec<(String, String)> = dstmt
-            .query_map(params![round_id], |r| Ok((r.get(0)?, r.get(1)?)))?
+        let mut dstmt = conn.prepare(
+            "SELECT d.id, t.name, d.status FROM dispatch d JOIN threads t ON t.id = d.thread_id
+             WHERE d.round_id = ?1 ORDER BY d.rowid",
+        )?;
+        let dispatches: Vec<(String, String, String)> = dstmt
+            .query_map(params![round_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
             .collect::<rusqlite::Result<_>>()?;
         if dispatches != from_journal.dispatches {
-            problems.push(format!("round {index} dispatches: projection {dispatches:?} vs journal {:?}", from_journal.dispatches));
+            problems.push(format!("round {index} tasks: projection {dispatches:?} vs journal {:?}", from_journal.dispatches));
         }
     }
     let status: String = conn.query_row("SELECT status FROM runs WHERE id = ?1", params![run_id], |r| r.get(0))?;
@@ -113,13 +113,6 @@ pub fn compare_with_projection(conn: &Connection, run_id: &str, replayed: &Repla
 fn round_mut<'a>(out: &'a mut Replay, round_id: Option<&str>) -> Option<&'a mut RoundSummary> {
     let id = round_id?;
     out.rounds.iter_mut().find(|r| r.round_id == id)
-}
-
-fn slot_for(conn: &Connection, dispatch_id: &str) -> Result<Option<String>> {
-    use rusqlite::OptionalExtension;
-    Ok(conn
-        .query_row("SELECT slot FROM dispatch WHERE id = ?1", params![dispatch_id], |r| r.get(0))
-        .optional()?)
 }
 
 fn str_of(v: &Value, key: &str) -> String {

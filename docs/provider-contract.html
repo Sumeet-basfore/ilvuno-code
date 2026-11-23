@@ -102,7 +102,7 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">1,281 words<br>8 sections<br>176 lines of source</div>
+  <div class="meta">1,591 words<br>8 sections<br>203 lines of source</div>
   <nav><a class="lvl2" href="#the-boundary">The boundary</a>
 <a class="lvl2" href="#commands-runner-adapter">Commands (runner → adapter)</a>
 <a class="lvl2" href="#events-adapter-runner">Events (adapter → runner)</a>
@@ -265,51 +265,75 @@ Verified against <code>codex-acp 2.9.0</code>.</p>
 actions internally — the client never sees a request, so the runner's policy is bypassed. Set
 <code>&quot;mode&quot;: &quot;workspace-write&quot;</code> on the provider entry (passed to the adapter as <code>INITIAL_AGENT_MODE</code>).
 Verified: a write outside the session cwd raises a permission request. In that mode the agent writes
-freely inside its cwd, which is the thread's own directory, so the sandbox and our policy agree. <code>/tmp</code>
+freely inside its cwd, which is the thread's own folder, so the sandbox and our policy agree. <code>/tmp</code>
 is writable in that mode by default — do not treat <code>/tmp</code> as a boundary.</p>
 <p>Both map onto one runner event: <code>permission_request {tool, input, options}</code>. The runner's policy decides,
 the adapter only translates.</p>
 <h2 id="prompts-are-part-of-the-contract">Prompts are part of the contract</h2>
 <p>Because a prompt is the only interface every agent understands. Two texts ship with the runner, versioned
-in code, and are injected every turn — not once per session, because agents lose them.</p>
-<p><strong>Worker preamble</strong> (adapted from orca's <code>worker-dispatch-preamble</code>, the design that survives
-uninstrumentable CLIs):</p>
-<pre><code>You are a worker in Ilvuno, a multi-agent runner. Your coordinator is thread &lt;id&gt;.
+in code (<code>crates/runner/src/prompts/</code>), and are injected every turn — not once per session, because agents
+lose them. The journal records the version injected into each task (<code>prompt.injected</code>).</p>
+<p>A thread gets the <strong>worker</strong> text, or the <strong>orchestrator</strong> text when it is the thread named <code>orchestrator</code>.
+The goal's <code>threads</code> entry supplies the thread's standing job; the task supplies what to do now and the
+scope. Both texts are the same text the code uses.</p>
+<p><strong>Worker preamble</strong> (<code>worker-preamble/4</code>, adapted from orca's <code>worker-dispatch-preamble</code>, the design that
+survives uninstrumentable CLIs):</p>
+<pre><code class="language-text">You are a worker in Ilvuno, a multi-agent runner. Your thread is &lt;thread&gt;. Your coordinator is &lt;coordinator&gt;.
 Your task id is &lt;task_id&gt;. Your round is &lt;round_index&gt;.
-Your branch is &lt;branch&gt;. Work only inside your worktree: &lt;path&gt;.
+Work only inside your folder: &lt;path&gt;. You may read the run folder &lt;run&gt;.
 
 Board: read `&lt;run&gt;/board.md` before you start and before you report.
 Message policy for this run: &lt;round|anytime|never&gt;.
 
 Rules:
-- Before you touch a file, say so: `ilvuno note --task &lt;task_id&gt; --kind intent --body &quot;what you are about to do&quot;`.
-- Write only inside your worktree. Never switch branches. Never merge.
+- Before you touch a file, say so: `&lt;bin&gt; note --task &lt;task_id&gt; --kind intent --body &quot;what you are about to do&quot;`.
+- Write only inside your folder. Never switch branches. Never merge.
 - When you need a decision you cannot make, ask and stop your turn:
-  `ilvuno note --task &lt;task_id&gt; --kind question --body &quot;the question&quot;`.
-- When you finish: report exactly once with `ilvuno report --task &lt;task_id&gt; --status ok|failed
+  `&lt;bin&gt; note --task &lt;task_id&gt; --kind question --body &quot;the question&quot;`.
+- When you finish: report exactly once with `&lt;bin&gt; report --task &lt;task_id&gt; --status ok|failed
   --summary &quot;&lt;3 sentences&gt;&quot; --files &quot;&lt;paths&gt;&quot;`.
 - Do not spawn other agents. Do not poll for work. You will be woken.
 
 === TASK ===
 &lt;task text&gt;
 </code></pre>
-<p><strong>Worker CLI surface:</strong> exactly two commands are permitted to a worker — <code>ilvuno note</code>
-(<code>intent</code> | <code>finding</code> | <code>question</code> | <code>answer</code>, scope must stay inside the dispatch's scope) and
-<code>ilvuno report</code>. Everything else, including reading the board file by any other means, is refused by the
-runner's policy. If the preamble asks for something the policy forbids, that is a bug in one of them —
-v0 shipped exactly that bug once and it cost every worker four refused turns.</p>
-<p><strong>Orchestrator contract</strong> (adapted from t3's, which is the version that works):</p>
-<pre><code>You plan and delegate. You do not write code or prose deliverables yourself.
-Before dispatching, write one `intent` per worker naming the files or sources it will own.
-Dispatch only as many workers as the goal needs; prefer 2–4.
-Each dispatch must name a scope. A dispatch without a scope is refused by the runner.
-When a worker reports a failure, do not mark it done. Ask, or escalate to the human.
-If two workers will touch the same file, change the plan — never let them race.
-When all dispatches are reported, produce the round verdict: pass, pass_with_notes, or block.
-Follow the run's budget. If you cannot make progress, stop and say so.
+<p><strong>Orchestrator preamble</strong> (<code>orchestrator-preamble/1</code>). The orchestrator plans and delegates through the
+same <code>ilvuno task</code> command the user uses. It has no authority over the gate.</p>
+<pre><code class="language-text">You are the orchestrator in Ilvuno, a multi-agent runner. Your thread is &lt;thread&gt;.
+Your task id is &lt;task_id&gt;. Your round is &lt;round_index&gt;.
+Work only inside your folder: &lt;path&gt;. You may read the run folder &lt;run&gt;.
+
+Board: read `&lt;run&gt;/board.md` before you plan and before you report.
+Workers on this run: &lt;workers&gt;. The goal folder is &lt;goal folder&gt;.
+
+You plan and delegate. You do not write the deliverable yourself.
+Rules:
+- Give a worker work with: `&lt;bin&gt; task --thread &lt;worker&gt; --prompt &quot;what to do&quot; --scope &quot;a,b&quot;`.
+  Every task needs a prompt and a scope. A task without a scope is refused.
+- The scope lists the only files and sources that task may touch. Give a source as an absolute path.
+- If two workers would touch the same file, change the plan. Never let them race.
+- Ask the human when you need a decision: `&lt;bin&gt; note --task &lt;task_id&gt; --kind question --body &quot;the question&quot;`.
+- When your plan is made, report once: `&lt;bin&gt; report --task &lt;task_id&gt; --status ok --summary &quot;&lt;3 sentences&gt;&quot;`.
+- You cannot open the gate. The checks decide, and the human decides.
+- When a worker reports a failure, do not mark it done. Ask, or escalate to the human.
+- Do not spawn other agents. Do not poll for work. You will be woken.
+
+=== TASK ===
+&lt;task text&gt;
 </code></pre>
-<p>Both texts live in <code>crates/runner/src/prompts/</code> with a version constant; the journal records which
-version was injected into which thread.</p>
+<p><strong>Worker CLI surface.</strong> A worker may run exactly two commands: <code>ilvuno note</code> (<code>intent</code> | <code>finding</code> |
+<code>question</code> | <code>answer</code>, scope must stay inside the task's scope) and <code>ilvuno report</code>, both for its own task id.
+The orchestrator may also run <code>ilvuno task --thread &lt;name&gt; ...</code>. Everything else, including gate commands
+and reads outside the permitted paths, is refused by the runner's policy. If the preamble asks for
+something the policy forbids, that is a bug in one of them.</p>
+<p><strong>Reads.</strong> A thread may read its own folder, the run folder (which holds the board and every thread's
+files), and any absolute path listed in its task's scope. It may write only inside its own folder.</p>
+<p><strong>Who writes a task.</strong> The task text the thread receives is its standing job, the task prompt, and the
+scope. The runner adds the thread's standing job; it does not change the task's words. A task written by
+the orchestrator records the orchestrator as its author. A task written by the user has no thread author.
+A task the runner writes (a failed round waking the orchestrator) is marked <code>runner</code>.</p>
+<p><strong>Environment.</strong> Only the orchestrator's session carries <code>ILVUNO_TASK</code> (its own task id), which is how
+<code>ilvuno task</code> knows who is calling. A user's <code>ilvuno task</code> has no such variable and writes to the newest run.</p>
 <h2 id="provider-table-for-v1">Provider table for v1</h2>
 <table>
 <thead>
@@ -353,9 +377,9 @@ version was injected into which thread.</p>
 </tr>
 </tbody>
 </table>
-<p><strong>Worker commands are injected with an absolute path.</strong> The preamble's <code>&lt;bin&gt;</code> is the runner binary's
-full path, because a Codex worker runs commands in a login shell whose <code>PATH</code> is not the runner's. The
-policy checks the same absolute prefix.</p>
+<p><strong>Commands are injected with an absolute path.</strong> The preamble's <code>&lt;bin&gt;</code> is the runner binary's full path,
+because a Codex worker runs commands in a login shell whose <code>PATH</code> is not the runner's. The policy checks
+the same absolute prefix.</p>
 <p>Not in v1: PTY scraping. If an agent has neither ACP nor a protocol, it does not ship — labelled, not faked.</p>
 <h2 id="error-taxonomy">Error taxonomy</h2>
 <table>

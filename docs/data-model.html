@@ -102,7 +102,7 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">1,018 words<br>3 sections<br>197 lines of source</div>
+  <div class="meta">1,078 words<br>3 sections<br>197 lines of source</div>
   <nav><a class="lvl2" href="#entities">Entities</a>
 <a class="lvl3" href="#goals">goals</a>
 <a class="lvl3" href="#runs">runs</a>
@@ -153,7 +153,7 @@ journal <em>is</em> a table; it just happens to also be append-only.</p>
 <tr>
 <td><code>title</code></td>
 <td>TEXT</td>
-<td>user's words</td>
+<td>first line of the goal</td>
 </tr>
 <tr>
 <td><code>goal_text</code></td>
@@ -161,19 +161,9 @@ journal <em>is</em> a table; it just happens to also be append-only.</p>
 <td>the full statement</td>
 </tr>
 <tr>
-<td><code>template</code></td>
-<td>TEXT</td>
-<td><code>research</code> | <code>feature</code></td>
-</tr>
-<tr>
-<td><code>deliverable</code></td>
-<td>TEXT</td>
-<td>JSON: format, audience, length, must_cite</td>
-</tr>
-<tr>
 <td><code>done_spec</code></td>
 <td>TEXT</td>
-<td>JSON: checks array + human_gate</td>
+<td>JSON: <code>{done, checks}</code>; <code>done</code> is free text or null, <code>checks</code> as written in the goal file</td>
 </tr>
 <tr>
 <td><code>message_policy</code></td>
@@ -198,12 +188,7 @@ journal <em>is</em> a table; it just happens to also be append-only.</p>
 <tr>
 <td><code>providers</code></td>
 <td>TEXT</td>
-<td>JSON: instance id → <code>{driver, command, model, mode}</code>; <code>mode</code> is passed to the adapter (<code>INITIAL_AGENT_MODE</code> for codex-acp)</td>
-</tr>
-<tr>
-<td><code>assignments</code></td>
-<td>TEXT</td>
-<td>JSON: slot → provider instance id; a missing slot uses the run default</td>
+<td>JSON: agent id → <code>{driver, command, model, mode}</code>; <code>mode</code> is passed to the adapter (<code>INITIAL_AGENT_MODE</code> for codex-acp)</td>
 </tr>
 </tbody>
 </table>
@@ -280,14 +265,24 @@ journal <em>is</em> a table; it just happens to also be append-only.</p>
 <td></td>
 </tr>
 <tr>
+<td><code>name</code></td>
+<td>TEXT</td>
+<td>how a task names it, e.g. <code>reader-1</code>; unique per run. The name <code>orchestrator</code> marks the planning thread</td>
+</tr>
+<tr>
+<td><code>prompt</code></td>
+<td>TEXT</td>
+<td>the thread's standing job, sent with every task on it</td>
+</tr>
+<tr>
 <td><code>role</code></td>
 <td>TEXT</td>
-<td><code>orchestrator</code> | <code>worker</code> | <code>reviewer</code> | <code>merger</code></td>
+<td><code>orchestrator</code> | <code>worker</code> (what the policy allows the thread)</td>
 </tr>
 <tr>
 <td><code>provider</code></td>
 <td>TEXT</td>
-<td>instance id, e.g. <code>claude-main</code>, <code>codex-work</code></td>
+<td>agent id (a key of <code>goals.providers</code>), e.g. <code>claude-main</code>, <code>codex-main</code></td>
 </tr>
 <tr>
 <td><code>native_session_id</code></td>
@@ -374,7 +369,7 @@ journal <em>is</em> a table; it just happens to also be append-only.</p>
 </tbody>
 </table>
 <h3 id="dispatch"><code>dispatch</code></h3>
-<p>One worker assignment inside a round.</p>
+<p>One task inside a round: a prompt, the thread it runs on, and the scope it may touch.</p>
 <table>
 <thead>
 <tr>
@@ -402,12 +397,17 @@ journal <em>is</em> a table; it just happens to also be append-only.</p>
 <tr>
 <td><code>task</code></td>
 <td>TEXT</td>
-<td>the prompt the worker received</td>
+<td>the prompt the task was written with</td>
 </tr>
 <tr>
 <td><code>scope</code></td>
 <td>TEXT</td>
 <td>JSON array of paths or sources it may touch</td>
+</tr>
+<tr>
+<td><code>created_by</code></td>
+<td>TEXT</td>
+<td><code>user</code> | <code>orchestrator</code> | <code>runner</code> (the runner, when a failed round wakes the orchestrator)</td>
 </tr>
 <tr>
 <td><code>status</code></td>

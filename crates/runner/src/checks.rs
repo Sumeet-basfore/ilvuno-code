@@ -1,184 +1,209 @@
-//! Deterministic checks on the brief. The machine decides done (PRD §7); no model judges citations.
-//! Citation format the synthesizer is told to use: `<cite data-src="09-spike.md" data-section="3">`.
+//! The user's machine checks, run when a round closes. A check is a file test or a command. The runner runs
+//! it and records the result; it never judges the content (PRD §4: the machine decides, the human gate
+//! decides the rest).
 
-use crate::goal::source_sections;
-use std::collections::BTreeSet;
+use crate::goal::Check;
+use std::io::Read;
+use std::path::Path;
+use std::process::{Child, Command, ExitStatus, Stdio};
+use std::thread::{self, JoinHandle};
+use std::time::{Duration, Instant};
+
+/// A command check that runs longer than this is killed and fails.
+const COMMAND_TIMEOUT: Duration = Duration::from_secs(300);
+const POLL_INTERVAL: Duration = Duration::from_millis(50);
+const DETAIL_CHARS: usize = 200;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Check {
-    pub name: &'static str,
+pub struct CheckResult {
+    pub name: String,
     pub passed: bool,
     pub detail: String,
 }
 
-/// Checks named in a goal's `checks` list that v0 cannot evaluate. Reported as skipped, with the reason.
-pub const SKIPPED: &[(&str, &str)] = &[
-    (
-        "findings-cited-or-rejected",
-        "not implemented in v0: matching ledger findings to report text needs claim extraction",
-    ),
-    (
-        "no-uncorrected-contradictions",
-        "not implemented in v0: contradiction detection is a model judgement, not a machine check",
-    ),
-];
-
-pub const IMPLEMENTED: &[&str] = &["section-citations-resolve", "required-sections-cited", "no-placeholders"];
-
-pub fn evaluate(html: Option<&str>, source_name: &str, source_text: &str, required: &[u32]) -> Vec<Check> {
-    let Some(html) = html.filter(|h| !h.trim().is_empty()) else {
-        return vec![Check { name: "brief-exists", passed: false, detail: "no brief.html".into() }];
-    };
-    let known = source_sections(source_text);
-    let sections = section_blocks(html);
-    let mut cited: BTreeSet<u32> = BTreeSet::new();
-
-    let mut bad_sections = Vec::new();
-    if sections.is_empty() {
-        bad_sections.push("no <section> elements".to_string());
-    }
-    for (i, block) in sections.iter().enumerate() {
-        let cites = cites_in(block);
-        let valid: Vec<u32> = cites
-            .iter()
-            .filter(|(src, n)| src == source_name && known.contains(n))
-            .map(|(_, n)| *n)
-            .collect();
-        if valid.is_empty() {
-            bad_sections.push(format!("section {} has no citation that resolves", i + 1));
-        }
-        cited.extend(valid);
-    }
-    let missing: Vec<String> = required.iter().filter(|n| !cited.contains(n)).map(|n| n.to_string()).collect();
-    let placeholders: Vec<&str> = ["TODO", "TBD", "[citation needed]", "lorem ipsum"]
-        .into_iter()
-        .filter(|m| html.to_lowercase().contains(&m.to_lowercase()))
-        .collect();
-
-    vec![
-        Check { name: "brief-exists", passed: true, detail: format!("{} section(s)", sections.len()) },
-        Check {
-            name: "section-citations-resolve",
-            passed: bad_sections.is_empty(),
-            detail: if bad_sections.is_empty() { "every section cites a resolving source".into() } else { bad_sections.join("; ") },
-        },
-        Check {
-            name: "required-sections-cited",
-            passed: missing.is_empty(),
-            detail: if missing.is_empty() { "all required source sections cited".into() } else { format!("uncited source sections: {}", missing.join(", ")) },
-        },
-        Check {
-            name: "no-placeholders",
-            passed: placeholders.is_empty(),
-            detail: if placeholders.is_empty() { "no placeholder markers".into() } else { format!("found {}", placeholders.join(", ")) },
-        },
-    ]
+/// Where checks look. File checks read `artifacts`. Commands start in `goal_dir` and get `ILVUNO_ARTIFACTS`.
+pub struct Locations<'a> {
+    pub artifacts: &'a Path,
+    pub goal_dir: &'a Path,
 }
 
-/// Text of each `<section ...> ... </section>` (or up to the next `<section`).
-fn section_blocks(html: &str) -> Vec<String> {
-    let lower = html.to_lowercase();
-    let starts: Vec<usize> = lower.match_indices("<section").map(|(i, _)| i).collect();
-    starts
+pub fn evaluate(checks: &[Check], at: &Locations<'_>) -> Vec<CheckResult> {
+    checks
         .iter()
-        .enumerate()
-        .map(|(k, &start)| {
-            let end = starts.get(k + 1).copied().unwrap_or(html.len());
-            let chunk = &html[start..end];
-            match chunk.to_lowercase().find("</section>") {
-                Some(close) => chunk[..close].to_string(),
-                None => chunk.to_string(),
+        .map(|check| {
+            let (passed, detail) = match check {
+                Check::FileExists { path } => file_exists(&at.artifacts.join(path)),
+                Check::TextAbsent { path, needles } => text_absent(&at.artifacts.join(path), needles),
+                Check::CommandExitZero { command } => command_exit_zero(command, at),
+            };
+            CheckResult { name: check.label(), passed, detail }
+        })
+        .collect()
+}
+
+fn file_exists(file: &Path) -> (bool, String) {
+    if file.is_file() {
+        (true, "found".into())
+    } else {
+        (false, format!("missing: {}", file.display()))
+    }
+}
+
+fn text_absent(file: &Path, needles: &[String]) -> (bool, String) {
+    let text = match std::fs::read_to_string(file) {
+        Ok(text) => text,
+        Err(e) => return (false, format!("cannot read {}: {e}", file.display())),
+    };
+    let found: Vec<&str> = needles.iter().filter(|n| text.contains(n.as_str())).map(String::as_str).collect();
+    if found.is_empty() {
+        (true, "none of the listed text is present".into())
+    } else {
+        (false, format!("found: {}", found.join(", ")))
+    }
+}
+
+fn command_exit_zero(command: &str, at: &Locations<'_>) -> (bool, String) {
+    let spawned = Command::new("sh")
+        .arg("-c")
+        .arg(command)
+        .current_dir(at.goal_dir)
+        .env("ILVUNO_ARTIFACTS", at.artifacts)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn();
+    let mut child = match spawned {
+        Ok(child) => child,
+        Err(e) => return (false, format!("cannot start sh: {e}")),
+    };
+    let stdout = drain(child.stdout.take());
+    let stderr = drain(child.stderr.take());
+    match wait_with_timeout(&mut child) {
+        None => (false, format!("timed out after {} seconds", COMMAND_TIMEOUT.as_secs())),
+        Some(status) if status.success() => (true, "exit 0".into()),
+        Some(status) => {
+            let code = status.code().map_or_else(|| "by signal".to_string(), |c| c.to_string());
+            let output = last_line(&stderr.join().unwrap_or_default(), &stdout.join().unwrap_or_default());
+            (false, format!("exit {code}: {output}"))
+        }
+    }
+}
+
+/// Wait for the child, killing it at the timeout. `None` means it was killed.
+fn wait_with_timeout(child: &mut Child) -> Option<ExitStatus> {
+    let deadline = Instant::now() + COMMAND_TIMEOUT;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return Some(status),
+            Ok(None) if Instant::now() < deadline => thread::sleep(POLL_INTERVAL),
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
             }
-        })
-        .collect()
+        }
+    }
 }
 
-/// `(data-src, data-section)` for every `<cite>` tag in the text.
-fn cites_in(block: &str) -> Vec<(String, u32)> {
-    let lower = block.to_lowercase();
-    lower
-        .match_indices("<cite")
-        .filter_map(|(start, _)| {
-            let tag_end = block[start..].find('>')? + start;
-            let tag = &block[start..tag_end];
-            let src = attr(tag, "data-src")?;
-            let n: u32 = attr(tag, "data-section")?.trim().parse().ok()?;
-            Some((src.to_string(), n))
-        })
-        .collect()
+/// Read a pipe on its own thread, so a chatty command cannot block on a full pipe.
+fn drain<R: Read + Send + 'static>(pipe: Option<R>) -> JoinHandle<String> {
+    thread::spawn(move || {
+        let mut bytes = Vec::new();
+        if let Some(mut pipe) = pipe {
+            let _ = pipe.read_to_end(&mut bytes);
+        }
+        String::from_utf8_lossy(&bytes).into_owned()
+    })
 }
 
-fn attr<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
-    let key = format!("{name}=\"");
-    let start = tag.find(&key)? + key.len();
-    let end = tag[start..].find('"')? + start;
-    Some(&tag[start..end])
+/// The last non-empty line of stderr, or of stdout when stderr is silent.
+fn last_line(stderr: &str, stdout: &str) -> String {
+    let line = [stderr, stdout]
+        .iter()
+        .find_map(|text| text.lines().rev().find(|l| !l.trim().is_empty()))
+        .unwrap_or("no output");
+    line.trim().chars().take(DETAIL_CHARS).collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const SOURCE: &str = "# Spike\n\n## 1. First\nbody\n\n## 2. Second\nbody\n\n## 3. Third\nbody\n";
-
-    fn brief(body: &str) -> String {
-        format!("<!doctype html><html><body>{body}</body></html>")
+    fn at<'a>(artifacts: &'a Path, goal_dir: &'a Path) -> Locations<'a> {
+        Locations { artifacts, goal_dir }
     }
 
-    fn passed(checks: &[Check], name: &str) -> bool {
-        checks.iter().find(|c| c.name == name).map(|c| c.passed).unwrap_or(false)
+    fn run_one(check: Check, dir: &Path) -> CheckResult {
+        evaluate(std::slice::from_ref(&check), &at(dir, dir)).remove(0)
     }
 
-    #[test]
-    fn well_cited_brief_passes_everything() {
-        let html = brief(
-            r#"<section><h2>A</h2><p>x <cite data-src="spike.md" data-section="1">§1</cite></p></section>
-               <section><p><cite data-src="spike.md" data-section="2">§2</cite> and <cite data-src="spike.md" data-section="3">§3</cite></p></section>"#,
-        );
-        let checks = evaluate(Some(&html), "spike.md", SOURCE, &[1, 2, 3]);
-        assert!(checks.iter().all(|c| c.passed), "{checks:?}");
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("ilvuno-checks-{name}-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).expect("scratch dir");
+        dir
     }
 
     #[test]
-    fn citation_to_missing_section_fails_resolution() {
-        let html = brief(r#"<section><cite data-src="spike.md" data-section="9">§9</cite></section>"#);
-        let checks = evaluate(Some(&html), "spike.md", SOURCE, &[]);
-        assert!(!passed(&checks, "section-citations-resolve"));
+    fn file_exists_passes_only_for_a_file_in_the_artifacts_folder() {
+        let dir = scratch("exists");
+        assert!(!run_one(Check::FileExists { path: "brief.html".into() }, &dir).passed);
+        std::fs::write(dir.join("brief.html"), "<p>ok</p>").expect("write");
+        let result = run_one(Check::FileExists { path: "brief.html".into() }, &dir);
+        assert!(result.passed, "{result:?}");
+        assert_eq!(result.name, "file_exists brief.html");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn citation_to_wrong_source_file_does_not_resolve() {
-        let html = brief(r#"<section><cite data-src="other.md" data-section="1">§1</cite></section>"#);
-        let checks = evaluate(Some(&html), "spike.md", SOURCE, &[]);
-        assert!(!passed(&checks, "section-citations-resolve"));
+    fn text_absent_fails_and_names_each_needle_found() {
+        let dir = scratch("absent");
+        std::fs::write(dir.join("brief.html"), "a TODO and a TBD").expect("write");
+        let check = Check::TextAbsent {
+            path: "brief.html".into(),
+            needles: vec!["TODO".into(), "TBD".into(), "[citation needed]".into()],
+        };
+        let result = run_one(check, &dir);
+        assert!(!result.passed);
+        assert_eq!(result.detail, "found: TODO, TBD");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn section_without_any_citation_fails() {
-        let html = brief("<section><p>no cite here</p></section>");
-        let checks = evaluate(Some(&html), "spike.md", SOURCE, &[]);
-        assert!(!passed(&checks, "section-citations-resolve"));
+    fn text_absent_fails_when_the_file_is_missing() {
+        let dir = scratch("absent-missing");
+        let result = run_one(Check::TextAbsent { path: "brief.html".into(), needles: vec!["TODO".into()] }, &dir);
+        assert!(!result.passed);
+        assert!(result.detail.starts_with("cannot read"), "{}", result.detail);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn required_section_left_uncited_fails_coverage() {
-        let html = brief(r#"<section><cite data-src="spike.md" data-section="1">§1</cite></section>"#);
-        let checks = evaluate(Some(&html), "spike.md", SOURCE, &[1, 2]);
-        assert!(!passed(&checks, "required-sections-cited"));
-        assert!(checks.iter().any(|c| c.detail.contains("uncited source sections: 2")));
+    fn command_exit_zero_follows_the_exit_status() {
+        let dir = scratch("command");
+        assert!(run_one(Check::CommandExitZero { command: "true".into() }, &dir).passed);
+        let failed = run_one(Check::CommandExitZero { command: "echo broken >&2; exit 3".into() }, &dir);
+        assert!(!failed.passed);
+        assert_eq!(failed.detail, "exit 3: broken");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn placeholder_markers_fail() {
-        let html = brief(r#"<section><cite data-src="spike.md" data-section="1">TODO write</cite></section>"#);
-        let checks = evaluate(Some(&html), "spike.md", SOURCE, &[]);
-        assert!(!passed(&checks, "no-placeholders"));
+    fn command_runs_in_the_goal_folder_with_the_artifacts_path_in_its_environment() {
+        let dir = scratch("env");
+        let check = Check::CommandExitZero { command: "test \"$ILVUNO_ARTIFACTS\" = \"$PWD/artifacts\"".into() };
+        let artifacts = dir.join("artifacts");
+        std::fs::create_dir_all(&artifacts).expect("artifacts");
+        let result = evaluate(std::slice::from_ref(&check), &at(&artifacts, &dir)).remove(0);
+        assert!(result.passed, "{result:?}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn missing_brief_fails_brief_exists() {
-        let checks = evaluate(None, "spike.md", SOURCE, &[]);
-        assert_eq!(checks.len(), 1);
-        assert!(!checks[0].passed);
+    fn results_keep_the_order_of_the_checks() {
+        let dir = scratch("order");
+        let checks = vec![Check::CommandExitZero { command: "false".into() }, Check::CommandExitZero { command: "true".into() }];
+        let results = evaluate(&checks, &at(&dir, &dir));
+        assert_eq!(results.iter().map(|r| r.passed).collect::<Vec<_>>(), vec![false, true]);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

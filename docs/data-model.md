@@ -20,17 +20,14 @@ Use `PRAGMA journal_mode=WAL`, `foreign_keys=ON`, `synchronous=NORMAL`.
 |---|---|---|
 | `id` | TEXT PK | uuid |
 | `created_at` | INTEGER | unix ms |
-| `title` | TEXT | user's words |
+| `title` | TEXT | first line of the goal |
 | `goal_text` | TEXT | the full statement |
-| `template` | TEXT | `research` \| `feature` |
-| `deliverable` | TEXT | JSON: format, audience, length, must_cite |
-| `done_spec` | TEXT | JSON: checks array + human_gate |
+| `done_spec` | TEXT | JSON: `{done, checks}`; `done` is free text or null, `checks` as written in the goal file |
 | `message_policy` | TEXT | `anytime` \| `round` \| `never`, default `round` |
 | `budget_rounds` | INTEGER | default 3 (research) / 5 (feature) |
 | `budget_tokens` | INTEGER | default 150000 |
 | `budget_usd` | REAL | nullable; CLI-level cap where supported |
-| `providers` | TEXT | JSON: instance id → `{driver, command, model, mode}`; `mode` is passed to the adapter (`INITIAL_AGENT_MODE` for codex-acp) |
-| `assignments` | TEXT | JSON: slot → provider instance id; a missing slot uses the run default |
+| `providers` | TEXT | JSON: agent id → `{driver, command, model, mode}`; `mode` is passed to the adapter (`INITIAL_AGENT_MODE` for codex-acp) |
 
 ### `runs`
 
@@ -51,8 +48,10 @@ Use `PRAGMA journal_mode=WAL`, `foreign_keys=ON`, `synchronous=NORMAL`.
 |---|---|---|
 | `id` | TEXT PK | uuid |
 | `run_id` | TEXT FK | |
-| `role` | TEXT | `orchestrator` \| `worker` \| `reviewer` \| `merger` |
-| `provider` | TEXT | instance id, e.g. `claude-main`, `codex-work` |
+| `name` | TEXT | how a task names it, e.g. `reader-1`; unique per run. The name `orchestrator` marks the planning thread |
+| `prompt` | TEXT | the thread's standing job, sent with every task on it |
+| `role` | TEXT | `orchestrator` \| `worker` (what the policy allows the thread) |
+| `provider` | TEXT | agent id (a key of `goals.providers`), e.g. `claude-main`, `codex-main` |
 | `native_session_id` | TEXT | provider's own id; nullable until created |
 | `branch` | TEXT | `run/<run>/<slug>`; null for roles without a branch |
 | `worktree_path` | TEXT | null for roles without a worktree |
@@ -75,15 +74,16 @@ Use `PRAGMA journal_mode=WAL`, `foreign_keys=ON`, `synchronous=NORMAL`.
 
 ### `dispatch`
 
-One worker assignment inside a round.
+One task inside a round: a prompt, the thread it runs on, and the scope it may touch.
 
 | column | type | notes |
 |---|---|---|
 | `id` | TEXT PK | uuid |
 | `round_id` | TEXT FK | |
 | `thread_id` | TEXT FK | |
-| `task` | TEXT | the prompt the worker received |
+| `task` | TEXT | the prompt the task was written with |
 | `scope` | TEXT | JSON array of paths or sources it may touch |
+| `created_by` | TEXT | `user` \| `orchestrator` \| `runner` (the runner, when a failed round wakes the orchestrator) |
 | `status` | TEXT | `queued` \| `running` \| `reported` \| `failed` \| `cancelled` |
 | `result_summary` | TEXT | worker's structured result, short |
 | `result_json` | TEXT | validated output if the dispatch requested a schema |

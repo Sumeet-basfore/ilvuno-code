@@ -9,10 +9,14 @@ use runner::note::run_note;
 use runner::report::run_report;
 use runner::run_status::{self, GateDecision};
 use runner::store::Outcome;
+use runner::tasks::run_task;
 use runner::{replay, Home, Store};
 use std::path::{Path, PathBuf};
 
 mod providers;
+
+/// Set by the runner on the orchestrator's session: the task that is calling `ilvuno task`.
+const CALLER_TASK_ENV: &str = "ILVUNO_TASK";
 
 #[derive(Parser)]
 #[command(name = "ilvuno", version, about = "Headless multi-agent round runner")]
@@ -32,7 +36,16 @@ enum Command {
         #[arg(long)]
         resume: Option<String>,
     },
-    /// Show a run: rounds, verdicts, dispatches, artifacts.
+    /// Add a task for a thread. It joins the open round, or opens the next one. Scope is what the task may touch.
+    Task {
+        #[arg(long)]
+        thread: String,
+        #[arg(long)]
+        prompt: String,
+        #[arg(long, value_delimiter = ',', num_args = 0..)]
+        scope: Vec<String>,
+    },
+    /// Show a run: rounds, checks, tasks, artifacts.
     Status { run: String },
     /// Decide at the human gate.
     Gate {
@@ -40,11 +53,11 @@ enum Command {
         #[command(subcommand)]
         action: GateAction,
     },
-    /// Park a run: no further rounds or dispatches start until it is run again.
+    /// Park a run: no further rounds or tasks start until it is run again.
     Freeze { run: String },
     /// Print the journal transitions and check them against the projection.
     Replay { run: String },
-    /// Worker-only: report the outcome of a dispatch. Agents call this; humans rarely do.
+    /// Agent-only: report the outcome of a task. Agents call this; humans rarely do.
     Report {
         #[arg(long)]
         task: String,
@@ -55,7 +68,7 @@ enum Command {
         #[arg(long, value_delimiter = ',', num_args = 0..)]
         files: Vec<String>,
     },
-    /// Worker-only: append a note (intent, finding, question, answer) to the run board.
+    /// Agent-only: append a note (intent, finding, question, answer) to the run board.
     Note {
         #[arg(long)]
         task: String,
@@ -72,7 +85,7 @@ enum Command {
 enum GateAction {
     /// Accept the round's output. The run becomes accepted.
     Accept,
-    /// Send the run back with a note; the next round starts immediately.
+    /// Send the run back with a note. The orchestrator, if there is one, plans the next round.
     SendBack {
         #[arg(long)]
         note: String,
@@ -86,7 +99,7 @@ fn home() -> Home {
     Home::new(root)
 }
 
-/// Directory of this binary, so workers can run `ilvuno report` by name.
+/// Directory of this binary, so agents can run `ilvuno` by name.
 fn own_bin_dir() -> Option<PathBuf> {
     std::env::current_exe().ok().and_then(|p| p.parent().map(Path::to_path_buf))
 }
@@ -103,7 +116,7 @@ async fn main() -> Result<()> {
         Command::Run { goal, resume } => {
             let mut store = Store::open(&home.db_path())?;
             let (run_id, plan) = match (goal, resume) {
-                (Some(path), None) => start_run(&mut store, &path)?,
+                (Some(path), None) => start_run(&mut store, &home, &path)?,
                 (None, Some(run_id)) => {
                     let plan = goal::load_snapshot(store.conn(), &run_id)?;
                     (run_id, plan)
@@ -114,6 +127,20 @@ async fn main() -> Result<()> {
             print_end(&run_id, &end);
             if let RunEnd::Stopped { .. } = end {
                 std::process::exit(2);
+            }
+        }
+        Command::Task { thread, prompt, scope } => {
+            let caller = std::env::var(CALLER_TASK_ENV).ok().filter(|s| !s.trim().is_empty());
+            let scope: Vec<String> = scope.into_iter().filter(|s| !s.trim().is_empty()).collect();
+            match run_task(&home, caller.as_deref(), &thread, &prompt, &scope)? {
+                Outcome::Applied(task) => {
+                    println!("task {} queued on {} in round {}", task.task_id, task.thread, task.round_index)
+                }
+                Outcome::Refused(reason) => {
+                    eprintln!("task refused: {reason}");
+                    std::process::exit(1);
+                }
+                Outcome::Duplicate(_) => {}
             }
         }
         Command::Status { run } => {
@@ -155,7 +182,7 @@ async fn main() -> Result<()> {
             }
             println!("--- rounds ---");
             for r in &replayed.rounds {
-                println!("round {} verdict={:?} dispatches={:?}", r.index, r.verdict, r.dispatches);
+                println!("round {} verdict={:?} tasks={:?}", r.index, r.verdict, r.dispatches);
             }
             let problems = replay::compare_with_projection(store.conn(), &run, &replayed)?;
             if problems.is_empty() {
@@ -194,16 +221,16 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn start_run(store: &mut Store, goal_path: &Path) -> Result<(String, GoalPlan)> {
+fn start_run(store: &mut Store, home: &Home, goal_path: &Path) -> Result<(String, GoalPlan)> {
     let plan = GoalPlan::load(goal_path).with_context(|| format!("goal {}", goal_path.display()))?;
     // Refuse a driver this build lacks before any run row is written.
     providers::build(&plan)?;
     let raw = std::fs::read_to_string(goal_path)?;
-    let base = goal_path.parent().unwrap_or_else(|| Path::new("."));
-    let new_goal = plan.new_goal();
+    let base = plan.base().to_path_buf();
+    let new_goal = plan.new_goal()?;
     let run_id = match store.transact("run.create", None, |tx, p| {
-        let run_id = commands::create_run(tx, p, &new_goal)?;
-        goal::snapshot(tx, &run_id, &raw, base)?;
+        let run_id = commands::create_run(tx, p, &new_goal, home)?;
+        goal::snapshot(tx, &run_id, &raw, &base)?;
         Ok(Outcome::Applied(run_id))
     })? {
         Outcome::Applied(id) => id,
@@ -230,6 +257,10 @@ fn print_end(run_id: &str, end: &RunEnd) {
         RunEnd::AtGate => println!("run {run_id} reached the human gate: `ilvuno gate {run_id} accept` or `send-back --note ...`"),
         RunEnd::Accepted => println!("run {run_id} is accepted"),
         RunEnd::Paused => println!("run {run_id} is paused"),
+        RunEnd::Idle => println!(
+            "run {run_id} is waiting for tasks. Add one with `ilvuno task --thread <name> --prompt ... --scope ...`, \
+             then `ilvuno run --resume {run_id}`"
+        ),
         RunEnd::Stopped { status, reason } => println!("run {run_id} stopped: {} ({reason})", status.as_str()),
     }
 }
@@ -254,17 +285,16 @@ fn print_status(store: &Store, run: &str) -> Result<()> {
                 let mark = if check["passed"] == serde_json::Value::Bool(true) { "pass" } else { "FAIL" };
                 println!("  [{mark}] {}: {}", check["name"].as_str().unwrap_or("?"), check["detail"].as_str().unwrap_or(""));
             }
-            for skipped in v["skipped"].as_array().into_iter().flatten() {
-                println!("  [skip] {}: {}", skipped["name"].as_str().unwrap_or("?"), skipped["reason"].as_str().unwrap_or(""));
-            }
-            for warning in v["warnings"].as_array().into_iter().flatten() {
-                println!("  [warn] {}", warning.as_str().unwrap_or(""));
-            }
         }
-        let mut d = conn.prepare("SELECT slot, status, COALESCE(result_summary, '') FROM dispatch WHERE round_id = ?1 ORDER BY rowid")?;
-        for item in d.query_map(rusqlite::params![round_id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?)))? {
-            let (slot, status, summary) = item?;
-            println!("  dispatch {slot}: {status} {}", summary.chars().take(120).collect::<String>());
+        let mut d = conn.prepare(
+            "SELECT t.name, d.status, COALESCE(d.result_summary, ''), d.created_by FROM dispatch d
+             JOIN threads t ON t.id = d.thread_id WHERE d.round_id = ?1 ORDER BY d.rowid",
+        )?;
+        for item in d.query_map(rusqlite::params![round_id], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?, r.get::<_, String>(3)?))
+        })? {
+            let (thread, status, summary, by) = item?;
+            println!("  task on {thread} ({by}): {status} {}", summary.chars().take(120).collect::<String>());
         }
     }
     let mut a = conn.prepare("SELECT path, bytes, sha256 FROM artifacts WHERE run_id = ?1 ORDER BY created_at")?;

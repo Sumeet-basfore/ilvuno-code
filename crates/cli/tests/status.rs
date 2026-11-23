@@ -1,71 +1,63 @@
-//! `ilvuno status` shows the second-opinion warning recorded in a round's readiness report.
+//! `ilvuno status` shows each check of a round, with its result and detail.
 
-use runner::commands::{self, NewGoal, SlotSpec};
-use runner::second_opinion;
-use runner::state::Verdict;
+use runner::commands::{self, NewGoal, NewThread};
+use runner::run_status;
 use runner::store::Outcome;
-use runner::{run_status, Home, Store};
+use runner::tasks::{self, CreatedBy, NewTask};
+use runner::{Home, Store, Verdict};
 use serde_json::json;
 use std::process::Command;
 
-fn slot(name: &str, provider: &str) -> SlotSpec {
-    SlotSpec {
-        slot: name.into(),
-        provider: provider.into(),
-        role: "worker".into(),
-        scope: vec!["notes.md".into()],
-        intent: format!("{name} works on notes.md"),
-    }
-}
-
 #[test]
-fn status_prints_the_warning_stored_in_the_round_readiness() {
+fn status_prints_each_check_with_its_detail() {
     let dir = std::env::temp_dir().join(format!("ilvuno-status-{}", uuid::Uuid::new_v4()));
     let home = Home::new(&dir);
     let mut store = Store::open(&home.db_path()).expect("store");
     let goal = NewGoal {
         title: "t".into(),
         goal_text: "g".into(),
-        template: "research".into(),
-        deliverable: json!({}),
-        done_spec: json!({"checks": []}),
+        done: None,
+        checks: json!([]),
+        message_policy: "round".into(),
         budget_rounds: 3,
         budget_tokens: 150_000,
         budget_usd: None,
         providers: json!({"claude-main": {"driver": "claude"}}),
-        assignments: json!({}),
+        threads: vec![NewThread { name: "reader-1".into(), agent: "claude-main".into(), prompt: String::new() }],
     };
     let run_id = match store
-        .transact("run.create", None, |tx, p| Ok(Outcome::Applied(commands::create_run(tx, p, &goal)?)))
+        .transact("run.create", None, |tx, p| Ok(Outcome::Applied(commands::create_run(tx, p, &goal, &home)?)))
         .expect("create")
     {
         Outcome::Applied(id) => id,
         other => panic!("{other:?}"),
     };
-    let slots = [slot("builder", "claude-main"), slot("reviewer", "claude-main")];
-    let round = match store
-        .transact("round.plan", None, |tx, p| commands::plan_round(tx, p, &run_id, &slots, &home.threads_dir(&run_id)))
-        .expect("plan")
+    let scope = vec!["brief.html".to_string()];
+    let task = match store
+        .transact("task.create", None, |tx, p| {
+            tasks::create_task(
+                tx,
+                p,
+                &NewTask { run_id: &run_id, thread: "reader-1", prompt: "write it", scope: &scope, created_by: CreatedBy::User, author_thread: None },
+            )
+        })
+        .expect("task")
     {
-        Outcome::Applied(round) => round,
-        other => panic!("planning must not refuse a second opinion: {other:?}"),
+        Outcome::Applied(task) => task,
+        other => panic!("planning must not refuse: {other:?}"),
     };
 
-    let warnings = second_opinion::for_round(store.conn(), &round.round_id).expect("warnings");
-    let readiness = json!({ "checks": [], "skipped": [], "failing": [], "failed_dispatches": [], "warnings": warnings });
+    let readiness = json!({
+        "checks": [{ "name": "text_absent brief.html", "passed": false, "detail": "found: TODO" }],
+        "failing": ["text_absent brief.html"],
+        "failed_tasks": [],
+    });
     store
         .transact("round.verdict", None, |tx, p| {
-            run_status::record_verdict(tx, p, &run_id, &round.round_id, Verdict::Pass, &readiness)?;
+            run_status::record_verdict(tx, p, &run_id, &task.round_id, Verdict::Block, &readiness)?;
             Ok(Outcome::Applied(()))
         })
         .expect("verdict");
-
-    let stored: String = store
-        .conn()
-        .query_row("SELECT readiness FROM rounds WHERE id = ?1", [&round.round_id], |r| r.get(0))
-        .expect("readiness");
-    let line = "reviewer uses the same provider as builder (claude-main): no second opinion";
-    assert!(stored.contains(line), "rounds.readiness: {stored}");
 
     let output = Command::new(env!("CARGO_BIN_EXE_ilvuno"))
         .args(["status", &run_id])
@@ -74,6 +66,7 @@ fn status_prints_the_warning_stored_in_the_round_readiness() {
         .expect("run ilvuno status");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(output.status.success(), "status failed: {}", String::from_utf8_lossy(&output.stderr));
-    assert!(stdout.contains(&format!("[warn] {line}")), "ilvuno status output:\n{stdout}");
+    assert!(stdout.contains("[FAIL] text_absent brief.html: found: TODO"), "ilvuno status output:\n{stdout}");
+    assert!(stdout.contains("task on reader-1 (user)"), "ilvuno status output:\n{stdout}");
     let _ = std::fs::remove_dir_all(&dir);
 }

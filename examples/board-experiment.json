@@ -1,0 +1,46 @@
+{
+  "goal": "Read two sources and produce one short brief that a person can read. The sources are ../docs/security.md and ../docs/provider-contract.md, relative to this goal file. The brief is brief.html: one <section> for each source, with a short summary of what the source says.",
+  "done": "brief.html exists, has a section for each source, and contains no TODO or TBD.",
+  "checks": [
+    {
+      "type": "file_exists",
+      "path": "brief.html"
+    },
+    {
+      "type": "text_absent",
+      "path": "brief.html",
+      "needles": [
+        "TODO",
+        "TBD"
+      ]
+    }
+  ],
+  "providers": {
+    "claude-main": {
+      "driver": "claude"
+    }
+  },
+  "threads": [
+    {
+      "name": "orchestrator",
+      "agent": "claude-main",
+      "prompt": "Plan the work. Give reader-1 the security source and reader-2 the provider contract. Each reader writes its notes to a file in its own folder, named in the task scope by its file name only. When both have reported, give reader-1 one task to write brief.html from both notes files. Its scope is brief.html and the two notes files, given by absolute path. Never name the artifacts folder in a scope; the runner collects brief.html itself. Then report."
+    },
+    {
+      "name": "reader-1",
+      "agent": "claude-main",
+      "prompt": "You read the source you are given and write short notes. When you write the brief, use only the notes you are given."
+    },
+    {
+      "name": "reader-2",
+      "agent": "claude-main",
+      "prompt": "You read the source you are given and write short notes."
+    }
+  ],
+  "message_policy": "round",
+  "budget": {
+    "rounds": 3,
+    "tokens": 600000,
+    "max_usd_per_call": 0.2
+  }
+}

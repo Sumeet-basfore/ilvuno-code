@@ -53,11 +53,14 @@ pub fn intent_scopes(conn: &Connection, round_id: &str) -> Result<Vec<Vec<String
     Ok(out)
 }
 
-/// Write the board every worker is told to read (`<run>/board.md`).
+/// Write the board every thread is told to read (`<run>/board.md`). Each entry names its round and who
+/// wrote it: the thread, or the user, the runner, or the human for entries with no thread.
 pub fn render_board(conn: &Connection, run_id: &str, out: &Path) -> Result<()> {
     let mut stmt = conn.prepare(
-        "SELECT l.id, l.kind, l.body, l.scope, r.\"index\", l.thread_id
-         FROM ledger l LEFT JOIN rounds r ON r.id = l.round_id
+        "SELECT l.id, l.kind, l.body, l.scope, r.\"index\", t.name, l.evidence
+         FROM ledger l
+         LEFT JOIN rounds r ON r.id = l.round_id
+         LEFT JOIN threads t ON t.id = l.thread_id
          WHERE l.run_id = ?1 ORDER BY l.id",
     )?;
     let rows = stmt.query_map(params![run_id], |r| {
@@ -68,18 +71,25 @@ pub fn render_board(conn: &Connection, run_id: &str, out: &Path) -> Result<()> {
             r.get::<_, String>(3)?,
             r.get::<_, Option<i64>>(4)?,
             r.get::<_, Option<String>>(5)?,
+            r.get::<_, Option<String>>(6)?,
         ))
     })?;
     let mut text = String::from("# Board\n\nAppend-only. Newest last.\n\n");
     for row in rows {
-        let (id, kind, body, scope, round, thread) = row?;
+        let (id, kind, body, scope, round, thread, evidence) = row?;
         let round = round.map(|i| format!("round {i}")).unwrap_or_else(|| "run".into());
-        let thread = thread.unwrap_or_else(|| "runner".into());
-        text.push_str(&format!("- #{id} **{kind}** ({round}, thread {thread}) scope {scope}: {body}\n"));
+        let author = thread.or_else(|| author_without_thread(evidence.as_deref())).unwrap_or_else(|| "runner".into());
+        text.push_str(&format!("- #{id} **{kind}** ({round}, by {author}) scope {scope}: {body}\n"));
     }
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent)?;
     }
     std::fs::write(out, text)?;
     Ok(())
+}
+
+/// Who wrote an entry that has no thread: the user who wrote a task, or the human at the gate.
+fn author_without_thread(evidence: Option<&str>) -> Option<String> {
+    let value: Value = serde_json::from_str(evidence?).ok()?;
+    value["created_by"].as_str().or_else(|| value["source"].as_str()).map(str::to_string)
 }

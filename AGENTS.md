@@ -33,7 +33,7 @@ is not.
 
 ```bash
 RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace
-RUSTUP_TOOLCHAIN=1.100.0 cargo run -p ilvuno -- run --goal examples/research.json
+RUSTUP_TOOLCHAIN=1.100.0 cargo run -p ilvuno -- run --goal examples/board-experiment.json
 ```
 
 A change is not done until `cargo test --workspace` passes and `ilvuno run` still reaches a gate on the
