@@ -23,7 +23,7 @@ async fn preflight_is_answered_with_204_and_the_cors_headers() {
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     let headers = response.headers();
     assert_eq!(headers["access-control-allow-origin"], "tauri://localhost");
-    assert_eq!(headers["access-control-allow-methods"], "GET, POST, OPTIONS");
+    assert_eq!(headers["access-control-allow-methods"], "GET, POST, PUT, OPTIONS");
     assert_eq!(headers["access-control-allow-headers"], "content-type, last-event-id");
 }
 

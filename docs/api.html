@@ -102,10 +102,12 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">757 words<br>4 sections<br>87 lines of source</div>
+  <div class="meta">1,124 words<br>4 sections<br>140 lines of source</div>
   <nav><a class="lvl2" href="#safety-in-v1">Safety in v1</a>
 <a class="lvl2" href="#endpoints">Endpoints</a>
 <a class="lvl3" href="#events">Events</a>
+<a class="lvl3" href="#agents">Agents</a>
+<a class="lvl3" href="#settings">Settings</a>
 <a class="lvl2" href="#errors">Errors</a>
 <a class="lvl2" href="#limits-in-v1">Limits in v1</a></nav>
   <a class="back" href="index.html">&larr; index</a>
@@ -127,7 +129,7 @@ behind a proxy or a port forward.</li>
 <li><strong>Only the window's origins may read it.</strong> CORS allows <code>tauri://localhost</code> (macOS, Linux) and
 <code>http://tauri.localhost</code> (Windows). A page from any other origin gets no CORS header, so the browser
 blocks it from reading runs, goals or agent messages.</li>
-<li><strong>Every write must be <code>application/json</code>.</strong> A cross-site form can POST <code>text/plain</code> without a preflight,
+<li><strong>Every write (POST or PUT) must be <code>application/json</code>.</strong> A cross-site form can POST <code>text/plain</code>,
 so requiring JSON forces a preflight — and the origin check refuses it. Anything else is a 415.</li>
 <li><strong>Still unauthenticated for local programs.</strong> Any process running as your user can call the API. Do not
 put it behind a proxy or a port forward.</li>
@@ -209,6 +211,27 @@ machine, a port reachable from elsewhere, or any client that is not the window.<
 <td><code>202 {&quot;run_id&quot;,&quot;status&quot;}</code></td>
 <td><code>goal::load_snapshot</code>, <code>drive_with</code></td>
 </tr>
+<tr>
+<td>GET</td>
+<td><code>/agents</code></td>
+<td>Which agent CLIs are on this machine, and their versions</td>
+<td><code>200 [{id,name,path,found,version,safety}]</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/settings</code></td>
+<td>The window's settings, defaults filled in</td>
+<td><code>200 {budget_rounds,budget_tokens,message_policy,theme,human_gate}</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/settings</code></td>
+<td>Write the keys the body names</td>
+<td><code>200</code> the full object after the write</td>
+<td>—</td>
+</tr>
 </tbody>
 </table>
 <p><code>POST /runs</code> takes the same keys as <code>examples/board-experiment.json</code>, plus one optional key:</p>
@@ -230,6 +253,69 @@ resumes from the row after it.</li>
 <li>Without <code>Last-Event-ID</code>, the stream starts from the newest row at connect time.</li>
 <li>An empty comment line (a single <code>:</code>) is sent every 15 seconds so the connection stays open.</li>
 </ul>
+<h3 id="agents">Agents</h3>
+<p><code>GET /agents</code> looks for six CLIs on the <code>PATH</code> of the <code>ilvunod</code> process: <code>claude</code>, <code>codex</code>, <code>pi</code>,
+<code>opencode</code>, <code>agy</code>, <code>cursor-agent</code>.</p>
+<p>The answer is one object per agent, always in the same order:</p>
+<pre><code class="language-json">[{ &quot;id&quot;: &quot;claude&quot;, &quot;name&quot;: &quot;Claude Code&quot;, &quot;path&quot;: &quot;/home/u/.local/bin/claude&quot;, &quot;found&quot;: true,
+   &quot;version&quot;: &quot;2.1.329&quot;, &quot;safety&quot;: &quot;asks_before_each_tool&quot; },
+ { &quot;id&quot;: &quot;codex&quot;, &quot;name&quot;: &quot;Codex&quot;, &quot;path&quot;: null, &quot;found&quot;: false, &quot;version&quot;: null,
+   &quot;safety&quot;: &quot;works_in_folder_asks_outside&quot; }]
+</code></pre>
+<ul>
+<li><code>found</code> is whether the binary is on the <code>PATH</code>. When it is not, <code>path</code> and <code>version</code> are <code>null</code>.</li>
+<li><code>version</code> is the first non-empty line of <code>&lt;bin&gt; --version</code>. The call gets <strong>3 seconds</strong>; one that does
+not answer in time leaves <code>version</code> as <code>null</code> with <code>found</code> still <code>true</code>. We do not invent a version.</li>
+<li><code>safety</code> is the CLI's <strong>own</strong> permission behaviour, one fixed value per agent:
+<ul>
+<li><code>asks_before_each_tool</code> — Claude Code.</li>
+<li><code>works_in_folder_asks_outside</code> — Codex and every ACP agent (Pi, opencode, Antigravity, Cursor Agent).</li>
+<li><code>unknown</code> — anything else.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Ilvuno does not sandbox agents; this describes the CLI's own permissions.</strong></p>
+<p>Detection spawns up to six processes, so the answer is <strong>cached for 30 seconds</strong> per <code>ilvunod</code> process.
+Start an agent after it is installed and it shows up within half a minute.</p>
+<h3 id="settings">Settings</h3>
+<p><code>GET /settings</code> returns all five keys, with the defaults filled in for anything never written:</p>
+<pre><code class="language-json">{ &quot;budget_rounds&quot;: 3, &quot;budget_tokens&quot;: 150000,
+  &quot;message_policy&quot;: &quot;round&quot;, &quot;theme&quot;: &quot;dark&quot;, &quot;human_gate&quot;: true }
+</code></pre>
+<p><code>PUT /settings</code> takes a body with <strong>any subset</strong> of those keys. Only the keys in the body are written;
+the rest keep their value. The answer is the full object after the write.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Accepted</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>budget_rounds</code></td>
+<td>whole number, 1–20</td>
+</tr>
+<tr>
+<td><code>budget_tokens</code></td>
+<td>whole number, 1 000–10 000 000</td>
+</tr>
+<tr>
+<td><code>message_policy</code></td>
+<td><code>anytime</code>, <code>round</code>, <code>never</code></td>
+</tr>
+<tr>
+<td><code>theme</code></td>
+<td><code>dark</code>, <code>light</code>, <code>system</code></td>
+</tr>
+<tr>
+<td><code>human_gate</code></td>
+<td><code>true</code> or <code>false</code></td>
+</tr>
+</tbody>
+</table>
+<p>Unknown keys, wrong types and out-of-range values are all a <strong>400</strong>, and nothing is written. The values
+live in the <code>settings</code> table as JSON under the key names above; <code>docs/data-model.md</code> has the table.</p>
 <h2 id="errors">Errors</h2>
 <p>Every error is JSON with the same two keys:</p>
 <pre><code class="language-json">{&quot;error&quot;: &quot;unknown thread nobody&quot;, &quot;kind&quot;: &quot;conflict&quot;}

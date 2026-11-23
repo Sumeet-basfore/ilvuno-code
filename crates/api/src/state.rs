@@ -1,5 +1,6 @@
 //! Shared state: the home directory, the builder for agent instances, and the one-run-at-a-time drive slot.
 
+use crate::agents::AgentCache;
 use crate::error::{ApiError, ApiResult};
 use runner::goal::GoalPlan;
 use runner::Home;
@@ -12,18 +13,30 @@ pub type ProviderBuilder<P> = Arc<dyn Fn(&GoalPlan) -> anyhow::Result<BTreeMap<S
 pub struct AppState<P> {
     pub home: Arc<Home>,
     pub build: ProviderBuilder<P>,
+    /// The last `GET /agents` answer, so the window does not spawn six processes each time.
+    pub agents: Arc<AgentCache>,
     slot: Arc<DriveSlot>,
 }
 
 impl<P> Clone for AppState<P> {
     fn clone(&self) -> Self {
-        Self { home: self.home.clone(), build: self.build.clone(), slot: self.slot.clone() }
+        Self {
+            home: self.home.clone(),
+            build: self.build.clone(),
+            agents: self.agents.clone(),
+            slot: self.slot.clone(),
+        }
     }
 }
 
 impl<P> AppState<P> {
     pub fn new(home: Home, build: ProviderBuilder<P>) -> Self {
-        Self { home: Arc::new(home), build, slot: Arc::new(DriveSlot::default()) }
+        Self {
+            home: Arc::new(home),
+            build,
+            agents: Arc::new(AgentCache::default()),
+            slot: Arc::new(DriveSlot::default()),
+        }
     }
 
     /// Take the right to drive a run. Only one run is driven per process. `holder` says which run, for the

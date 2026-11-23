@@ -178,6 +178,17 @@ service, referenced by name. See `docs/security.md`.
 
 Single row, key/value. Defaults for budget, message policy, gate behaviour, theme, telemetry (off).
 
+| key | value |
+|---|---|
+| `budget_rounds` | JSON number, 1–20 (default 3) |
+| `budget_tokens` | JSON number, 1 000–10 000 000 (default 150000) |
+| `message_policy` | JSON string: `anytime` \| `round` \| `never` (default `round`) |
+| `theme` | JSON string: `dark` \| `light` \| `system` (default `dark`) |
+| `human_gate` | JSON boolean (default `true`) |
+| `goal_snapshot:<run id>` | the goal as a run started with it, so `--resume` reads what the run read |
+
+The first five are what `GET /settings` and `PUT /settings` serve; see `docs/api.md`.
+
 ---
 
 ## Derived views, not tables

@@ -2,12 +2,14 @@
 //! Every action calls the same function the `ilvuno` CLI calls. See docs/api.md.
 
 pub mod actions;
+pub mod agents;
 pub mod blocking;
 pub mod cors;
 pub mod drive;
 pub mod error;
 pub mod events;
 pub mod runs;
+pub mod settings;
 pub mod state;
 
 use axum::http::StatusCode;
@@ -32,6 +34,8 @@ where
         .route("/runs/{id}/tasks", post(actions::create_task::<P>))
         .route("/runs/{id}/gate", post(actions::gate::<P>))
         .route("/runs/{id}/resume", post(runs::resume::<P>))
+        .route("/agents", get(agents::list::<P>))
+        .route("/settings", get(settings::read_route::<P>).put(settings::write_route::<P>))
         .fallback(no_such_route)
         .method_not_allowed_fallback(wrong_method)
         .with_state(state)

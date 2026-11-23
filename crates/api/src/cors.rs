@@ -6,7 +6,7 @@
 //! 1. **Only the window's origins are allowed.** `*` would let any web page open in the same browser read
 //!    every run on the machine. The window uses Tauri's custom protocol, which reports as
 //!    `tauri://localhost` on macOS and Linux, and `http://tauri.localhost` on Windows.
-//! 2. **Every write must be `application/json`.** A cross-site form can POST `text/plain` or
+//! 2. **Every write (POST or PUT) must be `application/json`.** A cross-site form can POST `text/plain` or
 //!    `x-www-form-urlencoded` without a preflight, so a page could start a run without ever passing the
 //!    origin check. Requiring JSON forces a preflight, which the origin check then refuses.
 //!
@@ -28,7 +28,12 @@ fn allowed_origin(request: &Request<Body>) -> Option<HeaderValue> {
         .map(|_| origin.clone())
 }
 
-/// True when the request carries a JSON body. A missing content type on a POST is a refusal, not a guess.
+/// Methods that change state: every one of them must carry JSON.
+fn is_write(method: &Method) -> bool {
+    matches!(*method, Method::POST | Method::PUT)
+}
+
+/// True when the request carries a JSON body. A missing content type on a write is a refusal, not a guess.
 fn is_json(request: &Request<Body>) -> bool {
     request
         .headers()
@@ -50,7 +55,7 @@ pub async fn cors(request: Request<Body>, next: Next) -> Response {
             headers.insert(header::VARY, HeaderValue::from_static("origin"));
             headers.insert(
                 header::ACCESS_CONTROL_ALLOW_METHODS,
-                HeaderValue::from_static("GET, POST, OPTIONS"),
+                HeaderValue::from_static("GET, POST, PUT, OPTIONS"),
             );
             headers.insert(
                 header::ACCESS_CONTROL_ALLOW_HEADERS,
@@ -61,11 +66,11 @@ pub async fn cors(request: Request<Body>, next: Next) -> Response {
     }
 
     // Writes must be JSON. This is what stops a foreign page from POSTing `text/plain` without a preflight.
-    if request.method() == Method::POST && !is_json(&request) {
+    if is_write(request.method()) && !is_json(&request) {
         let mut response = (
             StatusCode::UNSUPPORTED_MEDIA_TYPE,
             axum::Json(serde_json::json!({
-                "error": "POST bodies must be application/json",
+                "error": "write bodies must be application/json",
                 "kind": "bad_request",
             })),
         )

@@ -102,7 +102,7 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">1,237 words<br>4 sections<br>228 lines of source</div>
+  <div class="meta">1,310 words<br>4 sections<br>239 lines of source</div>
   <nav><a class="lvl2" href="#entities">Entities</a>
 <a class="lvl3" href="#goals">goals</a>
 <a class="lvl3" href="#runs">runs</a>
@@ -678,6 +678,41 @@ but the guard is the same: a reserve file and a hard stop before the disk fills.
 service, referenced by name. See <code>docs/security.md</code>.</p>
 <h3 id="settings"><code>settings</code></h3>
 <p>Single row, key/value. Defaults for budget, message policy, gate behaviour, theme, telemetry (off).</p>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>budget_rounds</code></td>
+<td>JSON number, 1–20 (default 3)</td>
+</tr>
+<tr>
+<td><code>budget_tokens</code></td>
+<td>JSON number, 1 000–10 000 000 (default 150000)</td>
+</tr>
+<tr>
+<td><code>message_policy</code></td>
+<td>JSON string: <code>anytime</code> | <code>round</code> | <code>never</code> (default <code>round</code>)</td>
+</tr>
+<tr>
+<td><code>theme</code></td>
+<td>JSON string: <code>dark</code> | <code>light</code> | <code>system</code> (default <code>dark</code>)</td>
+</tr>
+<tr>
+<td><code>human_gate</code></td>
+<td>JSON boolean (default <code>true</code>)</td>
+</tr>
+<tr>
+<td><code>goal_snapshot:&lt;run id&gt;</code></td>
+<td>the goal as a run started with it, so <code>--resume</code> reads what the run read</td>
+</tr>
+</tbody>
+</table>
+<p>The first five are what <code>GET /settings</code> and <code>PUT /settings</code> serve; see <code>docs/api.md</code>.</p>
 <hr />
 <h2 id="derived-views-not-tables">Derived views, not tables</h2>
 <ul>
