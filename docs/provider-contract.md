@@ -90,7 +90,7 @@ Verified against `codex-acp 2.9.0`.
 actions internally — the client never sees a request, so the runner's policy is bypassed. Set
 `"mode": "workspace-write"` on the provider entry (passed to the adapter as `INITIAL_AGENT_MODE`).
 Verified: a write outside the session cwd raises a permission request. In that mode the agent writes
-freely inside its cwd, which is the thread's own folder, so the sandbox and our policy agree. `/tmp`
+freely inside its cwd, which is the thread's own folder or worktree, so the sandbox and our policy agree. `/tmp`
 is writable in that mode by default — do not treat `/tmp` as a boundary.
 
 Both map onto one runner event: `permission_request {tool, input, options}`. The runner's policy decides,
@@ -166,8 +166,9 @@ The orchestrator may also run `ilvuno task --thread <name> ...`. Everything else
 and reads outside the permitted paths, is refused by the runner's policy. If the preamble asks for
 something the policy forbids, that is a bug in one of them.
 
-**Reads.** A thread may read its own folder, the run folder (which holds the board and every thread's
-files), and any absolute path listed in its task's scope. It may write only inside its own folder.
+**Reads.** A thread may read its own folder or worktree, the run folder (which holds the board and every
+thread's files), and any absolute path listed in its task's scope. It may write only inside its own folder
+or worktree.
 
 **Who writes a task.** The task text the thread receives is its standing job, the task prompt, and the
 scope. The runner adds the thread's standing job; it does not change the task's words. A task written by

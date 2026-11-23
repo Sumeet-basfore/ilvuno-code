@@ -19,7 +19,7 @@
   do not switch branches, leave every change you want to keep in the working tree. Folder mode keeps the
   same prompt byte for byte.
 - Export: each thread gains `branch` and `has_checkout`.
-- Docs updated: `docs/data-model.md` (columns, invariant 6, export fields), `docs/provider-contract.md`
+- Docs updated: `docs/data-model.md` (columns, a note that the project tree is never written, export fields), `docs/provider-contract.md`
   (preamble 5), `docs/roadmap.md`, `context/features.md`, `context/risks.md`, `context/decisions.md` (D21).
 
 The merge and gate code was not touched. Landing is goal 02.

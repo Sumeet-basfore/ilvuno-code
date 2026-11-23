@@ -63,7 +63,7 @@ Phase A/B is done: a thread on a clean git project works in `ILVUNO_HOME/worktre
 `run/<run8>/<thread>`, and the runner commits after each task. A non-repo, a dirty tree or old git falls
 back to folder mode and journals why. Phase C (the gate's diff, accept-merge) is goal 02.
 
-- One branch and one worktree per thread: `run/<run>/<thread>`.
+- One branch and one worktree per thread: `run/<run8>/<thread>`.
 - Workers commit; the runner never pushes.
 - Diff per thread, shown in the run page.
 - Merge is a runner action, only after `accepted`, journaled with who decided and who executed.

@@ -208,8 +208,9 @@ The first five are what `GET /settings` and `PUT /settings` serve; see `docs/api
 3. No `merge` action unless `rounds.verdict ∈ {pass, pass_with_notes}` **and** `runs.status = accepted`.
 4. No write to a worktree other than the thread's own.
 5. `same request_id` twice ⇒ one dispatch, one receipt.
-6. No commit, checkout or merge in the project's own working tree; a thread commits only inside its own
-   worktree, on its own branch.
+
+The runner commits only inside a thread's worktree, on its own branch. It never commits, checks out or
+merges in the project's own working tree.
 
 ---
 
