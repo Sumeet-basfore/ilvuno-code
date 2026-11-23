@@ -444,6 +444,12 @@
 
   function openDialog(name) {
     state.opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (name === 'settings') {
+      // Settings come from the runner. Opening the panel is a fresh look, not a verdict on an edit the
+      // person already walked away from — a stale error here reads as "settings are broken".
+      state.settingsError = '';
+      loadSettings();
+    }
     setRoute(name);
   }
 
