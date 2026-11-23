@@ -14,11 +14,9 @@ pub struct JournalEntry {
     pub kind: String,
 }
 
-pub fn run_exists(conn: &Connection, run_id: &str) -> Result<bool> {
-    Ok(conn
-        .query_row("SELECT 1 FROM runs WHERE id = ?1", params![run_id], |r| r.get::<_, i64>(0))
-        .optional()?
-        .is_some())
+/// The status of a run, or `None` when no run has this id.
+pub fn run_status(conn: &Connection, run_id: &str) -> Result<Option<String>> {
+    Ok(conn.query_row("SELECT status FROM runs WHERE id = ?1", params![run_id], |r| r.get(0)).optional()?)
 }
 
 /// Every run, newest first. Each row is the summary the run list shows.
