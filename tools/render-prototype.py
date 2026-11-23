@@ -17,7 +17,7 @@ from pathlib import Path
 
 CSS = """
 :root{
-  --paper:#f6f4ef; --paper-2:#efece4; --ink:#16150f; --ink-2:#56524a; --ink-3:#8a857a;
+  --paper:#f6f4ef; --paper-2:#efece4; --ink:#16150f; --ink-2:#56524a; --ink-3:#6e6a5e;
   --rule:#d8d3c7; --accent:#9e3b22; --accent-soft:#f1e5dd; --green:#2f5d3a; --code:#efece4;
   --mono:"JetBrains Mono","Liberation Mono",ui-monospace,monospace;
   --sans:"Liberation Sans","Noto Sans",Inter,system-ui,sans-serif;

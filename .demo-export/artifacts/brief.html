@@ -1,29 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ilvuno brief: security model and provider contract</title>
+<meta charset="utf-8">
+<title>Ilvuno v1 brief: security and provider contract</title>
 </head>
 <body>
-  <main>
-    <h1>Ilvuno brief</h1>
+<h1>Ilvuno v1 brief: security and provider contract</h1>
 
-    <section id="security-model">
-      <h2>Security model</h2>
-      <p>Ilvuno does not sandbox the agent processes it runs. They are limited only by the permissions their CLI already has and by the vendor's own controls. Ilvuno's job is to avoid handing agents any extra power. The model covers v1 only: one user on a local machine, with no server and no multi-tenancy.</p>
-      <p>The repository, the agent processes and the network are not trusted. The user, the runner and the UI are trusted. Provider CLIs are opaque, and their output is read as data. The main risk is repository text reaching an agent, which may then act on the filesystem or shell.</p>
-      <p>The runner keeps provider credentials out of agent environments, gives each worker its own worktree that cannot switch branches or see <code>main</code>, and performs merges only after an accepted round. Scope is checked at dispatch and at report, but this detects problems rather than preventing them. Every command is journaled with a request ID. There is no network allowlist.</p>
-      <p>Readers must keep approvals on, give workers no git remote, stop workers from pushing or running destructive git commands, keep artifacts local, pin adapter package versions, and keep the human gate on for every round.</p>
-    </section>
+<section id="security">
+<h2>1. Security model</h2>
 
-    <section id="provider-contract">
-      <h2>Provider contract</h2>
-      <p>The contract defines what an adapter (the piece that talks to an agent CLI) must do, and what the runner promises in return. The adapter is a translator, not a decision-maker. It never writes the database, never decides that a round is done, and never retries a turn on its own. Version 1 has two adapters: <code>claude</code> (stream-json with a control protocol) and <code>acp</code> (the Agent Client Protocol, pointed at any agent's ACP command).</p>
-      <p>The runner sends commands such as spawn, session open and resume, prompt, permission reply, interrupt, park and unpark, and shutdown. Every command carries a request ID, so a repeated ID never produces a second turn. The adapter sends back eleven event kinds. Anything that does not fit goes into a raw event, so no information is lost.</p>
-      <p>Permissions differ by wire, but both map to one runner event, and the runner's policy decides. Claude needs an initialize handshake first, or every tool is silently denied. ACP clients choose an outcome by option kind, preferring allow once over allow always. ACP agents must run in a mode that asks, such as <code>workspace-write</code>, because the default mode of <code>codex-acp</code> bypasses the runner's policy.</p>
-      <p>Workers may run only <code>ilvuno note</code> and <code>ilvuno report</code>, and only for their own task. Reads are allowed in the thread's own folder, the run folder, and absolute paths in the task's scope. Writes are allowed only in the thread's own folder. Error classes have fixed responses. Spawn failures are not retried blindly, auth and usage limits pause the run, a protocol error marks the session broken, and unknown errors are recorded and never silently resent. An adapter crash counts as a failed turn and must never take the runner down. <code>/tmp</code> is not a boundary.</p>
-    </section>
-  </main>
+<p>Ilvuno does not sandbox agent processes. Agents are limited only by the permissions their CLI already has. The runner's job is to avoid handing them more access. v1 is single-user and runs on one local machine.</p>
+
+<p>The user and the runner are trusted. The repository and the agent processes are not, because a hostile file in the repo can inject prompts. Provider CLIs are trusted but opaque, so their output is treated as data.</p>
+
+<p><strong>Rules the runner enforces:</strong></p>
+<ul>
+<li>Provider credentials never enter an agent's environment.</li>
+<li>Each worker gets its own worktree. Workers never switch branches or touch <code>main</code>.</li>
+<li>Merges happen only in the runner, and only after an accepted round.</li>
+<li>Scope is checked at dispatch and at report. Out-of-scope diffs are shown and block <code>pass</code>, but this detects problems rather than preventing them.</li>
+<li>Every command and effect is journaled with a request id.</li>
+</ul>
+
+<p><strong>Known limits:</strong> there is no network allowlist, so an injected agent with shell access could send files out. The runner gives no protection against a malicious provider CLI or a root-compromised machine. Malicious skills or MCP servers are outside its control.</p>
+
+<p><strong>Act on these:</strong></p>
+<ul>
+<li>Do not give workers a git remote. Do not allow force-push, <code>branch -D</code>, or <code>reset --hard</code> by workers.</li>
+<li>Pin adapter versions fetched with <code>npx -y</code>, and record the resolved version in the journal.</li>
+<li>Keep the human gate on. Keep permission mode <code>default</code>. Never use bypass permissions.</li>
+<li>Review the context size shown per thread, and trim injected skill descriptions.</li>
+<li>If credentials may have leaked, rotate them at the provider. Ilvuno does not store them.</li>
+<li>On an incident, run <code>ilvuno run freeze &lt;run&gt;</code>, then read the journal.</li>
+<li>Keep reports and journals local. They can contain source code and possibly secrets.</li>
+</ul>
+</section>
+
+<section id="provider-contract">
+<h2>2. Provider contract</h2>
+
+<p>The contract covers what an adapter must implement and what the runner promises it. v1 has two adapters: <code>claude</code>, which uses native stream-json and the control protocol, and <code>acp</code>, which points at any agent's ACP command. The core rule is zero first-party privilege. Anything <code>claude</code> needs that the ACP adapter cannot also get must go into the shared capability struct, or it does not exist.</p>
+
+<p>The adapter is a translator, not a decision-maker. It never writes the database, never decides a round is done, and never retries a turn on its own. If it cannot answer, it emits <code>unknown</code> and the runner decides.</p>
+
+<p><strong>Key terms:</strong></p>
+<ul>
+<li><strong>Commands</strong> (runner to adapter): <code>spawn</code>, <code>session_open</code>, <code>session_resume</code>, <code>prompt</code>, <code>permission_reply</code>, <code>interrupt</code>, <code>park</code>/<code>unpark</code>, <code>shutdown</code>. Each carries a <code>request_id</code>, and resending the same id must not start a second turn.</li>
+<li><strong>Events</strong> (adapter to runner): eleven kinds, including <code>text_delta</code>, <code>tool_call</code>, <code>permission_request</code>, <code>usage</code>, <code>turn_finished</code>, and <code>raw</code>. Anything unmodelled goes into <code>raw</code>.</li>
+<li><strong>Capabilities</strong> are declared, not probed. The runner greys out what is absent and never imitates a missing feature.</li>
+<li><strong>Error classes:</strong> <code>spawn_failed</code>, <code>auth_required</code>, <code>usage_limit</code>, <code>turn_failed</code>, <code>protocol</code>, <code>unknown</code>. Adapter death counts as <code>turn_failed</code> with reason <code>adapter_died</code>.</li>
+<li><strong>Prompts</strong> are versioned in code and injected every turn. The journal records the version injected into each task.</li>
+</ul>
+
+<p><strong>Act on these:</strong></p>
+<ol>
+<li>Send <code>control_request{initialize}</code> before any Claude turn. Without it, every tool is silently denied.</li>
+<li>Set <code>"mode": "workspace-write"</code> on ACP provider entries. Otherwise permission requests are bypassed. ACP answers by option kind, not position.</li>
+<li>Do not treat <code>/tmp</code> as a security boundary. It is writable in <code>workspace-write</code> mode by default.</li>
+<li>Use absolute paths for runner commands in worker preambles. A Codex login shell's <code>PATH</code> differs from the runner's.</li>
+<li>Treat <code>acp:*</code> as tier 3 unless it has been tested.</li>
+<li>Do not ship PTY scraping in v1. An agent without ACP or a protocol is labelled, not faked.</li>
+</ol>
+</section>
 </body>
 </html>
