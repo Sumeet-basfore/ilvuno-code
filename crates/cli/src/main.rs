@@ -157,6 +157,8 @@ async fn main() -> Result<()> {
             if let Outcome::Refused(reason) = outcome {
                 bail!("gate refused: {reason}");
             }
+            // The board is what a human reads: refresh it after the decision so its status is not stale.
+            runner::ledger::render_board(store.conn(), &run, &home.board_path(&run))?;
             match decision {
                 GateDecision::Accept => println!("run {run} accepted by human"),
                 GateDecision::SendBack { .. } => {

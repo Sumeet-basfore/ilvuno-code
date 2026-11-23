@@ -81,6 +81,10 @@ impl<P: Provider> Driver<'_, P> {
     async fn run_open_tasks(&self, store: &mut Store, plan: &GoalPlan, run_id: &str, round: &RoundRow) -> Result<()> {
         let mut attempted = BTreeSet::new();
         while let Some(task) = next_open_task(store.conn(), &round.id, &attempted)? {
+            // Checked per task, not per round: one round of three tasks can blow the run's budget.
+            if self.budget_exhausted(store, run_id)? {
+                break;
+            }
             attempted.insert(task.id.clone());
             let provider = self.providers.get(&task.agent).with_context(|| {
                 format!("thread {}: agent {:?} is not available in this process", task.thread, task.agent)
@@ -89,6 +93,17 @@ impl<P: Provider> Driver<'_, P> {
             dispatch::execute(provider, store, &cx, run_id, round.index, &task.id).await?;
         }
         Ok(())
+    }
+
+    /// True when the run has spent its token budget. The outer loop turns this into a stop; a task in
+    /// flight is never killed, because half a turn leaves nothing worth keeping.
+    fn budget_exhausted(&self, store: &Store, run_id: &str) -> Result<bool> {
+        let (used, limit): (i64, i64) = store.conn().query_row(
+            "SELECT r.tokens_used, g.budget_tokens FROM runs r JOIN goals g ON g.id = r.goal_id WHERE r.id = ?1",
+            rusqlite::params![run_id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        Ok(used as u64 >= limit as u64)
     }
 
     /// Close the round if no task is open: run the checks, record the verdict, and either stop, or wake the

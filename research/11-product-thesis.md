@@ -108,3 +108,29 @@ Tick these four, and I start building:
 4. Board is the default view of a run.
 
 Plus the experiment: the board must be readable by a human, or we stop.
+
+---
+
+## Experiment result (added after the first run)
+
+Run: `examples/board-experiment.json`, three threads (one orchestrator, two readers), all Claude, one goal.
+Result: reached the gate in two rounds. Round 0 wrote the two notes files but no brief, so the checks
+failed; the orchestrator was woken with the failing check, made one new task, and round 1 produced
+`brief.html`. 13 board entries. About 350k tokens, roughly $0.12.
+
+**Is the board readable without a transcript?** Yes, after three changes that the first version failed:
+
+1. Paths were absolute (`/tmp/claude-1000/…/threads/reader-1/…`). Unreadable. Now relative to the run.
+2. There was no header. Now the board opens with the goal, what done looks like, and the run's status.
+3. Bodies were unbounded. Now trimmed to 400 characters; the full text stays in the journal.
+
+Still weak: long task prompts dominate the board, and source paths outside the run stay absolute. A person
+can follow who did what and why round 0 failed; they would not enjoy reading it. That is enough to build
+on, not enough to ship.
+
+**A real bug this experiment found:** the token budget was checked once per round, so one round of three
+tasks could exceed it (300k planned, 368k spent). The build agent had raised the budget to 600k to make
+the run pass — that is not a fix. The budget is now checked before every task in a round.
+
+**And one mistake of mine:** I overwrote a newer `ledger.rs` with an older copy, losing the author field.
+The board test caught it in the same minute. Small, but the reason tests exist.
