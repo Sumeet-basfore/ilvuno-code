@@ -1,0 +1,62 @@
+{
+  "title": "Summarise the Claude and ACP spike (mixed: researcher-a claude, rest codex)",
+  "template": "research",
+  "goal_text": "Summarise research/09-spike.md into one HTML page. Every source section it covers must be cited to the section it summarises. Live evidence run: Summarise the Claude and ACP spike (mixed: researcher-a claude, rest codex).",
+  "source": "../research/09-spike.md",
+  "deliverable": {
+    "format": [
+      "html"
+    ],
+    "audience": "me",
+    "must_cite": true
+  },
+  "groups": [
+    {
+      "slot": "researcher-a",
+      "sections": [
+        1,
+        2
+      ]
+    },
+    {
+      "slot": "researcher-b",
+      "sections": [
+        3,
+        4
+      ]
+    }
+  ],
+  "required_sections": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "checks": [
+    "section-citations-resolve",
+    "required-sections-cited",
+    "no-placeholders",
+    "findings-cited-or-rejected",
+    "no-uncorrected-contradictions"
+  ],
+  "providers": {
+    "claude-main": {
+      "driver": "claude"
+    },
+    "codex-main": {
+      "driver": "acp",
+      "command": "npx -y @agentclientprotocol/codex-acp@2.9.0"
+    }
+  },
+  "assignments": {
+    "researcher-a": "claude-main",
+    "researcher-b": "codex-main",
+    "synthesizer": "codex-main"
+  },
+  "message_policy": "round",
+  "budget": {
+    "rounds": 2,
+    "tokens": 300000,
+    "max_usd_per_call": 0.2
+  }
+}
