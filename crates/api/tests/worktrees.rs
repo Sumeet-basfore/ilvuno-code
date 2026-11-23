@@ -180,6 +180,24 @@ async fn accept_merges_the_thread_change_and_records_the_run_in_git() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_dirty_thread_worktree_refuses_accept_before_any_merge() {
+    let h = harness();
+    let repo = make_repo(&h.dir.join("dirty-worktree-repo"));
+    let id = start_run(&h.app, &goal(&repo)).await;
+    wait_status(&h.app, &id, "reviewed").await;
+    let base = git::head(&repo).expect("base");
+    let worktree = h.home.worktree_dir(&id, "reader-1");
+    std::fs::write(worktree.join("uncommitted.md"), "do not omit me\n").expect("worktree edit");
+
+    let reply = post(&h.app, &format!("/runs/{id}/gate"), r#"{"decision":"accept"}"#).await;
+    assert_eq!(reply.status, axum::http::StatusCode::CONFLICT, "{}", reply.json);
+    assert!(reply.json["error"].as_str().unwrap_or_default().contains("uncommitted.md"));
+    assert_eq!(git::head(&repo).expect("project head"), base);
+    assert!(!repo.join("notes.md").exists(), "the committed branch was not merged either");
+    assert_eq!(get(&h.app, &format!("/runs/{id}")).await.json["run"]["status"], "reviewed");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_conflict_aborts_and_blocks_with_the_file_name() {
     let h = harness();
     let repo = make_repo(&h.dir.join("conflict-repo"));

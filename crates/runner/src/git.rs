@@ -67,6 +67,20 @@ pub fn dirty_paths(root: &Path) -> Result<Vec<String>> {
         .collect())
 }
 
+/// Uncommitted agent work in a thread checkout. The adapter's stderr capture is runner output, not
+/// agent work, so it does not make the gate refuse an otherwise clean checkout.
+pub fn dirty_worktree_paths(worktree: &Path) -> Result<Vec<String>> {
+    let status = git_ok(worktree, &["status", "--porcelain", "--untracked-files=all"])?;
+    Ok(status
+        .lines()
+        .filter_map(|line| {
+            let code = line.get(..2).unwrap_or_default();
+            let path = line.get(3..).unwrap_or(line);
+            (!(path == "provider-stderr.log" && code == "??")).then(|| path.to_string())
+        })
+        .collect())
+}
+
 pub fn head(root: &Path) -> Result<String> {
     git_ok(root, &["rev-parse", "HEAD"])
 }
@@ -328,6 +342,24 @@ mod tests {
         let stat = diff_stat(&path, &base).expect("stat");
         assert!(stat.contains("notes.md"), "{stat}");
         assert!(!stat.contains("provider-stderr.log"), "{stat}");
+        remove_worktree(&r.dir, &path).expect("remove");
+    }
+
+    #[test]
+    fn provider_stderr_does_not_make_a_thread_worktree_dirty() {
+        let r = repo("stderr-dirty");
+        let base = head(&r.dir).expect("head");
+        let path = r.dir.join("..").join(format!("wt-{}", uuid::Uuid::new_v4()));
+        add_worktree(&r.dir, &path, &branch_name("stderr", "writer"), &base).expect("worktree");
+        std::fs::write(path.join("provider-stderr.log"), "adapter output\n").expect("adapter log");
+        assert!(dirty_worktree_paths(&path).expect("dirty paths").is_empty());
+
+        git_ok(&path, &["add", "provider-stderr.log"]).expect("stage adapter log");
+        assert_eq!(dirty_worktree_paths(&path).expect("dirty paths"), ["provider-stderr.log"]);
+        git_ok(&path, &["reset", "--", "provider-stderr.log"]).expect("unstage adapter log");
+
+        std::fs::write(path.join("notes.md"), "agent work\n").expect("agent work");
+        assert_eq!(dirty_worktree_paths(&path).expect("dirty paths"), ["notes.md"]);
         remove_worktree(&r.dir, &path).expect("remove");
     }
 

@@ -147,7 +147,8 @@ Every error is JSON with the same two keys:
 
 The thread diff patch is capped at 128 KiB. Its `stat` covers the full diff. Accepting a git-backed run
 checks that the project is clean, then merges each checked-out thread branch in task order. A conflict
-aborts that merge and blocks the run with the conflicting file names. Folder-mode runs only record the
+aborts that merge and blocks the run with the conflicting file names. Each thread worktree must also be
+clean; if it has uncommitted files, accept is refused and names them. Folder-mode runs only record the
 human decision.
 
 ## Limits in v1

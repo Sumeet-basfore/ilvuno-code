@@ -190,6 +190,22 @@ pub fn decide_gate_and_render(home: &Home, store: &mut Store, run_id: &str, deci
                 let root = std::path::PathBuf::from(root);
                 targets = merge_targets(store.conn(), run_id)?;
                 if !targets.is_empty() {
+                    for target in &targets {
+                        let dirty = crate::git::dirty_worktree_paths(&target.worktree_path)?;
+                        if !dirty.is_empty() {
+                            let reason = format!("thread {} has uncommitted worktree changes: {}", target.name, dirty.join(", "));
+                            return store.transact("gate.accept", None, |_tx, p| {
+                                p.push(
+                                    run_id,
+                                    None,
+                                    Some(&target.thread_id),
+                                    "merge.refused",
+                                    json!({ "reason": reason, "files": dirty }),
+                                );
+                                Ok(Outcome::Refused(reason))
+                            });
+                        }
+                    }
                     let dirty = crate::git::dirty_paths(&root)?;
                     if !dirty.is_empty() {
                         let reason = format!("the project has uncommitted changes: {}", dirty.join(", "));
@@ -225,6 +241,18 @@ pub fn decide_gate_and_render(home: &Home, store: &mut Store, run_id: &str, deci
                 )?;
                 if recorded {
                     return Ok(Outcome::Applied(None));
+                }
+                let dirty_worktree = crate::git::dirty_worktree_paths(&target.worktree_path)?;
+                if !dirty_worktree.is_empty() {
+                    let reason = format!("thread {} has uncommitted worktree changes: {}", target.name, dirty_worktree.join(", "));
+                    p.push(
+                        run_id,
+                        None,
+                        Some(&target.thread_id),
+                        "merge.refused",
+                        json!({ "reason": reason, "files": dirty_worktree }),
+                    );
+                    return Ok(Outcome::Refused(reason));
                 }
                 let dirty = crate::git::dirty_paths(&root)?;
                 if !dirty.is_empty() {
@@ -277,6 +305,7 @@ struct MergeTarget {
     thread_id: String,
     name: String,
     branch: String,
+    worktree_path: std::path::PathBuf,
 }
 
 /// Threads in the order their first task was dispatched, excluding planned branches with no checkout.
@@ -291,8 +320,8 @@ fn merge_targets(conn: &rusqlite::Connection, run_id: &str) -> Result<Vec<MergeT
     )))?;
     let rows = mapped.collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows.into_iter().filter_map(|(thread_id, name, branch, worktree)| {
-        let path = std::path::PathBuf::from(worktree);
-        path.join(".git").exists().then_some(MergeTarget { thread_id, name, branch })
+        let worktree_path = std::path::PathBuf::from(worktree);
+        worktree_path.join(".git").exists().then_some(MergeTarget { thread_id, name, branch, worktree_path })
     }).collect())
 }
 
