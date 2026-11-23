@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13 — UI anatomy: what other agent apps put where</title>
+<style>
+:root{
+  --paper:#f6f4ef; --paper-2:#efece4; --ink:#16150f; --ink-2:#56524a; --ink-3:#6e6a5e;
+  --rule:#d8d3c7; --accent:#9e3b22; --accent-soft:#f1e5dd; --code-bg:#efece4;
+  --mono:"JetBrains Mono","Liberation Mono",ui-monospace,monospace;
+  --sans:"Liberation Sans","Noto Sans",Inter,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0; color:var(--ink); background:var(--paper);
+  font-family:var(--sans); font-size:16.5px; line-height:1.62;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility}
+.wrap{display:grid; grid-template-columns:248px minmax(0,1fr); gap:52px;
+  max-width:1180px; margin:0 auto; padding:56px 40px 120px}
+/* ---------- sidebar ---------- */
+aside{position:sticky; top:40px; align-self:start; max-height:calc(100vh - 80px);
+  overflow:auto; padding-left:16px; border-left:2px solid var(--accent)}
+aside .kicker{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+aside .meta{font-family:var(--mono); font-size:11px; color:var(--ink-3); line-height:1.7; margin-top:10px}
+aside nav{margin-top:22px}
+aside nav a{display:block; color:var(--ink-2); text-decoration:none; font-size:13px;
+  line-height:1.35; padding:4px 0 4px 10px; border-left:1px solid transparent; margin-left:-11px}
+aside nav a:hover{color:var(--ink); border-left-color:var(--rule)}
+aside nav a.lvl3{padding-left:22px; font-size:12.2px; color:var(--ink-3)}
+aside .back{display:inline-block; margin-top:26px; font-family:var(--mono); font-size:11px;
+  color:var(--ink-3); text-decoration:none; border-bottom:1px solid var(--rule)}
+/* ---------- content ---------- */
+main{max-width:74ch}
+h1,h1 a,h2,h2 a,h3,h3 a,h4,h4 a{color:inherit}
+h1{font-size:36px; line-height:1.08; letter-spacing:-.022em; margin:0 0 10px; font-weight:700}
+h1 + p, h1 + blockquote{color:var(--ink-2); font-size:16.5px}
+h2{font-size:23px; line-height:1.2; letter-spacing:-.014em; margin:52px 0 14px; padding-top:16px;
+  border-top:1px solid var(--rule); font-weight:700}
+h2:first-of-type{border-top:0; padding-top:0; margin-top:34px}
+h3{font-size:17px; margin:30px 0 8px; letter-spacing:-.006em}
+h4{font-size:14.5px; margin:22px 0 6px; color:var(--ink-2)}
+p{margin:0 0 14px}
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--accent-soft)}
+a:hover{border-bottom-color:var(--accent)}
+ul,ol{margin:0 0 16px; padding-left:22px}
+li{margin:5px 0}
+li::marker{color:var(--ink-3)}
+hr{border:0; border-top:1px solid var(--rule); margin:38px 0}
+/* a markdown --- right before a heading already gets the heading's rule */
+hr:has(+ h2){display:none}
+hr + h2{border-top:0; padding-top:0; margin-top:44px}
+blockquote{margin:22px 0; padding:2px 0 2px 18px; border-left:2px solid var(--accent);
+  color:var(--ink-2)}
+blockquote p{margin:0 0 8px}
+blockquote p:last-child{margin:0}
+code{font-family:var(--mono); font-size:.855em; background:var(--code-bg);
+  padding:1.5px 5px; border-radius:2px; color:#2a2620; overflow-wrap:break-word}
+pre{background:var(--code-bg); padding:15px 17px; overflow-x:auto; margin:0 0 20px;
+  border-left:2px solid var(--ink-3); line-height:1.5}
+pre code{background:none; padding:0; font-size:12.6px; white-space:pre}
+table{width:100%; border-collapse:collapse; margin:8px 0 26px; font-size:13.6px}
+thead th{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:400; text-align:left; padding:0 12px 7px 0;
+  border-bottom:1.2px solid var(--ink); vertical-align:bottom}
+tbody td{padding:8px 12px 8px 0; border-bottom:1px solid var(--rule); vertical-align:top; line-height:1.45}
+tbody td:first-child{font-weight:700}
+td code,th code{font-size:12px}
+/* ---------- index ---------- */
+.index{max-width:1020px; margin:0 auto; padding:64px 40px 120px}
+.index .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+.index h1{margin-top:14px}
+.index .lede{color:var(--ink-2); font-size:18px; max-width:62ch; margin:14px 0 38px; line-height:1.55}
+.index ol{list-style:none; padding:0; margin:0; border-top:1.2px solid var(--ink)}
+.index li{border-bottom:1px solid var(--rule)}
+.index a.row{display:grid; grid-template-columns:34px minmax(0,1fr) 76px; gap:18px;
+  align-items:start; padding:16px 4px 16px 0; text-decoration:none; border:0; color:inherit}
+.index a.row:hover{background:var(--paper-2)}
+.index .n{font-family:var(--mono); font-size:11.5px; color:var(--accent); white-space:nowrap;
+  padding-top:4px}
+.index .t{font-size:17px; font-weight:700; letter-spacing:-.008em; line-height:1.3}
+.index .d{font-size:13.4px; color:var(--ink-2); margin-top:4px; line-height:1.5}
+.index .w{font-family:var(--mono); font-size:11px; color:var(--ink-3); text-align:right; padding-top:4px}
+@media (max-width:980px){
+  .wrap{grid-template-columns:1fr; gap:0; padding:32px 20px 80px}
+  aside{position:static; max-height:none; margin-bottom:28px}
+  aside nav{display:none}
+  .index{padding:32px 20px 80px}
+  .index a.row{grid-template-columns:1fr; gap:4px}
+  .index .w{text-align:left}
+  table{display:block; overflow-x:auto; white-space:nowrap}
+  table td,table th{white-space:normal}
+}
+@media print{
+  aside{display:none} .wrap{grid-template-columns:1fr; max-width:100%; padding:0}
+  body{font-size:11pt} h2{break-after:avoid} table,pre{break-inside:avoid}
+  a{color:inherit; border:0}
+}
+</style>
+</head><body>
+<div class="wrap">
+<aside>
+  <div class="kicker">Research report</div>
+  <div class="meta">1,048 words<br>8 sections<br>122 lines of source</div>
+  <nav><a class="lvl2" href="#1-cursor-the-agent-workspace">1. Cursor — the agent workspace</a>
+<a class="lvl2" href="#2-codex-the-task-card-not-the-window">2. Codex — the task card, not the window</a>
+<a class="lvl2" href="#3-vibe-kanban-the-board-as-navigator">3. Vibe Kanban — the board as navigator</a>
+<a class="lvl2" href="#4-what-this-says-about-our-window">4. What this says about our window</a>
+<a class="lvl2" href="#5-the-pattern-that-fits-our-product">5. The pattern that fits our product</a>
+<a class="lvl2" href="#6-what-this-costs">6. What this costs</a>
+<a class="lvl2" href="#7-what-i-would-do-next">7. What I would do next</a>
+<a class="lvl2" href="#8-open-questions-for-you">8. Open questions for you</a></nav>
+  <a class="back" href="index.html">&larr; index</a>
+</aside>
+<main>
+<h1>13 — UI anatomy: what other agent apps put where</h1>
+<p>I looked at four apps, not for colours, but for <strong>what each pane is for</strong>. The conclusion is in §4: our
+window is wrong at the navigation level, not the styling level.</p>
+<p>Evidence kept in <code>research/ui-refs/</code>: <code>cursor-agent.png</code>, <code>codex-task.png</code>, <code>vibe-kanban.png</code>.
+Sources: cursor.com/docs (agent overview), openai.com/codex, Vibe Kanban README, plus our own t3code and
+orca reports.</p>
+<hr />
+<h2 id="1-cursor-the-agent-workspace">1. Cursor — the agent workspace</h2>
+<p><img src="ui-refs/cursor-agent.png" alt="Cursor agent view" /></p>
+<table>
+<thead>
+<tr>
+<th>Pane</th>
+<th>Width</th>
+<th>What lives there</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Left</td>
+<td>~20%</td>
+<td><strong>New Agent</strong>, automations, then a flat list of <strong>agent chats</strong>, grouped by project. Each row is one agent conversation with a status dot</td>
+</tr>
+<tr>
+<td>Centre</td>
+<td>~33%</td>
+<td>the <strong>selected chat</strong>: your prompt at the top, the agent's steps, an inline image, a <strong>Summary</strong>, a <code>Review +156 −41</code> link, and a <strong>follow-up composer</strong> pinned to the bottom</td>
+</tr>
+<tr>
+<td>Right</td>
+<td>~47%</td>
+<td>the <strong>work product</strong>: branch bar (<code>Local / erik/scm-pane-features</code>, <code>Create PR</code>, <code>Commit &amp; Push</code>), then the <strong>inline diff</strong> in the editor</td>
+</tr>
+</tbody>
+</table>
+<p>Reading order: pick an agent on the left → read what it did in the middle → inspect and ship the result on
+the right. The right pane is not metadata; it is the code.</p>
+<h2 id="2-codex-the-task-card-not-the-window">2. Codex — the task card, not the window</h2>
+<p>OpenAI's own image is a component, not a full app: <strong>&quot;2 files edited +123 −42 · Review ↗&quot;</strong> above a list of
+changed files, with a composer underneath that says <code>Looks great, add tests.</code></p>
+<p>It says what OpenAI thinks the unit is: <strong>a task, its diff, and a sentence to continue it</strong>. Review is one
+click from the conversation. The diff summary is part of the chat, not a separate place.</p>
+<h2 id="3-vibe-kanban-the-board-as-navigator">3. Vibe Kanban — the board as navigator</h2>
+<p><img src="ui-refs/vibe-kanban.png" alt="Vibe Kanban" /></p>
+<table>
+<thead>
+<tr>
+<th>Pane</th>
+<th>Width</th>
+<th>What lives there</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Far left</td>
+<td>60px</td>
+<td>project / workspace icons</td>
+</tr>
+<tr>
+<td>Centre</td>
+<td>~60%</td>
+<td>a <strong>kanban board</strong>: To do · In progress · In review · Done. Cards are tasks with an issue key, a title, an agent avatar and &quot;just now&quot;</td>
+</tr>
+<tr>
+<td>Right</td>
+<td>~40%</td>
+<td>the <strong>selected card's run</strong>: setup script, your prompt, the agent's log, tool calls, and a composer <code>Continue working on this task…</code> with Queue / Stop</td>
+</tr>
+</tbody>
+</table>
+<p>Here the <strong>board is the navigation</strong> and the conversation is the detail. Cursor is the opposite.</p>
+<h2 id="4-what-this-says-about-our-window">4. What this says about our window</h2>
+<p>Our v3 got the dressing right and the <strong>information architecture</strong> wrong:</p>
+<table>
+<thead>
+<tr>
+<th>Ours (v3)</th>
+<th>What these apps do</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Left rail = <strong>runs</strong> (one row)</td>
+<td>left = <strong>agents/threads</strong>, or a board of tasks</td>
+<td>wrong object to navigate</td>
+</tr>
+<tr>
+<td>Centre = <strong>board entries</strong> (intents, findings)</td>
+<td>centre = <strong>the conversation with the selected agent</strong></td>
+<td>wrong primary surface</td>
+</tr>
+<tr>
+<td>Right = checks, budget, threads, artifacts</td>
+<td>right = <strong>the work product</strong>: diff, files, branch, actions</td>
+<td>metadata where the work should be</td>
+</tr>
+<tr>
+<td>Composer = disabled decoration</td>
+<td>composer = <strong>send to this agent</strong></td>
+<td>the main action is missing</td>
+</tr>
+<tr>
+<td>Gate = a receipt bar</td>
+<td>gate/review = <strong>a link from the conversation to the diff</strong></td>
+<td>right idea, wrong home</td>
+</tr>
+</tbody>
+</table>
+<p>One sentence: <strong>we built a run log with a chat box drawn on it; Cursor and Codex build an agent
+workspace with the work beside it.</strong></p>
+<h2 id="5-the-pattern-that-fits-our-product">5. The pattern that fits our product</h2>
+<p>Our promise: several agents in one project, with shared written state. So:</p>
+<ul>
+<li><strong>Left = threads.</strong> Each one is an agent + its conversation, with a status dot and its current task.
+Group them by status: <strong>Needs you · Working · Done</strong> (orca's rule), not by &quot;today&quot;.</li>
+<li><strong>Centre = the selected thread.</strong> Its tasks, its messages, its tool calls, and a composer that actually
+sends. A thread header shows the agent, its safety behaviour, and the run it belongs to.</li>
+<li><strong>Right = the run's work</strong>: <strong>Board</strong> (entries filtered to this run, with a toggle to show all), then
+<strong>Checks</strong>, then <strong>Gate</strong>, then <strong>Artifacts</strong>. Later the diff goes here, as Cursor puts it.</li>
+<li><strong>Board as a full view</strong>, not the default: a <code>Board</code> route with the round feed, for when you want the
+whole run at once. Same content, bigger surface.</li>
+<li><strong>Top strip</strong>: project › run › goal, status, budget, and the gate when it is open. One line, like
+Cursor's branch bar.</li>
+</ul>
+<p>This keeps the board central to the <em>product</em> (it is still how context survives), but stops pretending the
+board is how you <em>work</em>. You work in a thread; the board is what you both remember.</p>
+<h2 id="6-what-this-costs">6. What this costs</h2>
+<p>Not CSS. Three real gaps:</p>
+<ol>
+<li><strong>No thread transcript.</strong> We store one final message per task. A thread conversation is the last thing
+an agent said per task, concatenated. That is enough to start, but it is not a chat history.</li>
+<li><strong>No &quot;send to thread&quot; action in the API.</strong> We have <code>POST /runs/:id/tasks</code> with a scope. A chat message
+has no file scope, so either the composer creates a task with a declared scope, or we allow a task with
+an empty scope for conversation-only turns. The second is simpler and needs one invariant relaxed,
+deliberately.</li>
+<li><strong>Thread status is stored but not derived.</strong> <code>threads.status</code> exists (idle/working), but &quot;needs you&quot;
+has to be computed from the run: a gate open, or a task waiting on a question.</li>
+</ol>
+<h2 id="7-what-i-would-do-next">7. What I would do next</h2>
+<ol>
+<li>Re-lay the window to this IA: threads left, conversation centre, run work right. No new colours, no new
+fonts — the tokens stay.</li>
+<li>Add the two small API pieces: a thread view (<code>GET /runs/:id/threads/:name</code>) returning its tasks and
+messages; a chat task (empty scope allowed, clearly marked).</li>
+<li>Only then touch the board's own full view.</li>
+</ol>
+<p>The wireframe, in text:</p>
+<pre><code>┌─────────────┬───────────────────────────────┬──────────────────┐
+│ project › run│ goal · status · budget · gate │                   │
+├─────────────┼───────────────────────────────┼──────────────────┤
+│ NEEDS YOU   │ thread header: agent · safety │ BOARD (this run) │
+│  reader-1 ● │                               │  intent  …       │
+│ WORKING     │  task card                    │  finding …       │
+│  reader-2   │  agent message                │ CHECKS           │
+│ DONE        │  tool calls (collapsed)       │  pass / fail     │
+│  orchestr.  │                               │ GATE             │
+│             │ ┌───────────────────────────┐ │ ARTIFACTS        │
+│ + New thread│ │ message this agent…    ↑  │ │                  │
+└─────────────┴───────────────────────────────┴──────────────────┘
+</code></pre>
+<h2 id="8-open-questions-for-you">8. Open questions for you</h2>
+<ol>
+<li><strong>Navigate by thread or by run?</strong> My answer: by thread, with the run as a context strip. If you would
+rather land on the run's board every time, say so — that is Vibe Kanban's model and it is also good.</li>
+<li><strong>Does the composer write files, or only talk?</strong> &quot;Only talk&quot; is simpler and matches chat. &quot;Talk and
+act&quot; needs a scope every time, which means asking you where it may write.</li>
+<li><strong>Should Done threads stay visible?</strong> Orca keeps them marked until opened. I would copy that.</li>
+</ol>
+
+</main>
+</div>
+</body></html>
