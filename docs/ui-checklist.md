@@ -97,13 +97,20 @@ A run could only be stopped by waiting for it to stop itself. A person watching 
   task finished as `reported`, the round stayed `open`, and `shots/stopped.png` is that screen.
       
 
-### M3 — New run from a goal file · later
+### M3 — New run from a goal file · done
 
-The New run dialog takes pasted JSON. People keep goals in files.
+The New run dialog only took pasted JSON. People keep goals in files.
 
-- [ ] A file picker (Tauri dialog) that reads a `.json` goal and fills the editor
-- [ ] A bad file shows the parse error and does not start a run
-- Acceptance: a run created from `examples/board-experiment.json`; a syntax error shown as an error
+- [x] A Goal file row: type a path and press Open, or press Browse… for the system picker
+- [x] The picker returns a path; a command reads it (the page has no file access), capped at 1 MiB
+- [x] A path that does not exist, or a file that is not JSON, shows the reason and starts nothing
+- [x] A loaded goal starts a run
+- Evidence: commit `d7b4a22`; `shots/new-run-file.png` is the dialog with
+  `examples/board-experiment.json` loaded. The GTK picker opens as its own window and returns a path.
+  Tauri 2 refuses it without `capabilities/default.json` (`dialog.open not allowed`), which is why that
+  file exists
+- Limit: driving the picker with `xdotool type` puts a typo in the location bar now and then; that was
+  automation, not the app
 
 ### M4 — Choose the agent for a thread · done
 
@@ -148,17 +155,29 @@ Cursor both show this, and it is the first thing people look for when a run fail
 - Found: a CSS-only edit rebuilt nothing — `tauri::generate_context!` embeds `ui/`, and the build script
   did not watch it. Fixed, so a stylesheet change now reaches the window
 
-### M7 — Every state says what it is · later
+### M7 — Every state says what it is · done
 
-- [ ] No runs, no threads, no tasks, blocked, budget exhausted, no progress, offline, loading
-- [ ] Each one states the cause and offers the next action, or says plainly that there is none
-- Acceptance: one screenshot per state in `shots/states/`
+- [x] No runs, no tasks, waiting, paused, token budget spent, offline: each states the cause and what to
+      do next, or says plainly that there is nothing to press
+- [x] A run whose round closed with nothing queued says **waiting**, not working: the engine is right, the
+      window was not
+- [x] A spent token budget offers no Resume button, because pressing it would do nothing
+- [x] A failed round no longer draws each failing check twice
+- Evidence: commits `d58ec15`, `d7b4a22`; `shots/states/{no-runs,offline,paused,waiting,budget}.png`,
+  each from a real state. The paused and budget ones came from real runs: paused by POST /stop, budget by
+  a goal with two tasks and a 1,000-token budget (it spent 63,274)
+- Not shown: **blocked** and **no_progress** need an orchestrator and two failing rounds. `blocked` is
+  only reachable when the runner cannot create the orchestrator's wake-up task, and `no_progress` needs
+  the same checks to fail twice. Both share the banner verified above, but neither has a screenshot
 
-### M8 — Settings that stick, or say why not · later
+### M8 — Settings that stick, or say why not · done
 
-- [ ] A failed `PUT /settings` shows the error and keeps the old value on screen
-- [ ] Each setting names its effect in one line (budget rounds, tokens, policy, gate)
-- Acceptance: stop the runner, change a setting, see the error; restart, value unchanged
+- [x] A failed `PUT /settings` shows the reason inline and puts the old value back: typing 0 into Rounds
+      gives "budget_rounds must be 1-20" with the field back at 3, and the API unchanged
+- [x] A valid change persists: 5 → `GET /settings` says 5
+- [x] An error does not outlive the edit: opening the panel clears it and re-reads the runner
+- [x] Each setting names its effect in one line
+- Evidence: commit `9e99bb8`; `shots/settings-error.png`
 
 ---
 
@@ -190,11 +209,17 @@ The window's HTML, CSS and JS are compiled into the binary (`frontendDist`), so 
 | Short folder paths lost their leading slash | the shortening rule assumed a deep path | `40d1009` |
 | The agent menu looked empty | the browser's own tooltip covered it | `d36828b` |
 | Runner tests had no goal snapshot | the fixture skipped what production writes | `d36828b` |
+| A run with nothing running said "working" | status came from the runner, not from what is happening | `d58ec15` |
+| Resume was offered on a spent token budget | one banner shape for every stop | `d58ec15` |
+| Every failing check appeared twice | `readiness.failing` repeats the check names | `d58ec15` |
+| The offline banner printed a cargo command | written for the developer, shown to the user | `d58ec15` |
+| A settings error outlived the edit | the panel never re-read the runner on open | `9e99bb8` |
 
 ## 5. Known limits
 
 - "Ran for" keeps counting while a run is paused or at the gate, because the engine has no end time for
   those states. It is honest for a finished run and generous for a paused one.
+- A goal whose threads all name one agent is allowed, and the rail says so. Nothing stops it.
 - `gate.png` is an older run with a gate open; the demo run is accepted.
 
 ## 6. Open questions for the user

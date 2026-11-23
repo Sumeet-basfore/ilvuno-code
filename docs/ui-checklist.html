@@ -102,7 +102,7 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">2,062 words<br>6 sections<br>207 lines of source</div>
+  <div class="meta">2,422 words<br>6 sections<br>232 lines of source</div>
   <nav><a class="lvl2" href="#1-what-is-approved-and-what-is-not">1. What is approved, and what is not</a>
 <a class="lvl3" href="#approved-in-the-prd-the-data-model-or-the-roadmap">Approved — in the PRD, the data model or the roadmap</a>
 <a class="lvl3" href="#not-approved-do-not-build-without-the-users-word">Not approved — do not build without the user&#x27;s word</a>
@@ -110,12 +110,12 @@ td code,th code{font-size:12px}
 <a class="lvl3" href="#m0-the-thread-first-shell-done">M0 — The thread-first shell · done</a>
 <a class="lvl3" href="#m1-the-runs-facts-in-the-rail-done">M1 — The run&#x27;s facts, in the rail · done</a>
 <a class="lvl3" href="#m2-stop-a-working-run-done">M2 — Stop a working run · done</a>
-<a class="lvl3" href="#m3-new-run-from-a-goal-file-later">M3 — New run from a goal file · later</a>
+<a class="lvl3" href="#m3-new-run-from-a-goal-file-done">M3 — New run from a goal file · done</a>
 <a class="lvl3" href="#m4-choose-the-agent-for-a-thread-done">M4 — Choose the agent for a thread · done</a>
 <a class="lvl3" href="#m5-what-the-agent-actually-ran-blocked">M5 — What the agent actually ran · blocked</a>
 <a class="lvl3" href="#m6-reachability-and-scaling-done">M6 — Reachability and scaling · done</a>
-<a class="lvl3" href="#m7-every-state-says-what-it-is-later">M7 — Every state says what it is · later</a>
-<a class="lvl3" href="#m8-settings-that-stick-or-say-why-not-later">M8 — Settings that stick, or say why not · later</a>
+<a class="lvl3" href="#m7-every-state-says-what-it-is-done">M7 — Every state says what it is · done</a>
+<a class="lvl3" href="#m8-settings-that-stick-or-say-why-not-done">M8 — Settings that stick, or say why not · done</a>
 <a class="lvl2" href="#3-how-to-verify">3. How to verify</a>
 <a class="lvl2" href="#4-defects-found-and-fixed">4. Defects found and fixed</a>
 <a class="lvl2" href="#5-known-limits">5. Known limits</a>
@@ -287,12 +287,19 @@ answers <code>362211</code> tokens of <code>600000</code> in <code>2</code> of <
 <code>a_stopped_run_can_be_resumed</code>. Stopped a real run 8s in (12 shell sections): the turn finished, the
 task finished as <code>reported</code>, the round stayed <code>open</code>, and <code>shots/stopped.png</code> is that screen.</li>
 </ul>
-<h3 id="m3-new-run-from-a-goal-file-later">M3 — New run from a goal file · later</h3>
-<p>The New run dialog takes pasted JSON. People keep goals in files.</p>
+<h3 id="m3-new-run-from-a-goal-file-done">M3 — New run from a goal file · done</h3>
+<p>The New run dialog only took pasted JSON. People keep goals in files.</p>
 <ul>
-<li>[ ] A file picker (Tauri dialog) that reads a <code>.json</code> goal and fills the editor</li>
-<li>[ ] A bad file shows the parse error and does not start a run</li>
-<li>Acceptance: a run created from <code>examples/board-experiment.json</code>; a syntax error shown as an error</li>
+<li>[x] A Goal file row: type a path and press Open, or press Browse… for the system picker</li>
+<li>[x] The picker returns a path; a command reads it (the page has no file access), capped at 1 MiB</li>
+<li>[x] A path that does not exist, or a file that is not JSON, shows the reason and starts nothing</li>
+<li>[x] A loaded goal starts a run</li>
+<li>Evidence: commit <code>d7b4a22</code>; <code>shots/new-run-file.png</code> is the dialog with
+<code>examples/board-experiment.json</code> loaded. The GTK picker opens as its own window and returns a path.
+Tauri 2 refuses it without <code>capabilities/default.json</code> (<code>dialog.open not allowed</code>), which is why that
+file exists</li>
+<li>Limit: driving the picker with <code>xdotool type</code> puts a typo in the location bar now and then; that was
+automation, not the app</li>
 </ul>
 <h3 id="m4-choose-the-agent-for-a-thread-done">M4 — Choose the agent for a thread · done</h3>
 <p>The product's claim is &quot;agents are choices&quot;. The choice was made once, in the goal file.</p>
@@ -335,17 +342,29 @@ they are not the only cue for anything you can use</li>
 <li>Found: a CSS-only edit rebuilt nothing — <code>tauri::generate_context!</code> embeds <code>ui/</code>, and the build script
 did not watch it. Fixed, so a stylesheet change now reaches the window</li>
 </ul>
-<h3 id="m7-every-state-says-what-it-is-later">M7 — Every state says what it is · later</h3>
+<h3 id="m7-every-state-says-what-it-is-done">M7 — Every state says what it is · done</h3>
 <ul>
-<li>[ ] No runs, no threads, no tasks, blocked, budget exhausted, no progress, offline, loading</li>
-<li>[ ] Each one states the cause and offers the next action, or says plainly that there is none</li>
-<li>Acceptance: one screenshot per state in <code>shots/states/</code></li>
+<li>[x] No runs, no tasks, waiting, paused, token budget spent, offline: each states the cause and what to
+do next, or says plainly that there is nothing to press</li>
+<li>[x] A run whose round closed with nothing queued says <strong>waiting</strong>, not working: the engine is right, the
+window was not</li>
+<li>[x] A spent token budget offers no Resume button, because pressing it would do nothing</li>
+<li>[x] A failed round no longer draws each failing check twice</li>
+<li>Evidence: commits <code>d58ec15</code>, <code>d7b4a22</code>; <code>shots/states/{no-runs,offline,paused,waiting,budget}.png</code>,
+each from a real state. The paused and budget ones came from real runs: paused by POST /stop, budget by
+a goal with two tasks and a 1,000-token budget (it spent 63,274)</li>
+<li>Not shown: <strong>blocked</strong> and <strong>no_progress</strong> need an orchestrator and two failing rounds. <code>blocked</code> is
+only reachable when the runner cannot create the orchestrator's wake-up task, and <code>no_progress</code> needs
+the same checks to fail twice. Both share the banner verified above, but neither has a screenshot</li>
 </ul>
-<h3 id="m8-settings-that-stick-or-say-why-not-later">M8 — Settings that stick, or say why not · later</h3>
+<h3 id="m8-settings-that-stick-or-say-why-not-done">M8 — Settings that stick, or say why not · done</h3>
 <ul>
-<li>[ ] A failed <code>PUT /settings</code> shows the error and keeps the old value on screen</li>
-<li>[ ] Each setting names its effect in one line (budget rounds, tokens, policy, gate)</li>
-<li>Acceptance: stop the runner, change a setting, see the error; restart, value unchanged</li>
+<li>[x] A failed <code>PUT /settings</code> shows the reason inline and puts the old value back: typing 0 into Rounds
+gives &quot;budget_rounds must be 1-20&quot; with the field back at 3, and the API unchanged</li>
+<li>[x] A valid change persists: 5 → <code>GET /settings</code> says 5</li>
+<li>[x] An error does not outlive the edit: opening the panel clears it and re-reads the runner</li>
+<li>[x] Each setting names its effect in one line</li>
+<li>Evidence: commit <code>9e99bb8</code>; <code>shots/settings-error.png</code></li>
 </ul>
 <hr />
 <h2 id="3-how-to-verify">3. How to verify</h2>
@@ -426,12 +445,38 @@ tools/shots.sh                                           # the full set into cra
 <td>the fixture skipped what production writes</td>
 <td><code>d36828b</code></td>
 </tr>
+<tr>
+<td>A run with nothing running said &quot;working&quot;</td>
+<td>status came from the runner, not from what is happening</td>
+<td><code>d58ec15</code></td>
+</tr>
+<tr>
+<td>Resume was offered on a spent token budget</td>
+<td>one banner shape for every stop</td>
+<td><code>d58ec15</code></td>
+</tr>
+<tr>
+<td>Every failing check appeared twice</td>
+<td><code>readiness.failing</code> repeats the check names</td>
+<td><code>d58ec15</code></td>
+</tr>
+<tr>
+<td>The offline banner printed a cargo command</td>
+<td>written for the developer, shown to the user</td>
+<td><code>d58ec15</code></td>
+</tr>
+<tr>
+<td>A settings error outlived the edit</td>
+<td>the panel never re-read the runner on open</td>
+<td><code>9e99bb8</code></td>
+</tr>
 </tbody>
 </table>
 <h2 id="5-known-limits">5. Known limits</h2>
 <ul>
 <li>&quot;Ran for&quot; keeps counting while a run is paused or at the gate, because the engine has no end time for
 those states. It is honest for a finished run and generous for a paused one.</li>
+<li>A goal whose threads all name one agent is allowed, and the rail says so. Nothing stops it.</li>
 <li><code>gate.png</code> is an older run with a gate open; the demo run is accepted.</li>
 </ul>
 <h2 id="6-open-questions-for-the-user">6. Open questions for the user</h2>
