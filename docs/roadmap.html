@@ -102,7 +102,7 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">1,007 words<br>6 sections<br>121 lines of source</div>
+  <div class="meta">1,052 words<br>6 sections<br>123 lines of source</div>
   <nav><a class="lvl2" href="#where-we-are">Where we are</a>
 <a class="lvl2" href="#the-stages">The stages</a>
 <a class="lvl2" href="#stage-notes">Stage notes</a>
@@ -128,9 +128,11 @@ Below half, the loop is decoration.</p>
 <hr />
 <h2 id="where-we-are">Where we are</h2>
 <p>Done: engine (threads, tasks, rounds, gate, budget), board, replay, export, two agent types
-(Claude native, ACP/Codex), local API with live events, four board layouts, stage 0 window (reads runs,
-live run page, gate), tests.</p>
-<p>Not done: starting a run from the window (stage 1). No git. No packaging.</p>
+(Claude native, ACP/Codex), local API with live events, four board layouts, the window (threads on the
+left, conversation in the middle, the run's work on the right), starting a run from a goal file, stopping
+and resuming it, choosing a thread's agent, honest states, tests.</p>
+<p>Not done: git — a thread is still a folder under the run, not a branch of the project, so agents cannot
+change the project's code yet. No packaging.</p>
 <hr />
 <h2 id="the-stages">The stages</h2>
 <table>
@@ -153,10 +155,10 @@ live run page, gate), tests.</p>
 </tr>
 <tr>
 <td>1</td>
-<td><strong>Window starts</strong> <em>(in progress)</em></td>
+<td><s><strong>Window starts</strong></s> <strong>done</strong></td>
 <td>create and drive a run without the CLI</td>
-<td>start a goal from the app (JSON paste works; a file picker does not), watch rounds appear, stop it, resume it</td>
-<td>1–2 w</td>
+<td>start a goal from the app (paste or pick a file), watch rounds appear, stop it, resume it, change a thread's agent — <strong>verified on 2026-11-23</strong></td>
+<td>done</td>
 </tr>
 <tr>
 <td>2</td>
