@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ilvuno — UI completion checklist</title>
+<style>
+:root{
+  --paper:#f6f4ef; --paper-2:#efece4; --ink:#16150f; --ink-2:#56524a; --ink-3:#6e6a5e;
+  --rule:#d8d3c7; --accent:#9e3b22; --accent-soft:#f1e5dd; --code-bg:#efece4;
+  --mono:"JetBrains Mono","Liberation Mono",ui-monospace,monospace;
+  --sans:"Liberation Sans","Noto Sans",Inter,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0; color:var(--ink); background:var(--paper);
+  font-family:var(--sans); font-size:16.5px; line-height:1.62;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility}
+.wrap{display:grid; grid-template-columns:248px minmax(0,1fr); gap:52px;
+  max-width:1180px; margin:0 auto; padding:56px 40px 120px}
+/* ---------- sidebar ---------- */
+aside{position:sticky; top:40px; align-self:start; max-height:calc(100vh - 80px);
+  overflow:auto; padding-left:16px; border-left:2px solid var(--accent)}
+aside .kicker{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+aside .meta{font-family:var(--mono); font-size:11px; color:var(--ink-3); line-height:1.7; margin-top:10px}
+aside nav{margin-top:22px}
+aside nav a{display:block; color:var(--ink-2); text-decoration:none; font-size:13px;
+  line-height:1.35; padding:4px 0 4px 10px; border-left:1px solid transparent; margin-left:-11px}
+aside nav a:hover{color:var(--ink); border-left-color:var(--rule)}
+aside nav a.lvl3{padding-left:22px; font-size:12.2px; color:var(--ink-3)}
+aside .back{display:inline-block; margin-top:26px; font-family:var(--mono); font-size:11px;
+  color:var(--ink-3); text-decoration:none; border-bottom:1px solid var(--rule)}
+/* ---------- content ---------- */
+main{max-width:74ch}
+h1,h1 a,h2,h2 a,h3,h3 a,h4,h4 a{color:inherit}
+h1{font-size:36px; line-height:1.08; letter-spacing:-.022em; margin:0 0 10px; font-weight:700}
+h1 + p, h1 + blockquote{color:var(--ink-2); font-size:16.5px}
+h2{font-size:23px; line-height:1.2; letter-spacing:-.014em; margin:52px 0 14px; padding-top:16px;
+  border-top:1px solid var(--rule); font-weight:700}
+h2:first-of-type{border-top:0; padding-top:0; margin-top:34px}
+h3{font-size:17px; margin:30px 0 8px; letter-spacing:-.006em}
+h4{font-size:14.5px; margin:22px 0 6px; color:var(--ink-2)}
+p{margin:0 0 14px}
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--accent-soft)}
+a:hover{border-bottom-color:var(--accent)}
+ul,ol{margin:0 0 16px; padding-left:22px}
+li{margin:5px 0}
+li::marker{color:var(--ink-3)}
+hr{border:0; border-top:1px solid var(--rule); margin:38px 0}
+/* a markdown --- right before a heading already gets the heading's rule */
+hr:has(+ h2){display:none}
+hr + h2{border-top:0; padding-top:0; margin-top:44px}
+blockquote{margin:22px 0; padding:2px 0 2px 18px; border-left:2px solid var(--accent);
+  color:var(--ink-2)}
+blockquote p{margin:0 0 8px}
+blockquote p:last-child{margin:0}
+code{font-family:var(--mono); font-size:.855em; background:var(--code-bg);
+  padding:1.5px 5px; border-radius:2px; color:#2a2620; overflow-wrap:break-word}
+pre{background:var(--code-bg); padding:15px 17px; overflow-x:auto; margin:0 0 20px;
+  border-left:2px solid var(--ink-3); line-height:1.5}
+pre code{background:none; padding:0; font-size:12.6px; white-space:pre}
+table{width:100%; border-collapse:collapse; margin:8px 0 26px; font-size:13.6px}
+thead th{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:400; text-align:left; padding:0 12px 7px 0;
+  border-bottom:1.2px solid var(--ink); vertical-align:bottom}
+tbody td{padding:8px 12px 8px 0; border-bottom:1px solid var(--rule); vertical-align:top; line-height:1.45}
+tbody td:first-child{font-weight:700}
+td code,th code{font-size:12px}
+/* ---------- index ---------- */
+.index{max-width:1020px; margin:0 auto; padding:64px 40px 120px}
+.index .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+.index h1{margin-top:14px}
+.index .lede{color:var(--ink-2); font-size:18px; max-width:62ch; margin:14px 0 38px; line-height:1.55}
+.index ol{list-style:none; padding:0; margin:0; border-top:1.2px solid var(--ink)}
+.index li{border-bottom:1px solid var(--rule)}
+.index a.row{display:grid; grid-template-columns:34px minmax(0,1fr) 76px; gap:18px;
+  align-items:start; padding:16px 4px 16px 0; text-decoration:none; border:0; color:inherit}
+.index a.row:hover{background:var(--paper-2)}
+.index .n{font-family:var(--mono); font-size:11.5px; color:var(--accent); white-space:nowrap;
+  padding-top:4px}
+.index .t{font-size:17px; font-weight:700; letter-spacing:-.008em; line-height:1.3}
+.index .d{font-size:13.4px; color:var(--ink-2); margin-top:4px; line-height:1.5}
+.index .w{font-family:var(--mono); font-size:11px; color:var(--ink-3); text-align:right; padding-top:4px}
+@media (max-width:980px){
+  .wrap{grid-template-columns:1fr; gap:0; padding:32px 20px 80px}
+  aside{position:static; max-height:none; margin-bottom:28px}
+  aside nav{display:none}
+  .index{padding:32px 20px 80px}
+  .index a.row{grid-template-columns:1fr; gap:4px}
+  .index .w{text-align:left}
+  table{display:block; overflow-x:auto; white-space:nowrap}
+  table td,table th{white-space:normal}
+}
+@media print{
+  aside{display:none} .wrap{grid-template-columns:1fr; max-width:100%; padding:0}
+  body{font-size:11pt} h2{break-after:avoid} table,pre{break-inside:avoid}
+  a{color:inherit; border:0}
+}
+</style>
+</head><body>
+<div class="wrap">
+<aside>
+  <div class="kicker">Project document</div>
+  <div class="meta">1,605 words<br>5 sections<br>172 lines of source</div>
+  <nav><a class="lvl2" href="#1-what-is-approved-and-what-is-not">1. What is approved, and what is not</a>
+<a class="lvl3" href="#approved-in-the-prd-the-data-model-or-the-roadmap">Approved — in the PRD, the data model or the roadmap</a>
+<a class="lvl3" href="#not-approved-do-not-build-without-the-users-word">Not approved — do not build without the user&#x27;s word</a>
+<a class="lvl2" href="#2-milestones">2. Milestones</a>
+<a class="lvl3" href="#m0-the-thread-first-shell-done">M0 — The thread-first shell · done</a>
+<a class="lvl3" href="#m1-the-runs-facts-in-the-rail-next">M1 — The run&#x27;s facts, in the rail · next</a>
+<a class="lvl3" href="#m2-stop-a-working-run-next">M2 — Stop a working run · next</a>
+<a class="lvl3" href="#m3-new-run-from-a-goal-file-later">M3 — New run from a goal file · later</a>
+<a class="lvl3" href="#m4-choose-the-agent-for-a-thread-later">M4 — Choose the agent for a thread · later</a>
+<a class="lvl3" href="#m5-what-the-agent-actually-ran-blocked">M5 — What the agent actually ran · blocked</a>
+<a class="lvl3" href="#m6-reachability-and-scaling-next">M6 — Reachability and scaling · next</a>
+<a class="lvl3" href="#m7-every-state-says-what-it-is-later">M7 — Every state says what it is · later</a>
+<a class="lvl3" href="#m8-settings-that-stick-or-say-why-not-later">M8 — Settings that stick, or say why not · later</a>
+<a class="lvl2" href="#3-how-to-verify">3. How to verify</a>
+<a class="lvl2" href="#4-defects-found-and-fixed">4. Defects found and fixed</a>
+<a class="lvl2" href="#5-open-questions-for-the-user">5. Open questions for the user</a></nav>
+  <a class="back" href="index.html">&larr; index</a>
+</aside>
+<main>
+<h1>Ilvuno — UI completion checklist</h1>
+<p>This is the working plan for finishing the window. It is not a report: it changes as work lands.</p>
+<p>How a milestone moves: <strong>implement the smallest complete thing → run the checks → look at the real
+window → fix → commit → tick the boxes here.</strong> A box is ticked only with evidence: a test name, a
+measured number, or a screenshot path.</p>
+<p>Where the rules come from:</p>
+<ul>
+<li><code>docs/prd.md</code> — what v0 must prove, and the non-goals.</li>
+<li><code>research/13-ui-anatomy.md</code> — the layout, taken from Cursor, Codex and Vibe Kanban screenshots.</li>
+<li><code>research/01-t3code.md</code>, <code>research/02-orca.md</code> — how the two reference apps organise the same work.</li>
+<li><code>AGENTS.md</code> — no PTY agents, no scheduler, no cloud, no multi-user in v1.</li>
+</ul>
+<hr />
+<h2 id="1-what-is-approved-and-what-is-not">1. What is approved, and what is not</h2>
+<p>The goal was to make the window complete, using T3 Code and Orca as references. A reference is not an
+approval: these two apps ship whole subsystems that Ilvuno's own docs leave out of v1. Building them
+would break <code>docs/prd.md</code> §6 and <code>AGENTS.md</code>. So they are listed, not built.</p>
+<h3 id="approved-in-the-prd-the-data-model-or-the-roadmap">Approved — in the PRD, the data model or the roadmap</h3>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>What</th>
+<th>Where it is already promised</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Left</td>
+<td>Threads as agent sessions, grouped by state, per run</td>
+<td><code>docs/prd.md</code> §4</td>
+</tr>
+<tr>
+<td>Left</td>
+<td>Run switching; project shown from the goal base</td>
+<td><code>docs/data-model.md</code></td>
+</tr>
+<tr>
+<td>Left</td>
+<td>Search across runs, threads, actions</td>
+<td>palette</td>
+</tr>
+<tr>
+<td>Centre</td>
+<td>The conversation: prompt, what the agent said, its report, files</td>
+<td><code>docs/prd.md</code> §4</td>
+</tr>
+<tr>
+<td>Centre</td>
+<td>A composer that sends a message task, with no file scope</td>
+<td><code>data-model.md</code>, migration 0005</td>
+</tr>
+<tr>
+<td>Centre</td>
+<td>Live updates, errors, a stopped run with its reason</td>
+<td><code>docs/api.md</code> (SSE)</td>
+</tr>
+<tr>
+<td>Right</td>
+<td>Board, checks, gate, artifacts, thread list</td>
+<td><code>docs/prd.md</code> §5</td>
+</tr>
+<tr>
+<td>Right</td>
+<td>Accept or send back at the gate, with a note</td>
+<td><code>docs/prd.md</code> §5</td>
+</tr>
+<tr>
+<td>Settings</td>
+<td>Theme, agent detection with safety, budget defaults, message policy, human gate</td>
+<td><code>docs/prd.md</code> §5</td>
+</tr>
+</tbody>
+</table>
+<h3 id="not-approved-do-not-build-without-the-users-word">Not approved — do not build without the user's word</h3>
+<table>
+<thead>
+<tr>
+<th>Asked for in the goal</th>
+<th>Why it is not approved</th>
+<th>What would make it approvable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Git worktrees, branches, commits, diffs, PR creation, merge controls</td>
+<td>v1 has one branch and a runner-executed merge at the gate. <code>AGENTS.md</code>: &quot;Let an agent's shell touch main&quot; is a <em>do not</em>; per-thread worktrees are roadmap stage 2</td>
+<td>Roadmap stage 2 written into the PRD, with conflict rules</td>
+</tr>
+<tr>
+<td>An in-app terminal / PTY</td>
+<td><code>AGENTS.md</code>: no PTY agents in v1 (orca carries 45 hand-tuned records for it)</td>
+<td>A decision reversing D2 in <code>research/07-decision.md</code></td>
+</tr>
+<tr>
+<td>File explorer and file viewer</td>
+<td>Not in the PRD. Artifacts are listed today; reading them is a different feature</td>
+<td>A PRD line and a security note (reading arbitrary project files)</td>
+</tr>
+<tr>
+<td>Attachments (files, images) in the composer</td>
+<td>Providers take text today; attachments need a per-provider path</td>
+<td>Provider contract change</td>
+</tr>
+<tr>
+<td>Per-message model and reasoning-effort pickers</td>
+<td>The agent is chosen per thread at goal time; per-message model choice is not in the PRD</td>
+<td>A PRD line. Until then the CLI's own default applies</td>
+</tr>
+<tr>
+<td>Changing a thread's agent mid-run</td>
+<td>The thread's agent is fixed when the run starts</td>
+<td>Treated as M4 below — small, and it is the product's point</td>
+</tr>
+<tr>
+<td>Multiple projects side by side</td>
+<td>One run belongs to one project; the rail switches runs, not projects</td>
+<td>A PRD line</td>
+</tr>
+</tbody>
+</table>
+<p>Nothing above is silently dropped: each is either a milestone below or a question in §5.</p>
+<hr />
+<h2 id="2-milestones">2. Milestones</h2>
+<p>Status: <strong>done</strong> · <strong>next</strong> · <strong>blocked</strong> (needs a decision) · <strong>later</strong> (approved, low value now)</p>
+<h3 id="m0-the-thread-first-shell-done">M0 — The thread-first shell · done</h3>
+<ul>
+<li>[x] Threads grouped Needs you / Working / Done, from real run state</li>
+<li>[x] Selected thread's conversation in the centre, newest turn at the bottom</li>
+<li>[x] Composer sends <code>kind:&quot;message&quot;</code>; the board does not move (test: <code>a_message_needs_no_scope_claims_no_board_entry</code>)</li>
+<li>[x] Board keeps a full view (<code>#board</code>)</li>
+<li>[x] Settings: General, Agents, Defaults, About</li>
+<li>[x] 11 screenshots at 1440×900 in <code>crates/desktop/shots/</code>, from a real run</li>
+<li>Evidence: commit <code>cf3a083</code>, <code>cargo test --workspace</code> → 130 passed</li>
+<li>Known: <code>gate.png</code> comes from an older run with a gate open; the demo run is accepted</li>
+</ul>
+<h3 id="m1-the-runs-facts-in-the-rail-next">M1 — The run's facts, in the rail · next</h3>
+<p>The v3 shell showed project, run id, duration, rounds, tokens and a budget bar. v4 dropped them. All of
+these are real fields on <code>GET /runs/:id</code>; none need new data.</p>
+<ul>
+<li>[ ] A <strong>Run</strong> section above Board in the right rail: project folder (short), run id (short, copyable),
+duration, rounds used / cap, tokens used / cap with a bar</li>
+<li>[ ] Every number comes from the API. No spend in dollars — the engine records no cost (v3's <code>$0.12</code>
+was invented)</li>
+<li>[ ] A missing value renders <code>—</code>, never <code>0</code></li>
+<li>[ ] Fits at 1440 and 1280 without horizontal scroll</li>
+<li>Acceptance: screenshot <code>shots/run-facts.png</code>; <code>jq</code> of the same run shows the same numbers</li>
+</ul>
+<h3 id="m2-stop-a-working-run-next">M2 — Stop a working run · next</h3>
+<p>Today a run can only be resumed after it stops itself. A person watching a bad round cannot stop it.</p>
+<ul>
+<li>[ ] <code>POST /runs/{id}/stop</code>: the current turn finishes, no new turn starts, status <code>human_paused</code></li>
+<li>[ ] The command and its receipt are journaled in one transaction (the five invariants still hold)</li>
+<li>[ ] A <strong>Stop</strong> button in the topbar while <code>status = working</code>, with a confirm that says what happens</li>
+<li>[ ] The stop banner says who stopped it and what to do next (Resume is there)</li>
+<li>Acceptance: <code>cargo test --workspace</code> green with a new test; a real run stopped mid-round; the child
+process is gone (<code>pgrep</code> for the agent CLI returns nothing); screenshot</li>
+</ul>
+<h3 id="m3-new-run-from-a-goal-file-later">M3 — New run from a goal file · later</h3>
+<p>The New run dialog takes pasted JSON. People keep goals in files.</p>
+<ul>
+<li>[ ] A file picker (Tauri dialog) that reads a <code>.json</code> goal and fills the editor</li>
+<li>[ ] A bad file shows the parse error and does not start a run</li>
+<li>Acceptance: a run created from <code>examples/board-experiment.json</code>; a syntax error shown as an error</li>
+</ul>
+<h3 id="m4-choose-the-agent-for-a-thread-later">M4 — Choose the agent for a thread · later</h3>
+<p>The product's claim is &quot;agents are choices&quot;. Today the choice is made once, in the goal file.</p>
+<ul>
+<li>[ ] The thread header can change the agent for the <em>next</em> task, from the detected list</li>
+<li>[ ] A same-provider warning when a run would use one CLI for every thread</li>
+<li>[ ] The journal records who chose, and the coordinator's prompt version, per thread</li>
+<li>Acceptance: change a thread from Codex to Claude, next task runs on Claude, journal shows the choice</li>
+</ul>
+<h3 id="m5-what-the-agent-actually-ran-blocked">M5 — What the agent actually ran · blocked</h3>
+<p>The conversation shows the agent's words and its report. It does not show the tools it called. Codex and
+Cursor both show this, and it is the first thing people look for when a run fails.</p>
+<ul>
+<li>Not approved yet: the runner records results, not tool events. Streaming them means a provider-contract
+change (Claude <code>tool_use</code>, ACP <code>session/update</code>).</li>
+<li>Decision needed: is a read-only activity list in v1, or does it wait?</li>
+</ul>
+<h3 id="m6-reachability-and-scaling-next">M6 — Reachability and scaling · next</h3>
+<ul>
+<li>[ ] Keyboard-only pass: every action reachable, focus visible, no trap leaks (dialogs already trap)</li>
+<li>[ ] Contrast measured ≥ 4.5:1 for text, ≥ 3:1 for the chip borders, in dark and light</li>
+<li>[ ] No horizontal scroll at 1440, 1280, 1060; the rail folds at 1280 as designed</li>
+<li>[ ] Zoom 200% keeps the conversation readable</li>
+<li>Acceptance: numbers written down per check; screenshots at the three widths</li>
+</ul>
+<h3 id="m7-every-state-says-what-it-is-later">M7 — Every state says what it is · later</h3>
+<ul>
+<li>[ ] No runs, no threads, no tasks, blocked, budget exhausted, no progress, offline, loading</li>
+<li>[ ] Each one states the cause and offers the next action, or says plainly that there is none</li>
+<li>Acceptance: one screenshot per state in <code>shots/states/</code></li>
+</ul>
+<h3 id="m8-settings-that-stick-or-say-why-not-later">M8 — Settings that stick, or say why not · later</h3>
+<ul>
+<li>[ ] A failed <code>PUT /settings</code> shows the error and keeps the old value on screen</li>
+<li>[ ] Each setting names its effect in one line (budget rounds, tokens, policy, gate)</li>
+<li>Acceptance: stop the runner, change a setting, see the error; restart, value unchanged</li>
+</ul>
+<hr />
+<h2 id="3-how-to-verify">3. How to verify</h2>
+<pre><code class="language-bash">RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace          # 130 tests today
+ILVUNO_HOME=/tmp/demo-real ./target/debug/ilvunod &amp;      # the runner the window reads
+tools/shot.sh /tmp/check.png 1280 900                    # one shot at a width
+tools/shots.sh                                           # the full set into crates/desktop/shots/
+</code></pre>
+<p>The window's HTML, CSS and JS are compiled into the binary (<code>frontendDist</code>), so <strong>an edit needs
+<code>cargo build -p desktop</code> before it can be seen.</strong> <code>tools/shot.sh</code> does that for you.</p>
+<h2 id="4-defects-found-and-fixed">4. Defects found and fixed</h2>
+<table>
+<thead>
+<tr>
+<th>Found</th>
+<th>Cause</th>
+<th>Fixed in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Long file paths cut with no ellipsis</td>
+<td><code>.fchip</code> was <code>inline-flex</code>; <code>text-overflow</code> does not apply to a flex container (measured: 213px box, 226px of text)</td>
+<td><code>cf3a083</code></td>
+</tr>
+<tr>
+<td>A &quot;more&quot; link on short board entries</td>
+<td><code>.led-more{display:block}</code> beat the <code>hidden</code> attribute</td>
+<td><code>cf3a083</code></td>
+</tr>
+<tr>
+<td><code>**bold**</code> printed literally in messages</td>
+<td>agent text was escaped into one <code>pre-wrap</code> block</td>
+<td><code>cf3a083</code></td>
+</tr>
+<tr>
+<td>A thread opened half-way up an old message</td>
+<td><code>scrollHeight</code> read before the font swap reflowed the pane</td>
+<td><code>cf3a083</code></td>
+</tr>
+<tr>
+<td>Palette count read &quot;1 runs&quot;</td>
+<td>plural missing</td>
+<td><code>cf3a083</code></td>
+</tr>
+<tr>
+<td>Shortcuts said ⌘ on Linux</td>
+<td>copy written for macOS</td>
+<td><code>cf3a083</code></td>
+</tr>
+<tr>
+<td>The task drawer printed raw markdown</td>
+<td>it escaped <code>message</code> instead of using <code>md()</code></td>
+<td><code>cf3a083</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-open-questions-for-the-user">5. Open questions for the user</h2>
+<ol>
+<li><strong>Tool activity in the conversation (M5).</strong> In or out of v1? It needs a provider-contract change.</li>
+<li><strong>Git (worktrees, branches, PR, merge).</strong> Roadmap stage 2, and the biggest single piece of the
+reference apps. Approve it as the next stage, or keep v1 to one branch and the gate?</li>
+<li><strong>A terminal.</strong> <code>AGENTS.md</code> says no. Reference apps all have one. Confirm it stays out.</li>
+<li><strong>Cost.</strong> The engine records tokens, not money. Should it record a per-call cost cap result, so the
+rail can show spend honestly?</li>
+</ol>
+
+</main>
+</div>
+</body></html>
