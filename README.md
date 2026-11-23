@@ -4,8 +4,10 @@ A desktop app where several AI agents work on one project, and the project remem
 Rust engine, local API, and a Tauri window that reads the API. The app decides nothing about who does what — you
 write the goal, name the threads, and say what finished looks like.
 
-Status: the engine, the board, the gate, the replay and the local API work. Stage 0 of the window works: it
-lists runs, shows one run live, and accepts or sends back a gate. It cannot start a run yet.
+Status: the engine, the board, the gate, the replay and the local API work. The window is organised the
+way you work: threads on the left, the selected thread's conversation in the middle, the run's shared work
+on the right. From it you can read a run, message a thread, stop a run, resume it, and accept or send back at
+the gate. Starting a run from a file is not there yet: the New run box takes a pasted goal.
 
 ## Run it
 
