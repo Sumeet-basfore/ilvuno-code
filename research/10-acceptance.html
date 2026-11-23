@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10 — v0 acceptance</title>
+<style>
+:root{
+  --paper:#f6f4ef; --paper-2:#efece4; --ink:#16150f; --ink-2:#56524a; --ink-3:#8a857a;
+  --rule:#d8d3c7; --accent:#9e3b22; --accent-soft:#f1e5dd; --code-bg:#efece4;
+  --mono:"JetBrains Mono","Liberation Mono",ui-monospace,monospace;
+  --sans:"Liberation Sans","Noto Sans",Inter,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0; color:var(--ink); background:var(--paper);
+  font-family:var(--sans); font-size:16.5px; line-height:1.62;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility}
+.wrap{display:grid; grid-template-columns:248px minmax(0,1fr); gap:52px;
+  max-width:1180px; margin:0 auto; padding:56px 40px 120px}
+/* ---------- sidebar ---------- */
+aside{position:sticky; top:40px; align-self:start; max-height:calc(100vh - 80px);
+  overflow:auto; padding-left:16px; border-left:2px solid var(--accent)}
+aside .kicker{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+aside .meta{font-family:var(--mono); font-size:11px; color:var(--ink-3); line-height:1.7; margin-top:10px}
+aside nav{margin-top:22px}
+aside nav a{display:block; color:var(--ink-2); text-decoration:none; font-size:13px;
+  line-height:1.35; padding:4px 0 4px 10px; border-left:1px solid transparent; margin-left:-11px}
+aside nav a:hover{color:var(--ink); border-left-color:var(--rule)}
+aside nav a.lvl3{padding-left:22px; font-size:12.2px; color:var(--ink-3)}
+aside .back{display:inline-block; margin-top:26px; font-family:var(--mono); font-size:11px;
+  color:var(--ink-3); text-decoration:none; border-bottom:1px solid var(--rule)}
+/* ---------- content ---------- */
+main{max-width:74ch}
+h1,h1 a,h2,h2 a,h3,h3 a,h4,h4 a{color:inherit}
+h1{font-size:36px; line-height:1.08; letter-spacing:-.022em; margin:0 0 10px; font-weight:700}
+h1 + p, h1 + blockquote{color:var(--ink-2); font-size:16.5px}
+h2{font-size:23px; line-height:1.2; letter-spacing:-.014em; margin:52px 0 14px; padding-top:16px;
+  border-top:1px solid var(--rule); font-weight:700}
+h2:first-of-type{border-top:0; padding-top:0; margin-top:34px}
+h3{font-size:17px; margin:30px 0 8px; letter-spacing:-.006em}
+h4{font-size:14.5px; margin:22px 0 6px; color:var(--ink-2)}
+p{margin:0 0 14px}
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--accent-soft)}
+a:hover{border-bottom-color:var(--accent)}
+ul,ol{margin:0 0 16px; padding-left:22px}
+li{margin:5px 0}
+li::marker{color:var(--ink-3)}
+hr{border:0; border-top:1px solid var(--rule); margin:38px 0}
+/* a markdown --- right before a heading already gets the heading's rule */
+hr:has(+ h2){display:none}
+hr + h2{border-top:0; padding-top:0; margin-top:44px}
+blockquote{margin:22px 0; padding:2px 0 2px 18px; border-left:2px solid var(--accent);
+  color:var(--ink-2)}
+blockquote p{margin:0 0 8px}
+blockquote p:last-child{margin:0}
+code{font-family:var(--mono); font-size:.855em; background:var(--code-bg);
+  padding:1.5px 5px; border-radius:2px; color:#2a2620; overflow-wrap:break-word}
+pre{background:var(--code-bg); padding:15px 17px; overflow-x:auto; margin:0 0 20px;
+  border-left:2px solid var(--ink-3); line-height:1.5}
+pre code{background:none; padding:0; font-size:12.6px; white-space:pre}
+table{width:100%; border-collapse:collapse; margin:8px 0 26px; font-size:13.6px}
+thead th{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:400; text-align:left; padding:0 12px 7px 0;
+  border-bottom:1.2px solid var(--ink); vertical-align:bottom}
+tbody td{padding:8px 12px 8px 0; border-bottom:1px solid var(--rule); vertical-align:top; line-height:1.45}
+tbody td:first-child{font-weight:700}
+td code,th code{font-size:12px}
+/* ---------- index ---------- */
+.index{max-width:1020px; margin:0 auto; padding:64px 40px 120px}
+.index .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent)}
+.index h1{margin-top:14px}
+.index .lede{color:var(--ink-2); font-size:18px; max-width:62ch; margin:14px 0 38px; line-height:1.55}
+.index ol{list-style:none; padding:0; margin:0; border-top:1.2px solid var(--ink)}
+.index li{border-bottom:1px solid var(--rule)}
+.index a.row{display:grid; grid-template-columns:34px minmax(0,1fr) 76px; gap:18px;
+  align-items:start; padding:16px 4px 16px 0; text-decoration:none; border:0; color:inherit}
+.index a.row:hover{background:var(--paper-2)}
+.index .n{font-family:var(--mono); font-size:11.5px; color:var(--accent); white-space:nowrap;
+  padding-top:4px}
+.index .t{font-size:17px; font-weight:700; letter-spacing:-.008em; line-height:1.3}
+.index .d{font-size:13.4px; color:var(--ink-2); margin-top:4px; line-height:1.5}
+.index .w{font-family:var(--mono); font-size:11px; color:var(--ink-3); text-align:right; padding-top:4px}
+@media (max-width:980px){
+  .wrap{grid-template-columns:1fr; gap:0; padding:32px 20px 80px}
+  aside{position:static; max-height:none; margin-bottom:28px}
+  aside nav{display:none}
+  .index{padding:32px 20px 80px}
+  .index a.row{grid-template-columns:1fr; gap:4px}
+  .index .w{text-align:left}
+  table{display:block; overflow-x:auto; white-space:nowrap}
+  table td,table th{white-space:normal}
+}
+@media print{
+  aside{display:none} .wrap{grid-template-columns:1fr; max-width:100%; padding:0}
+  body{font-size:11pt} h2{break-after:avoid} table,pre{break-inside:avoid}
+  a{color:inherit; border:0}
+}
+</style>
+</head><body>
+<div class="wrap">
+<aside>
+  <div class="kicker">Research report</div>
+  <div class="meta">662 words<br>4 sections<br>79 lines of source</div>
+  <nav><a class="lvl2" href="#what-was-run">What was run</a>
+<a class="lvl2" href="#the-four-checks">The four checks</a>
+<a class="lvl2" href="#what-the-run-taught-us-that-no-document-did">What the run taught us that no document did</a>
+<a class="lvl2" href="#still-open">Still open</a></nav>
+  <a class="back" href="index.html">&larr; index</a>
+</aside>
+<main>
+<h1>10 — v0 acceptance</h1>
+<p>Evidence for the four claims in <code>docs/prd.md</code> §7. Run on this machine, after the build agent's M1–M3.
+Nothing here is a projection of intent; each line was observed.</p>
+<hr />
+<h2 id="what-was-run">What was run</h2>
+<pre><code>ILVUNO_HOME=/tmp/ilvuno-accept ./target/debug/ilvuno run --goal examples/research.json
+</code></pre>
+<p>Three dispatches in one round — two researchers splitting <code>research/09-spike.md</code> by section, one
+synthesizer — against the real <code>claude</code> CLI (2.1.329), with approvals answered by the runner's policy.</p>
+<table>
+<thead>
+<tr>
+<th>Run</th>
+<th>What it was</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>c5696041</code></td>
+<td>first real run</td>
+<td>reached gate, 1 round, 212,594 tokens</td>
+</tr>
+<tr>
+<td><code>f7203389</code></td>
+<td><strong>SIGKILL 14 s in</strong>, then <code>run --resume</code></td>
+<td>reached gate, 1 round, 161,014 tokens</td>
+</tr>
+<tr>
+<td><code>75463783</code></td>
+<td>after the worker-board fix</td>
+<td>reached gate, 1 round, 213,689 tokens</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-four-checks">The four checks</h2>
+<p><strong>1. A cited brief exists — pass.</strong> <code>artifacts/rounds/r0/synthesizer/brief.html</code>, 2.5–2.8 KB, four
+<code>&lt;section&gt;</code> elements. Each carries <code>&lt;cite data-src=&quot;09-spike.md&quot; data-section=&quot;N&quot;&gt;</code>. The checker resolves
+each citation against the source's real headings; a section with no resolving citation fails the round.</p>
+<p><strong>2. Replay reproduces the run — pass.</strong> <code>ilvuno replay &lt;run&gt;</code> prints the full transition list
+(<code>run.created</code> → <code>round.planned</code> → <code>dispatch.queued</code> → <code>thread.spawned</code> → <code>prompt.injected{&quot;version&quot;: &quot;worker-preamble/1&quot;}</code> → <code>tool.call</code> → <code>permission.decided</code> → <code>dispatch.reported</code> → gate). It also checks
+the projection against the journal and exits non-zero on mismatch.</p>
+<p><strong>3. A fourth round is refused — pass in tests, not exercised on a real run.</strong> Two tests cover it
+(<code>invariant4_refuses_fourth_round_and_keeps_threads_and_artifacts</code>,
+<code>fourth_round_is_refused_with_a_reason_and_work_is_kept</code>). Forcing it on a real run would mean three
+failing rounds, which is a deliberate waste of quota. Stated as a known gap rather than implied.</p>
+<p><strong>4. Kill mid-round, resume from the last committed row — pass.</strong> SIGKILL during round 0 left
+<code>researcher-a</code> in <code>running</code>. <code>run --resume</code> journaled <code>dispatch.requeued</code>, re-dispatched <strong>the same
+dispatch id</strong> on a new thread, finished b and the synthesizer, and reached the gate. Reports already
+committed were not overwritten.</p>
+<h2 id="what-the-run-taught-us-that-no-document-did">What the run taught us that no document did</h2>
+<p><strong>The preamble asked for something the policy forbade.</strong> Workers were told to &quot;announce your intent on
+the board&quot;, but the policy permitted exactly one shell command (<code>ilvuno report</code>) and <code>board.md</code> lives
+outside the worktree. The replay shows a worker trying four times — <code>echo</code>, <code>printf</code>, <code>Edit</code>, <code>ilvuno --help</code> — and being refused each time, then writing the complaint into its own report:</p>
+<blockquote>
+<p><em>&quot;Could not post the intent entry to board.md because the board is outside this worktree and the ilvuno
+CLI only permits the report command.&quot;</em></p>
+</blockquote>
+<p>Fixed in <code>19726ee</code>: <code>ilvuno note --task --kind --body [--scope]</code>, scope bounded by the dispatch scope,
+deduplicated by request id, allowed by the policy, and the preamble bumped to <code>worker-preamble/2</code>. On
+the next run, three notes appeared and a worker reasoned about a sibling's board entry before deciding it
+would not collide.</p>
+<p><strong>The permission layer does real work.</strong> Refused in one run: shell control syntax, chaining, an <code>Edit</code> to
+<code>board.md</code>, <code>ilvuno --help</code>, and any command not addressed to the worker's own task id.</p>
+<p><strong>Token accounting is the budget, and it is heavier than expected.</strong> One three-dispatch run consumed
+~213k tokens — mostly re-read context, not output. The example goal budgets 600k for three rounds, which
+fits roughly two and a half rounds of this shape. Either raise the default or shrink per-turn context;
+do not discover this in a fourth round.</p>
+<p><strong>Skipped checks are reported, not hidden.</strong> Two goal checks (<code>findings-cited-or-rejected</code>,
+<code>no-uncorrected-contradictions</code>) are not implemented in v0. The gate prints them as <code>[skip]</code> with the
+reason. A run can reach <code>reviewed</code> with skips visible; it cannot claim them as passes.</p>
+<h2 id="still-open">Still open</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>State</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ACP provider (M5)</td>
+<td>not built. Claude-only today.</td>
+</tr>
+<tr>
+<td>Dollar accounting per run</td>
+<td>tokens only; <code>total_cost_usd</code> is read from the CLI but not persisted</td>
+</tr>
+<tr>
+<td>Feature template</td>
+<td>not built; research only</td>
+</tr>
+<tr>
+<td>Fourth-round refusal on a live run</td>
+<td>tests only, deliberately</td>
+</tr>
+<tr>
+<td>UI</td>
+<td>not started, by design (PRD §7)</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</div>
+</body></html>
