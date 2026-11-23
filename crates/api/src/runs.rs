@@ -89,6 +89,38 @@ where
     Ok((StatusCode::ACCEPTED, Json(json!({ "run_id": run_id, "status": "working" }))))
 }
 
+/// `PUT /runs/:id/threads/:name/agent`: choose the agent that thread's next task runs on.
+pub async fn set_thread_agent<P>(
+    State(state): State<AppState<P>>,
+    Path((run_id, thread)): Path<(String, String)>,
+    body: Bytes,
+) -> ApiResult<Json<Value>>
+where
+    P: Provider + Send + Sync + 'static,
+{
+    let agent = serde_json::from_slice::<AgentBody>(&body)
+        .map_err(|e| ApiError::BadRequest(format!("invalid request body: {e}")))?
+        .agent;
+    let home = state.home.clone();
+    let (run, thread_for_call, agent_for_call) = (run_id.clone(), thread.clone(), agent.clone());
+    blocking(move || {
+        let mut store = open_store(&home)?;
+        require_run(&store, &run)?;
+        match runner::run_status::set_thread_agent(&mut store, &run, &thread_for_call, &agent_for_call)? {
+            runner::Outcome::Applied(()) => Ok(()),
+            runner::Outcome::Refused(reason) => Err(ApiError::Conflict(reason)),
+            runner::Outcome::Duplicate(_) => Ok(()),
+        }
+    })
+    .await?;
+    Ok(Json(json!({ "run_id": run_id, "thread": thread, "agent": agent })))
+}
+
+#[derive(serde::Deserialize)]
+struct AgentBody {
+    agent: String,
+}
+
 /// `POST /runs/:id/stop`: the current turn finishes, then nothing else starts. `resume` continues.
 pub async fn stop<P>(State(state): State<AppState<P>>, Path(run_id): Path<String>, body: Bytes) -> ApiResult<Json<Value>>
 where

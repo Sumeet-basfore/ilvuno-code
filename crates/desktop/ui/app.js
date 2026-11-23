@@ -104,6 +104,7 @@
     agentsLoading: false,
     settingsTab: 'general',
     stopping: false,
+    agentMenu: false,
     settingsRoute: '',
     drawerIndex: -1,
     expanded: new Set(),
@@ -927,6 +928,41 @@
       </div>`;
   }
 
+  // The agent is a choice, not a role: the run's goal names the agents it may use, and a thread can move.
+  function agentPicker(thread) {
+    const providers = state.detail?.goal?.providers || [];
+    const open = state.agentMenu;
+    const items = providers.map((p) => `
+      <button class="apick-item${p.id === thread.agent ? ' is-on' : ''}" role="option"
+              aria-selected="${p.id === thread.agent}" data-act="agent-set"
+              data-agent="${esc(p.id)}" data-thread="${esc(thread.name)}">
+        <span>${esc(p.id)}</span><span class="apick-drv">${esc(p.driver)}</span>
+      </button>`).join('');
+    return `
+      <div class="apick">
+        <button class="apick-btn" data-act="agent-menu" aria-haspopup="listbox" aria-expanded="${open}"
+                aria-label="Agent for ${esc(thread.name)}: ${esc(thread.agent)}. Pick another for its next task.">
+          ${esc(thread.agent)}${ic('chevron-down', 'ic sm')}
+        </button>
+        ${open ? `<div class="apick-menu" role="listbox" aria-label="Agents this run can use">${items ||
+          '<p class="apick-none">This run names one agent.</p>'}</div>` : ''}
+      </div>`;
+  }
+
+  async function setThreadAgent(thread, agent) {
+    if (!state.currentId) return;
+    try {
+      await putJson(`/runs/${encodeURIComponent(state.currentId)}/threads/${encodeURIComponent(thread)}/agent`, { agent });
+      state.agentMenu = false;
+      await loadRun(state.currentId, { refresh: true });
+      showToast(`${thread} now runs on ${agent}.`);
+    } catch (err) {
+      showToast(err.message);
+      state.agentMenu = false;
+    }
+    renderAll();
+  }
+
   function runStopBanner() {
     const run = state.detail.run;
     if (!['blocked', 'budget_exhausted', 'no_progress', 'human_paused'].includes(run.status)) return '';
@@ -959,7 +995,7 @@
       <div class="th-head">
         <div class="th-line">
           <h1 class="th-name">${esc(thread.name)}<span class="th-role">${esc(thread.role)}</span></h1>
-          <span class="th-agent">${esc(thread.agent)}</span>
+          ${agentPicker(thread)}
           ${safetyChip(thread.agent)}
           ${status}
         </div>
@@ -1183,6 +1219,13 @@
         </div>`;
     }).join('');
 
+    // One agent for every thread is allowed — a single subscription has to work — but it is worth saying,
+    // because a second agent is the reason this app exists.
+    const agentsUsed = [...new Set(threads.map((t) => t.agent))];
+    const sameAgentNote = threads.length > 1 && agentsUsed.length === 1
+      ? `<p class="legend">Every thread runs on ${esc(agentsUsed[0])}. That works with one subscription; a second agent would add a second opinion.</p>`
+      : '';
+
     const artifactList = (state.detail.artifacts || []).slice().sort((a, b) => roundOfArtifact(b) - roundOfArtifact(a));
     const artifactRows = artifactList.map((a) => {
       const parts = String(a.path || '').split('/');
@@ -1219,6 +1262,7 @@
       <section class="fsec" aria-labelledby="sec-threads">
         <div class="fsec-head"><h2 id="sec-threads">Threads</h2><span class="n">${threads.length}</span></div>
         ${threadRows || '<p class="facts-empty">No threads yet.</p>'}
+        ${sameAgentNote}
         <p class="legend">Ilvuno does not sandbox agents; each CLI is bounded by its own permissions.</p>
       </section>`;
   }
@@ -2109,6 +2153,13 @@
       case 'stop-run':
         stopRun();
         break;
+      case 'agent-menu':
+        state.agentMenu = !state.agentMenu;
+        renderView();
+        break;
+      case 'agent-set':
+        setThreadAgent(target.dataset.thread, target.dataset.agent);
+        break;
       case 'focus-gate':
         focusGate();
         break;
@@ -2324,6 +2375,11 @@
       return;
     }
 
+    if (e.key === 'Escape' && state.agentMenu) {
+      state.agentMenu = false;
+      renderView();
+      return;
+    }
     if (e.key === 'Escape' && routeName() !== 'thread') {
       e.preventDefault();
       closeDialog();

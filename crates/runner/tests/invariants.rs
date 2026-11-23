@@ -24,9 +24,22 @@ impl Drop for Fixture {
 }
 
 fn fixture(name: &str) -> Fixture {
+    fixture_with(name, json!({ "claude-main": { "driver": "claude" } }))
+}
+
+fn fixture_with(name: &str, providers: serde_json::Value) -> Fixture {
     let dir = std::env::temp_dir().join(format!("ilvuno-test-{name}-{}", uuid::Uuid::new_v4()));
     let home = Home::new(&dir);
     let mut store = Store::open(&home.db_path()).expect("open store");
+    // Production writes the goal snapshot beside the run; a command that reads the plan needs it.
+    let raw = json!({
+        "goal": "g", "done": "d", "checks": [],
+        "providers": providers.clone(),
+        "threads": [{ "name": "researcher-a", "agent": "claude-main", "prompt": "" }],
+        "budget": { "rounds": 3, "tokens": 150_000 },
+    })
+    .to_string();
+    let base = home.root().to_path_buf();
     let goal = NewGoal {
         title: "t".into(),
         goal_text: "g".into(),
@@ -36,11 +49,15 @@ fn fixture(name: &str) -> Fixture {
         budget_rounds: 3,
         budget_tokens: 150_000,
         budget_usd: None,
-        providers: json!({"claude-main": {"driver": "claude"}}),
+        providers,
         threads: vec![NewThread { name: "researcher-a".into(), agent: "claude-main".into(), prompt: String::new() }],
     };
     let run_id = match store
-        .transact("run.create", None, |tx, p| Ok(Outcome::Applied(commands::create_run(tx, p, &goal, &home)?)))
+        .transact("run.create", None, |tx, p| {
+            let id = commands::create_run(tx, p, &goal, &home)?;
+            runner::goal::snapshot(tx, &id, &raw, &base)?;
+            Ok(Outcome::Applied(id))
+        })
         .expect("create run")
     {
         Outcome::Applied(id) => id,
@@ -121,6 +138,50 @@ fn a_message_may_not_claim_files_and_a_task_still_needs_them() {
     assert!(matches!(send_message(&mut f, "message", &["notes.md"]), Outcome::Refused(_)));
     assert!(matches!(send_message(&mut f, "task", &[]), Outcome::Refused(_)));
     assert!(matches!(send_message(&mut f, "chatty", &[]), Outcome::Refused(_)));
+}
+
+/// The agent is a choice: a thread can move to another agent the goal names, and the journal says so.
+#[test]
+fn a_thread_can_move_to_another_agent_and_the_journal_names_both() {
+    let mut f = fixture_with(
+        "agent-switch",
+        json!({ "claude-main": { "driver": "claude" }, "codex-main": { "driver": "claude" } }),
+    );
+    let run_id = f.run_id.clone();
+    applied(run_status::set_thread_agent(&mut f.store, &run_id, "researcher-a", "codex-main").expect("switch"));
+    let provider: String = f
+        .store
+        .conn()
+        .query_row("SELECT provider FROM threads WHERE run_id = ?1 AND name = 'researcher-a'", params![run_id], |r| r.get(0))
+        .expect("provider");
+    assert_eq!(provider, "codex-main");
+    let payload: String = f
+        .store
+        .conn()
+        .query_row("SELECT payload FROM journal WHERE kind = 'thread.agent' ORDER BY seq DESC LIMIT 1", [], |r| r.get(0))
+        .expect("journal row");
+    assert!(payload.contains("claude-main"), "journal payload was {payload}");
+    assert!(payload.contains("codex-main"), "journal payload was {payload}");
+
+    // Unknown threads and agents the goal does not name are refused, not written.
+    assert!(matches!(run_status::set_thread_agent(&mut f.store, &run_id, "nobody", "codex-main"), Ok(Outcome::Refused(_))));
+    assert!(matches!(run_status::set_thread_agent(&mut f.store, &run_id, "researcher-a", "ghost"), Ok(Outcome::Refused(_))));
+}
+
+/// Switching while a turn is running would make the journal lie about who spoke, so it is refused.
+#[test]
+fn a_thread_with_a_running_turn_keeps_its_agent() {
+    let mut f = fixture_with(
+        "agent-busy",
+        json!({ "claude-main": { "driver": "claude" }, "codex-main": { "driver": "claude" } }),
+    );
+    applied(plan(&mut f, &["notes.md"]));
+    f.store.conn().execute("UPDATE dispatch SET status = 'running'", []).expect("mark running");
+    let run_id = f.run_id.clone();
+    match run_status::set_thread_agent(&mut f.store, &run_id, "researcher-a", "codex-main") {
+        Ok(Outcome::Refused(reason)) => assert!(reason.contains("middle of a turn"), "reason was {reason}"),
+        other => panic!("expected a refusal, got {other:?}"),
+    }
 }
 
 fn decide_verdict(f: &mut Fixture, round_id: &str, v: Verdict) {

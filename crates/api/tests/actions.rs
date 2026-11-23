@@ -3,7 +3,7 @@
 mod common;
 
 use axum::http::StatusCode;
-use common::{get, harness, post, start_run, wait_idle, wait_status, GOAL_WITH_ORCHESTRATOR, GOAL_WORKERS};
+use common::{get, harness, post, put, start_run, wait_idle, wait_status, GOAL_WITH_ORCHESTRATOR, GOAL_WORKERS};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_task_is_written_to_the_round_and_the_board() {
@@ -160,4 +160,36 @@ async fn a_stopped_run_can_be_resumed() {
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
     assert_ne!(status, "human_paused", "resume left the run paused");
+}
+
+/// A goal that names two agents, so a thread can move from one to the other.
+const GOAL_TWO_AGENTS: &str = r#"{
+  "goal": "Write notes for one source.",
+  "done": "notes.md exists.",
+  "providers": { "claude-main": { "driver": "claude" }, "claude-alt": { "driver": "claude" } },
+  "threads": [
+    { "name": "reader-1", "agent": "claude-main", "prompt": "You read the source you are given." }
+  ],
+  "budget": { "rounds": 3, "tokens": 600000, "max_usd_per_call": 0.2 }
+}"#;
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_agent_of_a_thread_can_be_changed() {
+    let h = harness();
+    let id = start_run(&h.app, GOAL_TWO_AGENTS).await;
+    wait_idle(&h.state).await;
+
+    let url = format!("/runs/{id}/threads/reader-1/agent");
+    let reply = put(&h.app, &url, r#"{"agent":"claude-alt"}"#).await;
+    assert_eq!(reply.status, StatusCode::OK, "{}", reply.json);
+
+    let run = get(&h.app, &format!("/runs/{id}")).await.json;
+    assert_eq!(run["threads"][0]["agent"], "claude-alt");
+    // The window needs the list to offer a choice, so the detail has to carry it.
+    assert_eq!(run["goal"]["providers"].as_array().map(Vec::len), Some(2));
+
+    let unknown_agent = put(&h.app, &url, r#"{"agent":"ghost"}"#).await;
+    assert_eq!(unknown_agent.status, StatusCode::CONFLICT, "{}", unknown_agent.json);
+    let unknown_thread = put(&h.app, &format!("/runs/{id}/threads/nobody/agent"), r#"{"agent":"claude-alt"}"#).await;
+    assert_eq!(unknown_thread.status, StatusCode::CONFLICT, "{}", unknown_thread.json);
 }

@@ -7,7 +7,7 @@ use crate::state::{check_merge, RunStatus, Verdict};
 use crate::store::{Outcome, Pending, Store};
 use crate::tasks::{self, CreatedBy, NewTask};
 use anyhow::{anyhow, Result};
-use rusqlite::{params, Transaction};
+use rusqlite::{params, OptionalExtension, Transaction};
 use serde_json::{json, Value};
 
 /// What the human decided at the gate.
@@ -66,6 +66,61 @@ pub fn record_usage(
         json!({ "tokens": tokens, "cost_usd": cost_usd }),
     );
     Ok(())
+}
+
+/// Choose the agent a thread's next task runs on. The agent must be one the run's goal names, and the
+/// thread may not have a turn in flight: switching mid-turn would make the journal lie about who spoke.
+pub fn set_thread_agent(store: &mut Store, run_id: &str, thread: &str, agent: &str) -> Result<Outcome<()>> {
+    let run = load_run(store.conn(), run_id)?;
+    if run.status.is_terminal() || run.status == RunStatus::Reviewed {
+        return Ok(Outcome::Refused(format!(
+            "this run is {}; its threads are fixed",
+            run.status.as_str()
+        )));
+    }
+    let plan = crate::goal::load_snapshot(store.conn(), run_id)?;
+    if plan.providers().get(agent).is_none() {
+        let known: Vec<&str> = plan.providers().keys().map(String::as_str).collect();
+        return Ok(Outcome::Refused(format!(
+            "the goal does not name {agent}; it names {}",
+            known.join(", ")
+        )));
+    }
+    let row: Option<(String, String)> = store
+        .conn()
+        .query_row(
+            "SELECT id, provider FROM threads WHERE run_id = ?1 AND name = ?2",
+            params![run_id, thread],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()?;
+    let Some((thread_id, current)) = row else {
+        return Ok(Outcome::Refused(format!("unknown thread {thread}")));
+    };
+    let busy: i64 = store.conn().query_row(
+        "SELECT COUNT(*) FROM dispatch WHERE thread_id = ?1 AND status = 'running'",
+        params![thread_id],
+        |r| r.get(0),
+    )?;
+    if busy > 0 {
+        return Ok(Outcome::Refused(format!(
+            "{thread} is in the middle of a turn; change its agent after that finishes"
+        )));
+    }
+    if current == agent {
+        return Ok(Outcome::Applied(()));
+    }
+    store.transact("thread.agent", None, |tx, p| {
+        tx.execute("UPDATE threads SET provider = ?2 WHERE id = ?1", params![thread_id, agent])?;
+        p.push(
+            run_id,
+            None,
+            Some(&thread_id),
+            "thread.agent",
+            json!({ "thread": thread, "from": current, "to": agent, "by": "user" }),
+        );
+        Ok(Outcome::Applied(()))
+    })
 }
 
 /// A person stopped the run. The turn in flight finishes, because half a turn leaves nothing worth

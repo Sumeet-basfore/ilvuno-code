@@ -148,6 +148,10 @@ pub async fn post(app: &Router, uri: &str, body: &str) -> Reply {
     send(app, "POST", uri, Some(body)).await
 }
 
+pub async fn put(app: &Router, uri: &str, body: &str) -> Reply {
+    send(app, "PUT", uri, Some(body)).await
+}
+
 /// Start a run from goal text and return its id. Panics unless the request was accepted.
 pub async fn start_run(app: &Router, goal: &str) -> String {
     let reply = post(app, "/runs", goal).await;

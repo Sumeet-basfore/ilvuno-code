@@ -116,7 +116,11 @@ pub fn run_json(conn: &Connection, run_id: &str) -> Result<Value> {
                  "project": project },
         "goal": { "id": goal_id, "text": goal_text, "done": done.get("done").cloned().unwrap_or(Value::Null),
                   "checks": done.get("checks").cloned().unwrap_or(Value::Array(vec![])),
-                  "message_policy": policy, "budget": { "rounds": budget_rounds, "tokens": budget_tokens } },
+                  "message_policy": policy, "budget": { "rounds": budget_rounds, "tokens": budget_tokens },
+                  // The agents this run may use, so the window can offer them without reading the goal file.
+                  "providers": crate::goal::load_snapshot(conn, run_id)?.providers().iter()
+                      .map(|(id, spec)| json!({ "id": id, "driver": spec.driver }))
+                      .collect::<Vec<Value>>() },
         "threads": threads, "rounds": rounds, "tasks": tasks, "ledger": ledger, "artifacts": artifacts,
     }))
 }

@@ -166,6 +166,17 @@ svg.ic.sm{width:12px;height:12px}
 .th-name{display:flex;align-items:center;gap:8px;margin:0;font-family:var(--display);font-weight:700;font-size:18px;line-height:1.25;letter-spacing:-.02em;color:var(--ink);min-width:0}
 .th-role{margin-left:2px;font-family:var(--mono);font-size:9.5px;line-height:1;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
 .th-agent{font-family:var(--mono);font-size:10.5px;line-height:1.2;color:var(--ink-3);white-space:nowrap}
+/* the agent chip opens a list: the agent is a choice, not a role */
+.apick{position:relative;display:inline-flex}
+.apick-btn{display:inline-flex;align-items:center;gap:3px;height:20px;padding:0 5px 0 6px;border:1px solid transparent;border-radius:4px;background:none;font-family:var(--mono);font-size:10.5px;line-height:1;color:var(--ink-3);white-space:nowrap;transition:background .12s,color .12s,border-color .12s}
+.apick-btn:hover,.apick-btn[aria-expanded="true"]{border-color:var(--line-2);background:var(--raised);color:var(--ink)}
+.apick-btn .ic{color:var(--ink-3)}
+.apick-menu{position:absolute;top:calc(100% + 5px);left:0;z-index:20;min-width:210px;padding:4px;border:1px solid var(--line-2);border-radius:8px;background:var(--overlay);box-shadow:var(--shadow)}
+.apick-item{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;padding:7px 8px;border:0;border-radius:5px;background:none;font-size:12px;line-height:1.2;color:var(--ink-2);text-align:left}
+.apick-item:hover{background:var(--raised);color:var(--ink)}
+.apick-item.is-on{color:var(--accent)}
+.apick-drv{font-family:var(--mono);font-size:9.5px;color:var(--ink-3)}
+.apick-none{margin:0;padding:8px;font-size:11.5px;line-height:1.4;color:var(--ink-3)}
 .th-sub{margin:3px 0 0;font-size:12px;line-height:1.4;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .th-head .backlink{display:inline-flex;align-items:center;gap:4px;margin:0 0 6px;font-family:var(--mono);font-size:9.5px;line-height:1;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
 .th-head .backlink:hover{color:var(--ink)}
