@@ -3,6 +3,7 @@
 
 pub mod actions;
 pub mod blocking;
+pub mod cors;
 pub mod drive;
 pub mod error;
 pub mod events;
@@ -34,6 +35,7 @@ where
         .fallback(no_such_route)
         .method_not_allowed_fallback(wrong_method)
         .with_state(state)
+        .layer(axum::middleware::from_fn(cors::cors))
 }
 
 async fn health() -> Json<Value> {
