@@ -16,7 +16,9 @@
 - `tools/shots.sh`: the board step clicked the top bar, so `board.png` was the thread view; the
   conversation step re-shot the same view; the agent list was captured while still loading (the first
   `/agents` probe took **5.36 s** on this machine). It now opens the board from **View all**, returns with
-  Escape, selects reader-1 for the conversation and returns to orchestrator, and waits 7 s for agents.
+  Escape, selects reader-1 for the conversation and returns to orchestrator, warms the agent cache and
+  waits 7 s for the list, and blurs the last clicked button before the settings and offline shots. It
+  also refuses to start when the runner is not answering.
 - `README.md`: a goal file is supported; the sentence saying it was not is gone.
 - Nine generated pages under `context/prompts/` are no longer tracked; `context/**/*.html` is ignored.
   `gate.png` was re-shot from the current run, and `offline.png` is now tracked.
@@ -27,7 +29,7 @@
   (the live provider tests). Exit 0.
 - **Screenshots:** all 20 images in `crates/desktop/shots/` and `crates/desktop/shots/states/` were read.
   The regenerated set was read again after the fixes. `threads.png` and `conversation.png` now differ
-  (orchestrator and reader-1); `board.png` is the board; `settings-agents.png` lists six agents;
+  (orchestrator and reader-1); `board.png` is the board; `settings-agents.png` lists the detected agents;
   `palette.png` says Accept; `gate.png` shows the current gate with Accept.
 - **Widths:** 1440, 1280, 1060 and 960 at 900 high. No clipped text and no horizontal scrollbar. The run
   title and the rail select ellipsize. At 1280 the work rail hides and the panel toggle appears; at 1060

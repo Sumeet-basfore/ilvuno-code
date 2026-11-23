@@ -10,6 +10,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 export RUSTUP_TOOLCHAIN=1.100.0
+if ! curl -fsS --max-time 2 http://127.0.0.1:4737/health >/dev/null 2>&1; then
+  echo "the runner is not answering on 127.0.0.1:4737; start ilvunod with a run first" >&2
+  exit 1
+fi
 DISP=${ILVUNO_DISPLAY:-:99}
 OUT=crates/desktop/shots
 W=1440
@@ -32,7 +36,7 @@ if ! xdpyinfo -display "$DISP" >/dev/null 2>&1; then
   sleep 1.2
 fi
 
-shot() { DISPLAY="$DISP" xdotool mousemove 720 640; sleep 0.3; DISPLAY="$DISP" import -window root "$OUT/$1"; echo "   $OUT/$1"; }
+shot() { DISPLAY="$DISP" xdotool mousemove 720 640; sleep 1.0; DISPLAY="$DISP" import -window root "$OUT/$1"; echo "   $OUT/$1"; }
 click() { DISPLAY="$DISP" xdotool mousemove "$1" "$2" click 1; sleep "${3:-0.7}"; }
 key() { DISPLAY="$DISP" xdotool key "$1"; sleep "${2:-0.7}"; }
 
@@ -51,7 +55,10 @@ shot palette.png
 key Escape
 
 step "settings"
+# Warm the agent detection; the first probe can take >5 s and the tab would be caught loading.
+curl -fsS http://127.0.0.1:4737/agents >/dev/null || true
 click 26 879 1.2
+click 650 212 0.5
 shot settings.png
 step "settings: agents"
 click 413 265 7.0
@@ -83,6 +90,7 @@ step "offline: the runner is not answering"
 pkill -x ilvunod 2>/dev/null || true
 # The window checks the runner every 5s (LIST_EVERY_MS); wait for two checks to land.
 sleep 12
+key Tab 0.5
 shot offline.png
 
 echo "done — read the images before you trust them"
