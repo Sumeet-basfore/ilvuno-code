@@ -12,7 +12,9 @@ use cli::ops;
 use provider_core::Provider;
 use runner::goal::{self, GoalPlan};
 use runner::{export, ledger, query, Home};
+use rusqlite::OptionalExtension;
 use serde_json::{json, Value};
+use std::path::Path as FsPath;
 
 pub async fn list<P>(State(state): State<AppState<P>>) -> ApiResult<Json<Vec<Value>>>
 where
@@ -39,6 +41,42 @@ where
     })
     .await?;
     Ok(Json(run))
+}
+
+/// `GET /runs/:id/threads/:name/diff`: the bounded patch and full diffstat for one checkout.
+pub async fn thread_diff<P>(
+    State(state): State<AppState<P>>,
+    Path((run_id, thread)): Path<(String, String)>,
+) -> ApiResult<Json<Value>>
+where
+    P: Send + Sync + 'static,
+{
+    let home = state.home.clone();
+    let result = blocking(move || {
+        let store = open_store(&home)?;
+        require_run(&store, &run_id)?;
+        let row: Option<(Option<String>, Option<String>, Option<String>)> = store.conn().query_row(
+            "SELECT r.git_base, t.branch, t.worktree_path
+             FROM runs r JOIN threads t ON t.run_id = r.id
+             WHERE r.id = ?1 AND t.name = ?2",
+            rusqlite::params![run_id, thread],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        ).optional().map_err(anyhow::Error::from)?;
+        let Some((base, branch, worktree)) = row else {
+            return Err(ApiError::NotFound(format!("no thread named {thread}")));
+        };
+        let (Some(base), Some(branch), Some(worktree)) = (base, branch, worktree) else {
+            return Ok(json!({ "branch": null }));
+        };
+        let path = FsPath::new(&worktree);
+        if !path.join(".git").exists() {
+            return Ok(json!({ "branch": null }));
+        }
+        let stat = runner::git::diff_stat(path, &base)?;
+        let (patch, truncated) = runner::git::diff_capped(path, &base, 128 * 1024)?;
+        Ok(json!({ "branch": branch, "base": base, "stat": stat, "patch": patch, "truncated": truncated }))
+    }).await?;
+    Ok(Json(result))
 }
 
 pub async fn board<P>(State(state): State<AppState<P>>, Path(run_id): Path<String>) -> ApiResult<Json<Value>>

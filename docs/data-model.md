@@ -151,7 +151,7 @@ Append-only event log. Source of truth for replay; projections are caches.
 | `run_id` | TEXT | indexed |
 | `round_id`, `thread_id` | TEXT | nullable |
 | `at` | INTEGER | unix ms |
-| `kind` | TEXT | `run.created`, `round.planned`, `dispatch.queued`, `dispatch.reported`, `ledger.appended`, `gate.opened`, `gate.decided`, `merge.requested`, `merge.done`, `run.blocked`, `thread.spawned`, `thread.parked` … |
+| `kind` | TEXT | `run.created`, `round.planned`, `dispatch.queued`, `dispatch.reported`, `ledger.appended`, `gate.opened`, `gate.decided`, `merge.landed`, `merge.conflict`, `merge.refused`, `run.blocked`, `thread.spawned`, `thread.parked` … |
 | `payload` | TEXT | JSON; the exact data the transition carried |
 
 Two rules:
@@ -232,7 +232,7 @@ artifacts/      the files the run produced
 |---|---|
 | `run` | id, status, rounds_used, tokens_used, started_at, ended_at, blocked_reason, **project** (the goal file's folder) |
 | `goal` | text, done, checks, message_policy, budget |
-| `threads[]` | name, agent, role, prompt, status, native_session, branch, has_checkout |
+| `threads[]` | name, agent, role, prompt, status, native_session, branch, has_checkout, commit, stat |
 | `rounds[]` | index, status, verdict, readiness (checks + failing), tokens, cost_usd |
 | `tasks[]` | prompt, status, created_by, scope, thread, result, **message**, round |
 | `ledger[]` | id, kind, body, scope, round, thread |

@@ -53,18 +53,41 @@ pub fn run_json(conn: &Connection, run_id: &str) -> Result<Value> {
     // The project is the folder the goal file was written in: no separate table yet.
     let project = goal::load_snapshot(conn, run_id).ok().map(|p| p.base().to_string_lossy().to_string());
 
-    let threads = rows(conn, "SELECT name, provider, role, prompt, status, native_session_id, branch, worktree_path FROM threads WHERE run_id = ?1 ORDER BY name", run_id, |r| {
-        let branch: Option<String> = r.get(6)?;
-        let worktree: Option<String> = r.get(7)?;
-        // The checkout exists only after the thread's first task created it. A branch alone is the
-        // plan to make one, not the checkout itself.
-        let has_checkout = branch.is_some() && worktree.as_deref().is_some_and(|p| Path::new(p).join(".git").exists());
-        Ok(json!({
-            "name": r.get::<_, String>(0)?, "agent": r.get::<_, String>(1)?, "role": r.get::<_, String>(2)?,
-            "prompt": r.get::<_, String>(3)?, "status": r.get::<_, String>(4)?, "native_session": r.get::<_, Option<String>>(5)?,
-            "branch": branch, "has_checkout": has_checkout,
-        }))
-    })?;
+    let git_base: Option<String> = conn.query_row(
+        "SELECT git_base FROM runs WHERE id = ?1", params![run_id], |r| r.get(0),
+    )?;
+    let thread_rows = {
+        let mut stmt = conn.prepare(
+            "SELECT name, provider, role, prompt, status, native_session_id, branch, worktree_path
+             FROM threads WHERE run_id = ?1 ORDER BY name",
+        )?;
+        let mapped = stmt.query_map(params![run_id], |r| {
+            Ok((
+                r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?,
+                r.get::<_, String>(3)?, r.get::<_, String>(4)?, r.get::<_, Option<String>>(5)?,
+                r.get::<_, Option<String>>(6)?, r.get::<_, Option<String>>(7)?,
+            ))
+        })?;
+        mapped.collect::<rusqlite::Result<Vec<_>>>()?
+    };
+    let mut threads = Vec::with_capacity(thread_rows.len());
+    for (name, agent, role, prompt, status, native_session, branch, worktree) in thread_rows {
+        // A branch is planned at run creation; the checkout appears only when its first task starts.
+        let checkout = branch.is_some().then(|| worktree.as_deref()).flatten()
+            .filter(|p| Path::new(p).join(".git").exists());
+        let (commit, stat) = match (checkout, git_base.as_deref()) {
+            (Some(path), Some(base)) => (
+                Some(crate::git::short_head(Path::new(path))?),
+                Some(crate::git::diff_stat(Path::new(path), base)?),
+            ),
+            _ => (None, None),
+        };
+        threads.push(json!({
+            "name": name, "agent": agent, "role": role, "prompt": prompt, "status": status,
+            "native_session": native_session, "branch": branch, "has_checkout": checkout.is_some(),
+            "commit": commit, "stat": stat,
+        }));
+    }
 
     let rounds = rows(conn, "SELECT \"index\", status, verdict, readiness, tokens_delta, cost_delta FROM rounds WHERE run_id = ?1 ORDER BY \"index\"", run_id, |r| {
         let readiness: Option<String> = r.get(3)?;

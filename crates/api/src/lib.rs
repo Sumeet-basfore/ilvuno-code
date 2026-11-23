@@ -29,6 +29,7 @@ where
         .route("/health", get(health))
         .route("/runs", get(runs::list::<P>).post(runs::create::<P>))
         .route("/runs/{id}", get(runs::detail::<P>))
+        .route("/runs/{id}/threads/{thread}/diff", get(runs::thread_diff::<P>))
         .route("/runs/{id}/board", get(runs::board::<P>))
         .route("/runs/{id}/events", get(events::stream::<P>))
         .route("/runs/{id}/tasks", post(actions::create_task::<P>))

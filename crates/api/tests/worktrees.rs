@@ -3,7 +3,7 @@
 
 mod common;
 
-use common::{get, harness, start_run, two_task_script, wait_status, GOAL_WITH_ORCHESTRATOR};
+use common::{get, harness, post, start_run, two_task_script, wait_status, GOAL_WITH_ORCHESTRATOR};
 use runner::{git, Home, Store};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -151,4 +151,113 @@ async fn a_dirty_project_falls_back_to_folder_mode_and_the_journal_says_why() {
         )
         .expect("the fallback is journaled");
     assert!(payload.contains("uncommitted"), "the journal says why: {payload}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn accept_merges_the_thread_change_and_records_the_run_in_git() {
+    let h = harness();
+    let repo = make_repo(&h.dir.join("merge-repo"));
+    let id = start_run(&h.app, &goal(&repo)).await;
+    wait_status(&h.app, &id, "reviewed").await;
+
+    let diff = get(&h.app, &format!("/runs/{id}/threads/reader-1/diff")).await;
+    assert_eq!(diff.status, axum::http::StatusCode::OK, "{}", diff.json);
+    assert!(diff.json["branch"].as_str().unwrap().contains("reader-1"));
+    assert!(diff.json["base"].is_string());
+    assert!(diff.json["stat"].as_str().unwrap().contains("notes.md"));
+    assert!(diff.json["patch"].as_str().unwrap().contains("notes"));
+    assert_eq!(diff.json["truncated"], false);
+    let thread = thread(&get(&h.app, &format!("/runs/{id}")).await.json, "reader-1").clone();
+    assert!(thread["commit"].is_string());
+    assert!(thread["stat"].as_str().unwrap().contains("notes.md"));
+
+    let accepted = post(&h.app, &format!("/runs/{id}/gate"), r#"{"decision":"accept"}"#).await;
+    assert_eq!(accepted.status, axum::http::StatusCode::OK, "{}", accepted.json);
+    assert_eq!(accepted.json["status"], "merged");
+    assert_eq!(std::fs::read_to_string(repo.join("notes.md")).expect("landed notes"), "notes\n");
+    let log = git_cmd(&repo, &["log", "--format=%s"]);
+    assert!(log.contains(&id), "merge commit should name run {id}: {log}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_conflict_aborts_and_blocks_with_the_file_name() {
+    let h = harness();
+    let repo = make_repo(&h.dir.join("conflict-repo"));
+    let id = start_run(&h.app, &goal(&repo)).await;
+    wait_status(&h.app, &id, "reviewed").await;
+
+    std::fs::write(repo.join("notes.md"), "project version\n").expect("project edit");
+    git_cmd(&repo, &["add", "notes.md"]);
+    git_cmd(&repo, &["commit", "-q", "-m", "project edit after run start"]);
+    let head_before = git::head(&repo).expect("head before merge");
+    let body_before = std::fs::read_to_string(repo.join("notes.md")).expect("project notes");
+
+    let reply = post(&h.app, &format!("/runs/{id}/gate"), r#"{"decision":"accept"}"#).await;
+    assert_eq!(reply.status, axum::http::StatusCode::OK, "{}", reply.json);
+    assert_eq!(reply.json["status"], "blocked");
+    let detail = get(&h.app, &format!("/runs/{id}")).await.json;
+    assert!(detail["run"]["blocked_reason"].as_str().unwrap_or_default().contains("notes.md"));
+    assert_eq!(git::head(&repo).expect("head after abort"), head_before);
+    assert_eq!(std::fs::read_to_string(repo.join("notes.md")).expect("project notes"), body_before);
+    assert!(git::is_clean(&repo).expect("clean after abort"));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dirty_project_refuses_accept_before_any_merge() {
+    let h = harness();
+    let repo = make_repo(&h.dir.join("dirty-repo"));
+    let id = start_run(&h.app, &goal(&repo)).await;
+    wait_status(&h.app, &id, "reviewed").await;
+    let base = git::head(&repo).expect("base");
+    std::fs::write(repo.join("local.txt"), "keep me\n").expect("dirty project");
+
+    let reply = post(&h.app, &format!("/runs/{id}/gate"), r#"{"decision":"accept"}"#).await;
+    assert_eq!(reply.status, axum::http::StatusCode::CONFLICT, "{}", reply.json);
+    assert!(reply.json["error"].as_str().unwrap_or_default().contains("local.txt"));
+    assert_eq!(git::head(&repo).expect("head unchanged"), base);
+    assert!(!repo.join("notes.md").exists());
+    assert_eq!(get(&h.app, &format!("/runs/{id}")).await.json["run"]["status"], "reviewed");
+    let store = Store::open(&h.home.db_path()).expect("store");
+    let landed: i64 = store.conn().query_row(
+        "SELECT COUNT(*) FROM journal WHERE run_id = ?1 AND kind = 'merge.landed'", rusqlite::params![id], |r| r.get(0),
+    ).expect("merge event count");
+    assert_eq!(landed, 0);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn accepting_twice_lands_a_thread_branch_only_once() {
+    let h = harness();
+    let repo = make_repo(&h.dir.join("twice-repo"));
+    let id = start_run(&h.app, &goal(&repo)).await;
+    wait_status(&h.app, &id, "reviewed").await;
+    for _ in 0..2 {
+        let reply = post(&h.app, &format!("/runs/{id}/gate"), r#"{"decision":"accept"}"#).await;
+        assert_eq!(reply.status, axum::http::StatusCode::OK, "{}", reply.json);
+        assert_eq!(reply.json["status"], "merged");
+    }
+    let log = git_cmd(&repo, &["log", "--format=%s", &format!("--grep=Ilvuno run {id}: merge reader-1")]);
+    assert_eq!(log.lines().count(), 1, "{log}");
+    let store = Store::open(&h.home.db_path()).expect("store");
+    let landed: i64 = store.conn().query_row(
+        "SELECT COUNT(*) FROM journal WHERE run_id = ?1 AND kind = 'merge.landed'", rusqlite::params![id], |r| r.get(0),
+    ).expect("merge event count");
+    assert!(landed >= 1);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn folder_mode_accept_records_the_decision_without_merging() {
+    let h = harness();
+    let id = start_run(&h.app, GOAL_WITH_ORCHESTRATOR).await;
+    wait_status(&h.app, &id, "reviewed").await;
+    let diff = get(&h.app, &format!("/runs/{id}/threads/reader-1/diff")).await;
+    assert_eq!(diff.status, axum::http::StatusCode::OK);
+    assert_eq!(diff.json, json!({ "branch": null }));
+    let accepted = post(&h.app, &format!("/runs/{id}/gate"), r#"{"decision":"accept"}"#).await;
+    assert_eq!(accepted.status, axum::http::StatusCode::OK, "{}", accepted.json);
+    assert_eq!(accepted.json["status"], "accepted");
+    let store = Store::open(&h.home.db_path()).expect("store");
+    let landed: i64 = store.conn().query_row(
+        "SELECT COUNT(*) FROM journal WHERE run_id = ?1 AND kind IN ('merge.landed', 'merge.conflict')", rusqlite::params![id], |r| r.get(0),
+    ).expect("merge event count");
+    assert_eq!(landed, 0);
 }

@@ -34,6 +34,7 @@ machine, a port reachable from elsewhere, or any client that is not the window.
 | GET | `/health` | Is the process up | `200 {"ok":true,"version":"0.0.1"}` | — |
 | GET | `/runs` | Run summaries, newest first | `200 [{id,status,title,project,rounds_used,tokens_used,started_at}]` | `query::list_runs` |
 | GET | `/runs/:id` | One run, as `run.json` in an export | `200` export shape | `export::run_json` |
+| GET | `/runs/:id/threads/:name/diff` | One thread's diffstat and bounded patch; folder-mode threads return `{"branch":null}` | `200 {branch,base,stat,patch,truncated}` | `runner::git` |
 | GET | `/runs/:id/board` | The board a thread reads | `200 {"markdown":"…"}` | `ledger::render_board` |
 | GET | `/runs/:id/events` | Live journal, server-sent events | `200 text/event-stream` | `query::journal_after` |
 | POST | `/runs` | Start a run from goal JSON, drive it in the background | `202 {"run_id","status":"working"}` | `cli::ops::create_run`, `drive_with` |
@@ -130,6 +131,11 @@ Every error is JSON with the same two keys:
 | `not_found` | 404 | No run has that id, or no such route |
 | `conflict` | 409 | The runner refused the command (the `error` text is the runner's reason, word for word), or another run is already being driven by this process |
 | `internal` | 500 | Something broke inside. The detail goes to the `ilvunod` log; the response only says so |
+
+The thread diff patch is capped at 128 KiB. Its `stat` covers the full diff. Accepting a git-backed run
+checks that the project is clean, then merges each checked-out thread branch in task order. A conflict
+aborts that merge and blocks the run with the conflicting file names. Folder-mode runs only record the
+human decision.
 
 ## Limits in v1
 

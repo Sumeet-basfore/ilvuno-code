@@ -92,6 +92,7 @@
     runsError: '',
     currentId: null,
     detail: null,
+    threadDiffs: new Map(),
     board: '',
     boardError: '',
     view: 'thread', // thread | board
@@ -273,6 +274,18 @@
     state.board = board?.markdown || '';
     pickThread();
     renderAll();
+    if (detail.run?.status === 'reviewed') {
+      const missing = (detail.threads || []).filter((thread) => thread.has_checkout && !state.threadDiffs.has(`${id}/${thread.name}`));
+      await Promise.all(missing.map(async (thread) => {
+        try {
+          const diff = await getJson(`/runs/${encodeURIComponent(id)}/threads/${encodeURIComponent(thread.name)}/diff`);
+          state.threadDiffs.set(`${id}/${thread.name}`, diff);
+        } catch (err) {
+          state.threadDiffs.set(`${id}/${thread.name}`, { error: err.message });
+        }
+      }));
+      if (seq === state.loadSeq && state.currentId === id) renderFacts();
+    }
   }
 
   function scheduleRefresh() {
@@ -1176,10 +1189,35 @@
     const round = rounds[rounds.length - 1] || { index: 0, readiness: { checks: [] } };
     const checks = round.readiness?.checks || [];
     const draft = state.noteDrafts.get(state.currentId) || '';
+    const threads = state.detail.threads || [];
+    const checkouts = threads.filter((thread) => thread.has_checkout);
+    const fileCount = checkouts.reduce((sum, thread) => {
+      const count = /(?:^|\s)(\d+) files? changed/.exec(thread.stat || '')?.[1];
+      return sum + Number(count || 0);
+    }, 0);
+    const mergeLabel = checkouts.length
+      ? `Merge ${checkouts.length} ${checkouts.length === 1 ? 'thread' : 'threads'} · ${fileCount} ${fileCount === 1 ? 'file' : 'files'}`
+      : 'Accept · no files to merge';
+    const threadDiffs = threads.map((thread) => {
+      if (!thread.has_checkout) return '';
+      const diff = state.threadDiffs.get(`${state.currentId}/${thread.name}`);
+      const stat = thread.stat || 'No file changes';
+      const branch = thread.branch || 'branch unknown';
+      const patch = diff?.patch || '';
+      const patchContent = diff?.error
+        ? `Could not read this patch: ${diff.error}`
+        : `${patch || 'No file changes.'}${diff?.truncated ? '\n\nPatch cut off at 128 KiB.' : ''}`;
+      return `<article class="gate-thread">
+        <div class="gate-thread-head"><b>${esc(thread.name)}</b><span>${esc(branch)}</span></div>
+        <p class="gate-stat">${esc(stat)}</p>
+        <details class="gate-diff"><summary>View patch</summary><pre>${esc(patchContent)}</pre></details>
+      </article>`;
+    }).join('');
     return `
       <section class="gate-panel" aria-label="Gate">
         <div class="gate-phead"><span class="gate-k">Gate · round ${esc(round.index)}</span>${chip('open', 'warn')}</div>
-        <p class="gate-copy">${checks.length ? 'The checks passed.' : 'This round recorded no checks.'} Nothing has been merged. Accept to record the decision, or send it back with a note the team reads.</p>
+        <p class="gate-copy">${checks.length ? 'The checks passed.' : 'This round recorded no checks.'} ${checkouts.length ? 'Accept to merge these thread changes into the project.' : 'Accept to record the decision. This run has no Git checkouts.'}</p>
+        ${threadDiffs ? `<div class="gate-threads">${threadDiffs}</div>` : ''}
         <div class="gate-checks">${checks.length ? checks.map((c) => `
           <div class="gate-check">
             <svg class="${c.passed ? 'ic' : 'ic bad'}" aria-hidden="true"><use href="#i-${c.passed ? 'check' : 'x'}"></use></svg>
@@ -1190,7 +1228,7 @@
         <label class="field-label" for="gate-note">Note to the team <span>needed only to send back</span></label>
         <textarea class="gate-note" id="gate-note" rows="2" placeholder="What should change before this is accepted?">${esc(draft)}</textarea>
         <div class="gate-actions">
-          <button class="btn primary" data-act="accept-gate"${state.gateBusy ? ' disabled' : ''}>Accept and merge</button>
+          <button class="btn primary" data-act="accept-gate"${state.gateBusy ? ' disabled' : ''}>${esc(mergeLabel)}</button>
           <button class="btn" data-act="send-back"${state.gateBusy ? ' disabled' : ''}>Send back with note</button>
         </div>
         <p class="gate-inline" id="gateInline" role="status" hidden></p>
@@ -1215,6 +1253,10 @@
     const run = state.detail.run;
     if (run.status === 'reviewed') return gatePanel();
     if (run.status === 'accepted' || run.status === 'merged') return gateReceipt();
+    if (run.status === 'blocked' && String(run.blocked_reason || '').startsWith('merge conflict in:')) {
+      const files = String(run.blocked_reason).replace(/^merge conflict in:\s*/, '');
+      return `<div class="gate-conflict"><b>Merge stopped</b><p>The conflicting merge was aborted. The project was left as it was before that merge.</p><p>Files: ${esc(files)}</p></div>`;
+    }
     if (['blocked', 'budget_exhausted', 'no_progress', 'human_paused'].includes(run.status)) {
       return `<p class="facts-empty">The gate did not open: the run is ${esc(statusWord(run.status))}. Its reason is in the centre panel.</p>`;
     }
