@@ -43,6 +43,8 @@ pub struct NewTask<'a> {
     pub created_by: CreatedBy,
     /// The thread that wrote the task, when an orchestrator did. Shown on the board as the author.
     pub author_thread: Option<&'a str>,
+    /// `task` claims files and appears on the board. `message` is a chat turn: no scope, no board claim.
+    pub kind: &'a str,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,7 +67,14 @@ pub fn create_task(tx: &Transaction<'_>, pending: &mut Pending, task: &NewTask<'
     if prompt.is_empty() {
         return Ok(refuse(pending, task.run_id, "task prompt is empty".to_string()));
     }
-    if scope.is_empty() {
+    let kind = task.kind.trim();
+    if kind != "task" && kind != "message" {
+        return Ok(refuse(pending, task.run_id, format!("unknown task kind {kind}")));
+    }
+    if kind == "message" && !scope.is_empty() {
+        return Ok(refuse(pending, task.run_id, "a message cannot claim files".to_string()));
+    }
+    if kind == "task" && scope.is_empty() {
         return Ok(refuse(pending, task.run_id, "task has no scope".to_string()));
     }
     let Some(thread_id) = thread_id_by_name(tx, task.run_id, task.thread)? else {
@@ -92,11 +101,13 @@ pub fn create_task(tx: &Transaction<'_>, pending: &mut Pending, task: &NewTask<'
 
     let task_id = new_id();
     tx.execute(
-        "INSERT INTO dispatch (id, round_id, thread_id, task, scope, status, created_by, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, 'queued', ?6, ?7)",
-        params![task_id, round.id, thread_id, prompt, serde_json::to_string(&scope)?, task.created_by.as_str(), now_ms()],
+        "INSERT INTO dispatch (id, round_id, thread_id, task, scope, status, created_by, created_at, kind)
+         VALUES (?1, ?2, ?3, ?4, ?5, 'queued', ?6, ?7, ?8)",
+        params![task_id, round.id, thread_id, prompt, serde_json::to_string(&scope)?, task.created_by.as_str(), now_ms(), kind],
     )?;
-    ledger::append(
+    // A message is conversation, not a claim on files, so it does not write an intent row.
+    if kind == "task" {
+        ledger::append(
         tx,
         pending,
         task.run_id,
@@ -107,6 +118,7 @@ pub fn create_task(tx: &Transaction<'_>, pending: &mut Pending, task: &NewTask<'
         prompt,
         json!({ "task_id": task_id, "thread": task.thread, "created_by": task.created_by.as_str() }),
     )?;
+    }
     pending.push(
         task.run_id,
         Some(&round.id),
@@ -169,7 +181,7 @@ pub fn run_task(home: &Home, caller_task: Option<&str>, thread: &str, prompt: &s
             (run_id, CreatedBy::User, None)
         }
     };
-    submit_task(home, &mut store, &NewTask { run_id: &run_id, thread, prompt, scope, created_by, author_thread: author.as_deref() })
+    submit_task(home, &mut store, &NewTask { run_id: &run_id, thread, prompt, scope, created_by, author_thread: author.as_deref(), kind: "task" })
 }
 
 /// Write one task and refresh the board. This is the write behind `ilvuno task` and `POST /runs/:id/tasks`.

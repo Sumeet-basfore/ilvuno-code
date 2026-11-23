@@ -72,10 +72,55 @@ fn plan(f: &mut Fixture, scope: &[&str]) -> Outcome<TaskRef> {
                     scope: &scope,
                     created_by: CreatedBy::User,
                     author_thread: None,
+                    kind: "task",
                 },
             )
         })
         .expect("create task")
+}
+
+/// A message: a task with no scope. It must be accepted, and it must not claim the board.
+fn send_message(f: &mut Fixture, kind: &str, scope: &[&str]) -> Outcome<TaskRef> {
+    let run_id = f.run_id.clone();
+    let scope: Vec<String> = scope.iter().map(|s| s.to_string()).collect();
+    f.store
+        .transact("task.create", None, |tx, p| {
+            tasks::create_task(
+                tx,
+                p,
+                &NewTask {
+                    run_id: &run_id,
+                    thread: "researcher-a",
+                    prompt: "what are you working on?",
+                    scope: &scope,
+                    created_by: CreatedBy::User,
+                    author_thread: None,
+                    kind,
+                },
+            )
+        })
+        .expect("message")
+}
+
+#[test]
+fn a_message_needs_no_scope_and_claims_no_board_entry() {
+    let mut f = fixture("message");
+    let before = count(&f.store, "SELECT COUNT(*) FROM ledger WHERE kind = 'intent'");
+    match send_message(&mut f, "message", &[]) {
+        Outcome::Applied(_) => {}
+        other => panic!("expected applied, got {other:?}"),
+    }
+    let after = count(&f.store, "SELECT COUNT(*) FROM ledger WHERE kind = 'intent'");
+    assert_eq!(before, after, "a message must not write an intent row");
+    assert_eq!(count(&f.store, "SELECT COUNT(*) FROM dispatch WHERE kind = 'message'"), 1);
+}
+
+#[test]
+fn a_message_may_not_claim_files_and_a_task_still_needs_them() {
+    let mut f = fixture("message-scope");
+    assert!(matches!(send_message(&mut f, "message", &["notes.md"]), Outcome::Refused(_)));
+    assert!(matches!(send_message(&mut f, "task", &[]), Outcome::Refused(_)));
+    assert!(matches!(send_message(&mut f, "chatty", &[]), Outcome::Refused(_)));
 }
 
 fn decide_verdict(f: &mut Fixture, round_id: &str, v: Verdict) {
@@ -104,7 +149,7 @@ fn journal_kinds(store: &Store, run_id: &str) -> Vec<String> {
 #[test]
 fn schema_and_journal_are_created_on_open() {
     let f = fixture("schema");
-    assert_eq!(count(&f.store, "SELECT COUNT(*) FROM schema_migrations"), 4, "0001_init, 0002_providers, 0003_tasks, 0004_messages");
+    assert_eq!(count(&f.store, "SELECT COUNT(*) FROM schema_migrations"), 5, "0001_init, 0002_providers, 0003_tasks, 0004_messages, 0005_messages");
     assert_eq!(count(&f.store, "SELECT COUNT(*) FROM journal WHERE kind = 'run.created'"), 1);
     assert_eq!(count(&f.store, "SELECT COUNT(*) FROM receipts"), 0, "no request_id, so no receipt");
 }

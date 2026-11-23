@@ -23,6 +23,9 @@ pub struct TaskBody {
     pub prompt: String,
     #[serde(default)]
     pub scope: Vec<String>,
+    /// "task" claims files (default). "message" is a chat turn: no scope, no board claim.
+    #[serde(default)]
+    pub kind: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -53,6 +56,7 @@ where
             scope: &body.scope,
             created_by: CreatedBy::User,
             author_thread: None,
+            kind: body.kind.as_deref().unwrap_or("task"),
         };
         Ok(tasks::submit_task(&home, &mut store, &task)?)
     })

@@ -155,6 +155,7 @@ impl<P: Provider> Driver<'_, P> {
                         scope: &scope,
                         created_by: CreatedBy::Runner,
                         author_thread: None,
+                        kind: "task",
                     };
                     if let Outcome::Refused(reason) = tasks::create_task(tx, p, &task)? {
                         set_run_status(tx, p, run_id, RunStatus::Blocked, Some(&reason))?;

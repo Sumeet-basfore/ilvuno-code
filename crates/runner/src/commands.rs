@@ -119,7 +119,7 @@ pub fn create_run(tx: &Transaction<'_>, pending: &mut Pending, goal: &NewGoal, h
     if goal.threads.iter().any(|t| t.name == ORCHESTRATOR) {
         let prompt = kickoff_prompt(&goal.goal_text, goal.done.as_deref());
         let scope = [RUN_SCOPE.to_string()];
-        let task = NewTask { run_id: &run_id, thread: ORCHESTRATOR, prompt: &prompt, scope: &scope, created_by: CreatedBy::User, author_thread: None };
+        let task = NewTask { run_id: &run_id, thread: ORCHESTRATOR, prompt: &prompt, scope: &scope, created_by: CreatedBy::User, author_thread: None, kind: "task" };
         match tasks::create_task(tx, pending, &task)? {
             Outcome::Applied(_) => {}
             Outcome::Refused(reason) | Outcome::Duplicate(reason) => bail!("the first task was refused: {reason}"),

@@ -38,7 +38,7 @@ fn status_prints_each_check_with_its_detail() {
             tasks::create_task(
                 tx,
                 p,
-                &NewTask { run_id: &run_id, thread: "reader-1", prompt: "write it", scope: &scope, created_by: CreatedBy::User, author_thread: None },
+                &NewTask { run_id: &run_id, thread: "reader-1", prompt: "write it", scope: &scope, created_by: CreatedBy::User, author_thread: None, kind: "task" },
             )
         })
         .expect("task")

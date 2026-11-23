@@ -150,6 +150,7 @@ pub fn gate_decide(
                     scope: &scope,
                     created_by: CreatedBy::User,
                     author_thread: None,
+                    kind: "task",
                 };
                 if let Outcome::Refused(reason) = tasks::create_task(tx, pending, &task)? {
                     set_run_status(tx, pending, run_id, RunStatus::Blocked, Some(&reason))?;

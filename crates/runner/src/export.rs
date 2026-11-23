@@ -69,7 +69,7 @@ pub fn run_json(conn: &Connection, run_id: &str) -> Result<Value> {
         }))
     })?;
 
-    let tasks = rows(conn, "SELECT d.task, d.status, d.created_by, d.scope, t.name, d.result_summary, d.result_text, r.\"index\"
+    let tasks = rows(conn, "SELECT d.task, d.status, d.created_by, d.scope, t.name, d.result_summary, d.result_text, r.\"index\", d.kind
          FROM dispatch d JOIN threads t ON t.id = d.thread_id JOIN rounds r ON r.id = d.round_id
          WHERE r.run_id = ?1 ORDER BY r.\"index\", d.rowid", run_id, |r| {
         let scope: String = r.get(3)?;
@@ -78,6 +78,7 @@ pub fn run_json(conn: &Connection, run_id: &str) -> Result<Value> {
             "scope": serde_json::from_str::<Value>(&scope).unwrap_or(Value::Null),
             "thread": r.get::<_, String>(4)?, "result": r.get::<_, Option<String>>(5)?,
             "message": r.get::<_, Option<String>>(6)?, "round": r.get::<_, i64>(7)?,
+            "kind": r.get::<_, String>(8)?,
         }))
     })?;
 
