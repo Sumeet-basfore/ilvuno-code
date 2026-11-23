@@ -1,6 +1,9 @@
 // The Ilvuno window. It reads the local API (docs/api.md) and renders what it answers. Nothing on
 // screen is invented: every run, title, number, agent and sentence comes from a response.
 //
+// Layout, from research/13-ui-anatomy.md §5: threads on the left, the selected thread's conversation in
+// the centre, the run's shared work on the right. A run is context; a thread is what you work in.
+//
 // The port is a constant, not a setting, because the Tauri CSP (tauri.conf.json) names the same origin.
 // Change both together if the daemon moves. ILVUNO_PORT only changes the daemon side.
 (() => {
@@ -10,13 +13,63 @@
   const LIST_EVERY_MS = 5000;
   const HEALTH_TIMEOUT_MS = 2000;
   const RELOAD_AFTER_EVENT_MS = 300;
+  const GROUP_ORDER = [['needs', 'Needs you'], ['working', 'Working'], ['done', 'Done']];
+  const SAFETY_LABEL = { asks_before_each_tool: 'Asks first', works_in_folder_asks_outside: 'Folder only' };
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // Agents write markdown. We render a small, safe subset — bold, inline code, bullets, headings, code
+  // fences — because the alternative is a sentence with "**Task queued:**" printed inside it.
+  function md(text) {
+    const inline = (s) => s
+      .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+    let out = '';
+    let list = false;
+    let fence = false;
+    for (const raw of String(text ?? '').split('\n')) {
+      const line = raw.trimEnd();
+      if (/^\s*```/.test(line)) {
+        out += fence ? '</pre>' : '<pre>';
+        fence = !fence;
+        continue;
+      }
+      if (fence) {
+        out += esc(raw) + '\n';
+        continue;
+      }
+      const bullet = /^\s*[-*]\s+(.*)$/.exec(line);
+      if (bullet) {
+        if (!list) {
+          out += '<ul>';
+          list = true;
+        }
+        out += `<li>${inline(esc(bullet[1]))}</li>`;
+        continue;
+      }
+      if (list) {
+        out += '</ul>';
+        list = false;
+      }
+      if (!line.trim()) {
+        out += '<p class="gap"></p>';
+        continue;
+      }
+      const head = /^#{1,4}\s+(.*)$/.exec(line);
+      out += head ? `<p class="md-h">${inline(esc(head[1]))}</p>` : `<p>${inline(esc(line))}</p>`;
+    }
+    if (list) out += '</ul>';
+    if (fence) out += '</pre>';
+    return out;
+  }
   const fmt = (n) => new Intl.NumberFormat('en-US').format(Number(n) || 0);
-  const compact = (n) => (Number(n) >= 1000 ? Math.floor(Number(n) / 1000) + 'k' : fmt(n));
-  const money = (n) => '$' + (Number(n) || 0).toFixed(2);
+  const compact = (n) => {
+    const v = Number(n) || 0;
+    if (v < 10000) return fmt(v);
+    return Math.round(v / 1000) + 'k';
+  };
   const ic = (name, cls = 'ic') => `<svg class="${cls}" width="16" height="16" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
   const chip = (text, cls = '') => `<span class="chip ${cls}">${esc(text)}</span>`;
 
@@ -41,7 +94,9 @@
     detail: null,
     board: '',
     boardError: '',
-    tab: 'board',
+    view: 'thread', // thread | board
+    thread: null, // the selected thread's name
+    rightOpen: false,
     settings: null,
     settingsError: '',
     agents: null,
@@ -52,10 +107,14 @@
     drawerIndex: -1,
     expanded: new Set(),
     noteDrafts: new Map(),
+    drafts: new Map(), // thread name → unsent composer text
+    sendError: null, // { thread, message }
+    sending: false,
     opener: null,
     lastDialog: null,
     lastFocusKey: '',
     lastRunId: null,
+    lastThreadKey: '',
     toastTimer: 0,
     pollBusy: false,
     gateBusy: false,
@@ -160,6 +219,7 @@
       state.currentId = state.runs[0]?.id || null;
       state.detail = null;
       state.board = '';
+      state.thread = null;
       state.drawerIndex = -1;
     }
   }
@@ -189,6 +249,7 @@
         state.currentId = null;
         state.detail = null;
         state.board = '';
+        state.thread = null;
         state.runs = state.runs.filter((r) => r.id !== id);
         pickRun();
         renderAll();
@@ -208,6 +269,7 @@
     if (seq !== state.loadSeq || state.currentId !== id) return;
     state.detail = detail;
     state.board = board?.markdown || '';
+    pickThread();
     renderAll();
   }
 
@@ -283,12 +345,12 @@
     state.esRunId = id;
     es.onopen = () => {
       state.conn = 'open';
-      renderConn();
+      renderChrome();
       scheduleRefresh();
     };
     es.onerror = () => {
       state.conn = state.health === false ? 'offline' : 'reconnecting';
-      renderConn();
+      renderChrome();
     };
     es.addEventListener('journal', scheduleRefresh);
   }
@@ -310,13 +372,15 @@
     }
   }
 
+  const enc = (v) => encodeURIComponent(String(v));
+
   function routeName() {
     const h = hashText();
     if (h.startsWith('settings')) return 'settings';
-    if (h === 'palette' || h === 'newrun') return h;
+    if (h === 'palette' || h === 'newrun' || h === 'board') return h;
     if (h === 'drawer' || /^task-\d+$/.test(h)) return 'drawer';
-    if (h === 'tasks' || h === 'log') return h;
-    return 'board';
+    if (h.startsWith('t/')) return 'thread';
+    return 'thread';
   }
 
   function settingsTabName() {
@@ -331,13 +395,6 @@
 
   function dialogElement() {
     switch (dialogName()) {
-      case 'toggle-facts': {
-        const app = document.getElementById('app');
-        const open = app.dataset.facts !== 'open';
-        app.dataset.facts = open ? 'open' : '';
-        target.setAttribute('aria-expanded', String(open));
-        break;
-      }
       case 'palette': return $('#paletteModal');
       case 'settings': return $('#settingsModal');
       case 'newrun': return $('#newrunModal');
@@ -346,21 +403,34 @@
     }
   }
 
+  function homeRoute() {
+    if (state.view === 'board') return 'board';
+    return state.thread ? 't/' + state.thread : 'thread';
+  }
+
   function setRoute(name) {
-    const url = name && name !== 'board' ? '#' + name : location.pathname + location.search;
+    // The thread view with no thread chosen is the home route, so it clears the hash.
+    const clear = !name || name === 'thread';
+    const url = clear ? location.pathname + location.search : '#' + name;
     try {
       history.replaceState(null, '', url);
     } catch (err) {
-      location.hash = name && name !== 'board' ? name : '';
+      location.hash = clear ? '' : name;
     }
     applyRoute();
   }
 
   function applyRoute() {
     const name = routeName();
-    if (name === 'tasks' || name === 'log') state.tab = name;
-    else if (name === 'board' || name === 'drawer') state.tab = state.tab === 'tasks' || state.tab === 'log' ? state.tab : 'board';
+    if (name === 'board') {
+      state.view = 'board';
+    } else if (name === 'thread') {
+      state.view = 'thread';
+      const h = hashText();
+      if (h.startsWith('t/')) state.thread = h.slice(2);
+    }
     if (name === 'drawer') {
+      state.view = 'thread';
       const m = hashText().match(/^task-(\d+)$/);
       const tasks = state.detail?.tasks || [];
       state.drawerIndex = m ? Math.min(tasks.length, Math.max(1, Number(m[1]))) - 1 : (tasks.length ? tasks.length - 1 : -1);
@@ -376,7 +446,7 @@
   }
 
   function closeDialog() {
-    setRoute(state.tab === 'tasks' || state.tab === 'log' ? state.tab : 'board');
+    setRoute(homeRoute());
   }
 
   function projectPath() {
@@ -392,7 +462,7 @@
     return String(path || '').replace(/^\/home\/[^/]+/, '~');
   }
 
-  // Paths are shown relative to the repo root, the same way the export and the v3 mock do it.
+  // Paths are shown relative to the repo root, the same way the export does it.
   function rootPath() {
     const project = projectPath();
     return project ? project.replace(/\/[^/]+$/, '') : '';
@@ -414,12 +484,6 @@
     return s;
   }
 
-  function firstSentence(text) {
-    const s = String(text ?? '').trim();
-    const m = s.match(/^(.+?[.!?])(\s|$)/);
-    return m ? m[1] : s;
-  }
-
   function runTitle() {
     const raw = String(state.detail?.goal?.text || state.runs.find((r) => r.id === state.currentId)?.title || 'Untitled run');
     const cut = raw.indexOf('. ');
@@ -436,9 +500,9 @@
   }
 
   function statusClass(status) {
-    if (['accepted', 'merged', 'pass', 'pass_with_notes'].includes(status)) return 'ok';
+    if (['accepted', 'merged', 'pass', 'pass_with_notes', 'reported', 'ok'].includes(status)) return 'ok';
     if (['blocked', 'budget_exhausted', 'no_progress', 'failed', 'block'].includes(status)) return 'bad';
-    if (status === 'reviewed' || status === 'human_paused') return 'warn';
+    if (['reviewed', 'human_paused', 'queued', 'running'].includes(status)) return 'warn';
     return '';
   }
 
@@ -446,19 +510,113 @@
     return chip(statusWord(status), statusClass(status));
   }
 
-  function safetyForAgent(agent) {
-    const name = String(agent || '');
-    if (/claude/i.test(name)) return { label: 'asks first', cls: 'safe', note: 'Asks before every tool.' };
-    if (/codex|pi|opencode|agy|antigravity|cursor/i.test(name)) {
-      return { label: 'folder only', cls: 'safe', note: 'Writes inside its folder, asks before anything outside.' };
-    }
-    return { label: 'unknown', cls: '', note: 'This agent has not declared how it asks for permission.' };
+  // A thread's agent is a provider id from the goal (`claude-main`, `codex-main`). We match it against
+  // the CLIs the API found, so the safety badge is the CLI's own answer where we can get one.
+  function safetyOf(agent) {
+    const id = String(agent || '').toLowerCase();
+    const found = (state.agents || []).filter((a) => a.safety && a.safety !== 'unknown');
+    const hit = found.find((a) => id.includes(a.id.toLowerCase()));
+    if (hit) return hit.safety;
+    if (/claude/.test(id)) return 'asks_before_each_tool';
+    if (/codex|pi|opencode|agy|antigravity|cursor/.test(id)) return 'works_in_folder_asks_outside';
+    return 'unknown';
+  }
+
+  function safetyChip(agent) {
+    const safety = safetyOf(agent);
+    const label = SAFETY_LABEL[safety] || 'Unknown';
+    const note = safety === 'asks_before_each_tool'
+      ? 'This agent asks before every tool it uses.'
+      : safety === 'works_in_folder_asks_outside'
+        ? 'This agent writes inside its folder and asks before anything outside it.'
+        : 'This agent has not declared how it asks for permission.';
+    return `<span class="chip ${safety === 'unknown' ? '' : 'safe'}" title="${esc(note)}">${esc(label)}</span>`;
   }
 
   function safetyLine(safety) {
     if (safety === 'asks_before_each_tool') return 'Asks before every tool';
     if (safety === 'works_in_folder_asks_outside') return 'Writes inside its folder, asks before anything outside';
     return 'Permissions unknown';
+  }
+
+  // ---- threads: derived from run.threads plus the tasks that ran on them -----------------------
+
+  function runThreads() {
+    const d = state.detail;
+    if (!d) return [];
+    const byName = new Map();
+    for (const t of d.threads || []) {
+      byName.set(t.name, {
+        name: t.name,
+        agent: t.agent || 'unknown',
+        role: t.role || 'worker',
+        status: t.status || 'idle',
+        standing: t.prompt || '',
+        tasks: [],
+      });
+    }
+    (d.tasks || []).forEach((task, i) => {
+      const name = task.thread || 'unknown';
+      if (!byName.has(name)) {
+        byName.set(name, { name, agent: 'unknown', role: 'worker', status: 'idle', standing: '', tasks: [] });
+      }
+      byName.get(name).tasks.push({ ...task, i, kind: task.kind === 'message' ? 'message' : 'task' });
+    });
+    return Array.from(byName.values());
+  }
+
+  function lastTask(thread) {
+    return thread?.tasks?.length ? thread.tasks[thread.tasks.length - 1] : null;
+  }
+
+  function currentThread() {
+    if (!state.detail || state.view !== 'thread') return null;
+    const threads = runThreads();
+    return threads.find((t) => t.name === state.thread) || threads[0] || null;
+  }
+
+  // An open question is a `question` ledger entry by this thread with no `answer` after it.
+  function openQuestion(name) {
+    const ledger = (state.detail?.ledger || []).slice().sort((a, b) => Number(a.id) - Number(b.id));
+    let last = null;
+    for (const entry of ledger) {
+      if (entry.author !== name) continue;
+      if (entry.kind === 'question') last = entry;
+      if (entry.kind === 'answer') last = null;
+    }
+    return last;
+  }
+
+  // Needs you: a failed task, or a question it wrote that nobody answered. Working: a task queued or
+  // running. Done: everything else, and it stays visible until the run is gone (orca's rule).
+  function threadGroup(thread) {
+    const failed = thread.tasks.some((t) => t.status === 'failed');
+    if (failed || openQuestion(thread.name)) return 'needs';
+    if (thread.tasks.some((t) => t.status === 'queued' || t.status === 'running')) return 'working';
+    return 'done';
+  }
+
+  function groupedThreads() {
+    const groups = { needs: [], working: [], done: [] };
+    for (const thread of runThreads()) groups[threadGroup(thread)].push(thread);
+    return groups;
+  }
+
+  function pickThread() {
+    const threads = runThreads();
+    if (!threads.length) {
+      state.thread = null;
+      return;
+    }
+    if (threads.some((t) => t.name === state.thread)) return;
+    const groups = groupedThreads();
+    const first = groups.needs[0] || groups.working[0] || groups.done[0] || threads[0];
+    state.thread = first.name;
+  }
+
+  function threadDot(thread) {
+    const group = threadGroup(thread);
+    return group === 'needs' ? 'warn' : group === 'working' ? 'ok' : '';
   }
 
   // ---- toast -----------------------------------------------------------------------------------
@@ -511,6 +669,7 @@
     setInert($('.rail'), offline);
     setInert($('.facts'), offline);
     setInert($('#scroll'), offline);
+    setInert($('#composer'), offline);
   }
 
   function focusables(root) {
@@ -546,7 +705,8 @@
     const modal = dialogElement();
     if (!modal) return;
     const go = () => {
-      if (!document.contains(modal) || !modal.classList.contains('open')) return;
+      const overlay = modal.closest('.overlay') || modal;
+      if (!document.contains(modal) || !overlay.classList.contains('open')) return;
       if (name === 'palette') {
         $('#palInput')?.focus({ preventScroll: true });
       } else if (name === 'drawer') {
@@ -568,32 +728,56 @@
     let target = usable ? opener : null;
     if (!target) {
       target = closedName === 'drawer'
-        ? $(`.task[data-i="${state.drawerIndex}"]`)
+        ? $(`.ask-card[data-i="${state.drawerIndex}"]`)
         : closedName === 'palette'
           ? $('[data-act="palette"]')
           : closedName === 'settings'
             ? $('[data-act="settings"]')
-            : $('.newrun');
+            : $('.rail-switch .rsw-select');
     }
     if (target) setTimeout(() => target.focus({ preventScroll: true }), 0);
   }
 
-  // ---- rail ------------------------------------------------------------------------------------
+  // ---- left rail -------------------------------------------------------------------------------
 
-  function runDotClass(status) {
-    const cls = statusClass(status);
-    return cls === 'ok' ? 'ok' : cls === 'bad' ? 'bad' : cls === 'warn' ? 'warn' : '';
+  function renderRunSelect() {
+    const select = $('#runSelect');
+    if (!select) return;
+    const options = state.runs.map((run) => {
+      const title = shortTitle(run.title || 'Untitled run');
+      return `<option value="${esc(run.id)}">${esc(title)} — ${esc(statusWord(run.status))}</option>`;
+    }).join('');
+    const sig = options + '|' + (state.currentId || '');
+    if (select.dataset.sig !== sig) {
+      select.innerHTML = `<option value="__new">＋ New run…</option>${options || '<option value="" disabled>No runs yet</option>'}`;
+      select.dataset.sig = sig;
+    }
+    select.value = state.runs.length ? (state.currentId || '') : '__new';
   }
 
-  function railRunRow(run) {
-    const on = run.id === state.currentId;
+  function shortTitle(title) {
+    const s = String(title || '');
+    return s.length > 46 ? s.slice(0, 45) + '…' : s;
+  }
+
+  function threadRow(thread) {
+    const on = thread.name === state.thread && state.view === 'thread';
+    const task = lastTask(thread);
+    const text = task ? String(task.prompt || '').replace(/\s+/g, ' ').trim().slice(0, 40) : 'No task yet';
     return `
-      <button class="run-row${on ? ' on' : ''}" data-act="select-run" data-id="${esc(run.id)}"${on ? ' aria-current="true"' : ''}>
-        <div class="run-title">
-          <span class="dot ${runDotClass(run.status)}"></span>
-          <span class="t">${esc(run.title || 'Untitled run')}</span>
-        </div>
-        <div class="run-meta">${esc(statusWord(run.status))}<span class="sep"> · </span>${fmt(run.rounds_used)} rounds<span class="sep"> · </span>${compact(run.tokens_used)}</div>
+      <button class="trow${on ? ' on' : ''}" data-act="thread" data-name="${esc(thread.name)}"${on ? ' aria-current="true"' : ''}>
+        <span class="dot ${threadDot(thread)}"></span>
+        <span class="trow-name">${esc(thread.name)}</span>
+        <span class="trow-agent">${esc(thread.agent)}</span>
+        <span class="trow-task">${esc(text)}</span>
+      </button>`;
+  }
+
+  function gateRow() {
+    if (state.detail?.run?.status !== 'reviewed') return '';
+    return `
+      <button class="gate-row" data-act="focus-gate">
+        ${ic('check')}<span>Gate open · decide</span><span class="go">review</span>
       </button>`;
   }
 
@@ -602,41 +786,40 @@
     const foot = $('#railFoot');
     if (!body || !foot) return;
 
-    const today = new Date();
-    const isToday = (ms) => {
-      const d = new Date(ms);
-      return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
-    };
-    const todays = state.runs.filter((r) => isToday(r.started_at));
-    const earlier = state.runs.filter((r) => !isToday(r.started_at));
+    const project = projectPath();
+    $('#railProject').textContent = project ? projectName(project) : (state.runs.length ? 'all projects' : 'no project');
+    $('#railProject').title = project ? shortProject(project) : '';
+    renderRunSelect();
 
-    const projectMap = new Map();
-    for (const run of state.runs) {
-      const key = run.project || '';
-      const entry = projectMap.get(key) || { path: key, count: 0, runId: run.id };
-      entry.count += 1;
-      projectMap.set(key, entry);
+    let inner = gateRow();
+    if (!state.detail) {
+      inner += state.health === false
+        ? '<p class="rail-empty">The runner is not answering.</p>'
+        : state.runs.length
+          ? '<p class="rail-loading">Reading the run…</p>'
+          : '<p class="rail-empty">No runs yet.</p>';
+    } else {
+      const groups = groupedThreads();
+      inner += GROUP_ORDER.map(([key, label]) => {
+        const threads = groups[key];
+        if (!threads.length) return '';
+        return `
+          <div class="tgroup">
+            <div class="tgroup-head"><span>${label}</span><span class="n">${threads.length}</span></div>
+            ${threads.map(threadRow).join('')}
+          </div>`;
+      }).join('');
+      if (!runThreads().length) inner += '<p class="rail-empty">This run has no threads. Its goal names none.</p>';
+      inner += `
+        <button class="rail-newthread" disabled aria-describedby="newThreadWhy"
+                title="Threads come from the goal file. Start a new run with the threads you want.">
+          ${ic('plus', 'ic sm')}New thread
+        </button>
+        <p class="rail-empty" id="newThreadWhy" style="margin-top:4px">Threads come from the goal file.</p>`;
     }
-
-    const sections = [];
-    if (todays.length) sections.push(`<div class="section"><span class="lbl">Today</span><span class="n">${todays.length}</span></div><div class="runlist">${todays.map(railRunRow).join('')}</div>`);
-    if (earlier.length) sections.push(`<div class="section"><span class="lbl">Earlier</span><span class="n">${earlier.length}</span></div><div class="runlist">${earlier.map(railRunRow).join('')}</div>`);
-
-    body.innerHTML = `
-      <button class="cmd" data-act="palette" aria-label="Search runs and actions">
-        ${ic('search')}
-        <span class="lbl">Search runs</span>
-        <span class="kbd">⌘K</span>
-      </button>
-      <button class="newrun" data-act="new-run">${ic('plus')}New run</button>
-      ${state.runsError ? `<p class="rail-error" role="alert">${esc(state.runsError)}</p>` : ''}
-      ${state.runs.length ? sections.join('') : '<div class="section"><span class="lbl">Runs</span><span class="n">0</span></div><div class="rail-empty">No runs yet.</div>'}
-      ${projectMap.size ? `<div class="section"><span class="lbl">Projects</span><span class="n">${projectMap.size}</span></div>${Array.from(projectMap.values()).map((p) => `
-        <button class="proj" data-act="select-run" data-id="${esc(p.runId)}" title="${esc(p.path)}">
-          ${ic('folder')}
-          <span class="name">${esc(projectName(p.path))}</span>
-          <span class="cnt">${p.count} run${p.count === 1 ? '' : 's'}</span>
-        </button>`).join('')}` : ''}`;
+    if (state.runsError) inner += `<p class="rail-error" role="alert">${esc(state.runsError)}</p>`;
+    body.innerHTML = inner;
+    body.hidden = false;
 
     const effective = resolveTheme(state.settings?.theme || cachedTheme() || 'dark');
     foot.innerHTML = `
@@ -646,105 +829,140 @@
       </button>`;
   }
 
-  // ---- header ----------------------------------------------------------------------------------
+  // ---- top bar ---------------------------------------------------------------------------------
 
-  function gateReceipt() {
-    const { run, rounds = [] } = state.detail;
-    const passedRound = rounds.find((r) => r.verdict === 'pass');
-    const checks = passedRound?.readiness?.checks || [];
-    const n = checks.filter((c) => c.passed).length;
-    const at = passedRound ? passedRound.index : Math.max(0, roundsUsed() - 1);
-    const verb = run.status === 'merged' ? 'Merged' : 'Accepted';
-    return `
-      <div class="gate-bar" aria-label="Gate ${verb.toLowerCase()}">
-        <span class="gate-ic">${ic('check')}</span>
-        <div class="gate-main">
-          <span class="gate-k">Gate · closed</span>
-          <span class="gate-t">${verb} at round ${at} · ${n} of ${checks.length} checks passed</span>
-        </div>
-        <span class="gate-tags">${chip(verb.toLowerCase(), 'ok')}</span>
-      </div>`;
+  function runMetaHtml() {
+    const d = state.detail;
+    if (!d) return '';
+    const run = d.run || {};
+    const budget = d.goal?.budget || {};
+    const atGate = run.status === 'reviewed';
+    return [
+      statusChip(run.status),
+      chip(`${roundsUsed()}/${budget.rounds ?? '—'} rounds · ${compact(run.tokens_used)}/${budget.tokens ? compact(budget.tokens) : '—'} tokens`, 'num'),
+      atGate ? `<button class="meta-btn" data-act="focus-gate">${ic('check', 'ic sm')}Gate open</button>` : '',
+    ].join('');
   }
 
-  function gatePanel() {
-    const { rounds = [] } = state.detail;
-    const round = rounds[rounds.length - 1] || { index: 0, readiness: { checks: [] } };
-    const checks = round.readiness?.checks || [];
-    const draft = state.noteDrafts.get(state.currentId) || '';
-    return `
-      <section class="gate-panel" aria-label="Gate">
-        <div class="gate-phead"><span class="gate-k">Gate · round ${esc(round.index)}</span>${chip('open', 'warn')}</div>
-        <p class="gate-copy">The checks passed. Nothing has been merged. Accept to record the decision, or send it back with a note the team reads.</p>
-        <div class="gate-checks">${checks.length ? checks.map((c) => `
-          <div class="gate-check">
-            <svg class="${c.passed ? 'ic' : 'ic bad'}" aria-hidden="true"><use href="#i-${c.passed ? 'check' : 'x'}"></use></svg>
-            <span>${esc(c.name)}</span>
-            ${chip(c.passed ? 'pass' : 'fail', c.passed ? 'ok' : 'bad')}
-          </div>`).join('') : '<div class="gate-check">No checks were recorded for this round.</div>'}
-        </div>
-        <label class="field-label" for="gate-note">Note to the team <span>needed only to send back</span></label>
-        <textarea class="gate-note" id="gate-note" rows="2" placeholder="What should change before this is accepted?">${esc(draft)}</textarea>
-        <div class="gate-actions">
-          <button class="btn primary" data-act="accept-gate"${state.gateBusy ? ' disabled' : ''}>Accept</button>
-          <button class="btn" data-act="send-back"${state.gateBusy ? ' disabled' : ''}>Send back with note</button>
-        </div>
-        <p class="gate-inline" id="gateInline" role="status" hidden></p>
-      </section>`;
-  }
-
-  function stopPanel() {
-    const { run } = state.detail;
-    const reason = run.blocked_reason || 'The run stopped and nothing was merged.';
-    return `
-      <section class="stop" aria-label="Run stopped">
-        <div class="stop-head">${ic('alert-triangle')}<span>Stopped: ${esc(statusWord(run.status))}</span></div>
-        <p>${esc(reason)}</p>
-        <div class="stop-actions">
-          <button class="btn" data-act="checks">See what failed ${ic('chevron-right', 'ic sm')}</button>
-          <span class="stop-meta">${fmt(run.tokens_used)} tokens · ${roundsUsed()} rounds</span>
-        </div>
-      </section>`;
-  }
-
-  function gateArea() {
-    const run = state.detail?.run;
-    if (!run) return '';
-    if (run.status === 'reviewed') return gatePanel();
-    if (['blocked', 'budget_exhausted', 'no_progress', 'human_paused'].includes(run.status)) return stopPanel();
-    if (run.status === 'accepted' || run.status === 'merged') return gateReceipt();
-    return '';
-  }
-
-  function tabsHtml() {
-    const ledgerCount = state.detail?.ledger?.length || 0;
-    const tasksCount = state.detail?.tasks?.length || 0;
-    const lines = state.board ? state.board.split('\n').length : 0;
-    const tab = (id, label, n, sr) => `
-      <button class="tab" role="tab" id="tab-${id}" data-act="tab" data-tab="${id}" title="${sr}"
-        aria-controls="pane-${id}" aria-selected="${state.tab === id}" aria-label="${label}, ${sr}">
-        ${label}<span class="cnt" aria-hidden="true">${n}</span>
-      </button>`;
-    return `
-      <div class="tabs" role="tablist" aria-label="Run record">
-        ${tab('board', 'Board', ledgerCount, `${ledgerCount} entries`)}
-        ${tab('tasks', 'Tasks', tasksCount, `${tasksCount} tasks`)}
-        ${tab('log', 'Log', lines, `${lines} lines of board.md`)}
-      </div>`;
-  }
-
-  // ---- board -----------------------------------------------------------------------------------
+  // ---- centre: thread view ---------------------------------------------------------------------
 
   function scopeChips(scope) {
     if (!scope || !scope.length) return '';
     const items = scope.map((p) => p === 'run'
-      ? `<span class="fchip run" title="the whole run">whole run</span>`
+      ? '<span class="fchip run" title="the whole run">whole run</span>'
       : `<span class="fchip" title="${esc(relPath(p))}">${esc(relPath(p))}</span>`).join('');
     return `<div class="led-scope">${items}</div>`;
   }
 
-  function ledgerHtml(e) {
-    const kind = ['intent', 'finding', 'question', 'decision'].includes(e.kind) ? e.kind : '';
-    const id = 'led-' + e.id;
+  // An artifact is filed under a thread and a round, not under a task. Two tasks on one thread in one
+  // round both name the same file, so the files belong to the last of them; earlier turns show none.
+  function artifactsFor(task) {
+    const lastInRound = (state.detail?.tasks || []).reduce((max, t) => (
+      t.thread === task.thread && Number(t.round) === Number(task.round) ? Math.max(max, (state.detail?.tasks || []).indexOf(t)) : max
+    ), -1);
+    if (task.i !== lastInRound) return [];
+    return (state.detail?.artifacts || []).filter((a) => {
+      const m = String(a.path || '').match(/\/rounds\/r(\d+)\/([^/]+)\//);
+      return m && Number(m[1]) === Number(task.round) && m[2] === task.thread;
+    });
+  }
+
+  function askHtml(task) {
+    const prompt = shrinkText(task.prompt);
+    if (task.kind === 'message') {
+      return `
+        <div class="ask">
+          <div class="ask-card bub">
+            <div class="ask-meta">${ic('message', 'ic sm')}you · message</div>
+            <div class="ask-text">${esc(prompt)}</div>
+          </div>
+        </div>`;
+    }
+    const scope = (task.scope || []).length ? ` · ${task.scope.length === 1 && task.scope[0] === 'run' ? 'whole run' : task.scope.length + ' files'}` : '';
+    return `
+      <div class="ask">
+        <button class="ask-card" data-act="task" data-i="${task.i}" aria-label="Open task ${task.i + 1} on ${esc(task.thread)}">
+          <div class="ask-meta">round ${esc(task.round ?? '—')} · by ${esc(task.created_by || 'runner')}${esc(scope)}</div>
+          <div class="ask-text">${esc(prompt)}</div>
+        </button>
+      </div>`;
+  }
+
+  function replyHtml(task) {
+    const message = shrinkText(task.message);
+    const report = shrinkText(task.result);
+    const files = task.kind === 'message' ? [] : artifactsFor(task);
+    const status = task.status ? `<span class="chip ${statusClass(task.status)}">${esc(statusWord(task.status))}</span>` : '';
+    return `
+      <div class="reply">
+        <div class="reply-k">
+          <span class="dot ${statusClass(task.status) === 'bad' ? 'bad' : ''}"></span>
+          <span class="who">${esc(task.thread)}</span>
+          <span class="sep">·</span><span>${esc(task.kind === 'message' ? 'message' : 'round ' + (task.round ?? '—'))}</span>
+          ${status}
+        </div>
+        ${message ? `<div class="say md">${md(message)}</div>` : '<p class="say turn-none">This turn has no message yet.</p>'}
+        ${report ? `
+          <div class="rep${statusClass(task.status) === 'bad' ? ' bad' : ''}">
+            <div class="rep-k">${ic(statusClass(task.status) === 'bad' ? 'x' : 'check')}${esc(statusWord(task.status || 'reported'))}</div>
+            <div class="rep-body md">${md(report)}</div>
+          </div>` : ''}
+        ${files.length ? `<div class="files">${files.map((a) => `
+          <span class="fchip" title="${esc(a.path)}">${esc(String(a.path || '').split('/').pop())}${a.bytes != null ? ' · ' + fmt(a.bytes) + ' b' : ''}</span>`).join('')}</div>` : ''}
+      </div>`;
+  }
+
+  function runStopBanner() {
+    const run = state.detail.run;
+    if (!['blocked', 'budget_exhausted', 'no_progress', 'human_paused'].includes(run.status)) return '';
+    const reason = run.blocked_reason || 'The run stopped and nothing was merged.';
+    return `
+      <section class="runstop" role="alert">
+        <div class="runstop-head">${ic('alert-triangle')}<span>Run ${esc(statusWord(run.status))}</span></div>
+        <p>${esc(reason)}</p>
+        <div class="runstop-actions">
+          <button class="btn" data-act="resume">Resume run</button>
+          <span class="runstop-meta">${fmt(run.tokens_used)} tokens · ${roundsUsed()} rounds</span>
+        </div>
+      </section>`;
+  }
+
+  function threadViewHtml() {
+    const thread = currentThread();
+    if (!thread) {
+      return `
+        <div class="empty-state">
+          <span class="empty-gem" aria-hidden="true">◆</span>
+          <p>This run has no threads. Its goal file names none, so there is nobody to talk to.</p>
+          <p class="empty-note">Threads are created from the goal when the run starts.</p>
+        </div>`;
+    }
+    const task = lastTask(thread);
+    const open = openQuestion(thread.name);
+    const status = open ? chip('needs you', 'warn') : task ? chip(statusWord(task.status || 'unknown'), statusClass(task.status)) : chip('no task', 'num');
+    return `
+      <div class="th-head">
+        <div class="th-line">
+          <h1 class="th-name">${esc(thread.name)}<span class="th-role">${esc(thread.role)}</span></h1>
+          <span class="th-agent">${esc(thread.agent)}</span>
+          ${safetyChip(thread.agent)}
+          ${status}
+        </div>
+        <p class="th-sub">${thread.tasks.length} ${thread.tasks.length === 1 ? 'task' : 'tasks'} in this run${task ? ` · last in round ${esc(task.round ?? '—')}` : ''}</p>
+      </div>
+      ${runStopBanner()}
+      <div class="conv" role="log" aria-label="Conversation with ${esc(thread.name)}">
+        ${thread.tasks.length
+          ? thread.tasks.map((t) => `<article class="ex">${askHtml(t)}${replyHtml(t)}</article>`).join('')
+          : `<p class="turn-none">No work yet. ${esc(thread.name)} has no task in this run. The box below starts its first one, as a message.</p>`}
+      </div>`;
+  }
+
+  // ---- centre: board view ----------------------------------------------------------------------
+
+  function ledgerHtml(e, { clamp = true, prefix = 'b' } = {}) {
+    const kind = ['intent', 'finding', 'question', 'decision', 'constraint', 'answer'].includes(e.kind) ? e.kind : '';
+    const id = prefix + 'led-' + e.id;
     const expanded = state.expanded.has(String(id));
     return `
       <article class="led">
@@ -754,18 +972,18 @@
             <span class="who">by ${esc(e.author || e.thread || 'runner')}</span>
             <span class="sep"> · </span><span>round ${esc(e.round ?? '—')}</span>
           </div>
-          <p class="led-body${expanded ? '' : ' clamp'}" id="${id}">${esc(shrinkText(e.body))}</p>
-          <button class="led-more" data-act="more" data-target="${id}" aria-expanded="${expanded}" aria-controls="${id}"${expanded ? '' : ''}>${expanded ? 'less' : 'more'}</button>
+          <p class="led-body${clamp && !expanded ? ' clamp' : ''}" id="${id}">${esc(shrinkText(e.body))}</p>
+          ${clamp ? `<button class="led-more" data-act="more" data-target="${id}" aria-expanded="${expanded}" aria-controls="${id}">${expanded ? 'less' : 'more'}</button>` : ''}
           ${scopeChips(e.scope)}
         </div>
       </article>`;
   }
 
-  function boardGroups() {
+  function groupedLedger() {
     const { rounds = [], ledger = [] } = state.detail;
-    if (!ledger.length) return '<div class="facts-empty">No board entries recorded.</div>';
+    if (!ledger.length) return [];
     const byRound = new Map();
-    let loose = [];
+    const loose = [];
     for (const entry of ledger) {
       if (entry.round === null || entry.round === undefined) {
         loose.push(entry);
@@ -774,7 +992,7 @@
       const key = Number(entry.round);
       byRound.set(key, [...(byRound.get(key) || []), entry]);
     }
-    loose = loose.sort((a, b) => Number(a.id) - Number(b.id));
+    loose.sort((a, b) => Number(a.id) - Number(b.id));
     const indexes = Array.from(new Set([...rounds.map((r) => Number(r.index)), ...byRound.keys()])).sort((a, b) => a - b);
     const groups = indexes
       .filter((i) => (byRound.get(i) || []).length)
@@ -784,7 +1002,12 @@
         entries: byRound.get(i).sort((a, b) => Number(a.id) - Number(b.id)),
       }));
     if (loose.length) groups.push({ label: 'Run', verdict: null, entries: loose });
-    if (!groups.length) return '<div class="facts-empty">No board entries recorded.</div>';
+    return groups;
+  }
+
+  function boardGroups() {
+    const groups = groupedLedger();
+    if (!groups.length) return '<p class="facts-empty">No board entries recorded.</p>';
     return groups.map((g) => `
       <section class="rgroup" aria-label="${esc(g.label)}">
         <div class="rgroup-head">
@@ -792,37 +1015,32 @@
           <span class="rgroup-c">${g.entries.length} ${g.entries.length === 1 ? 'entry' : 'entries'}</span>
           ${g.verdict ? chip(String(g.verdict).replace(/_/g, ' '), statusClass(g.verdict)) : ''}
         </div>
-        ${g.entries.map(ledgerHtml).join('')}
+        ${g.entries.map((e) => ledgerHtml(e, { clamp: false })).join('')}
       </section>`).join('');
   }
 
-  function scopeLabel(t) {
-    const scope = t.scope || [];
-    if (!scope.length) return 'no scope';
-    if (scope.length === 1 && scope[0] === 'run') return 'whole run';
-    return `${scope.length} files`;
+  function boardViewHtml() {
+    const d = state.detail;
+    const ledger = d?.ledger || [];
+    return `
+      <div class="bview-head">
+        <button class="backlink" data-act="back-thread">${ic('chevron-left', 'ic sm')}Back to conversation</button>
+        <div class="bview-line">
+          <h1>Board</h1>
+          <span class="cnt">${ledger.length} ${ledger.length === 1 ? 'entry' : 'entries'} · ${esc(runTitle())}</span>
+        </div>
+      </div>
+      ${runStopBanner()}
+      ${boardGroups()}
+      <details class="board-md">
+        <summary class="md-summary">${ic('chevron-right', 'ic sm')}<span>board.md</span>${chip('what the agents read')}
+          <span style="margin-left:auto">${state.board ? state.board.split('\n').length : 0} lines</span></summary>
+        ${state.boardError ? `<p class="nr-error" role="alert">${esc(state.boardError)}</p>` : ''}
+        <pre class="log-pre" tabindex="0" aria-label="board.md, read only">${esc(state.board || (state.boardError ? '' : 'The board is empty.'))}</pre>
+      </details>`;
   }
 
-  function tasksHtml() {
-    const tasks = state.detail?.tasks || [];
-    if (!tasks.length) return '<div class="facts-empty">No tasks recorded.</div>';
-    return `<div class="tasks">${tasks.map((t, i) => {
-      const report = shrinkText(t.result || '');
-      const first = firstSentence(report);
-      return `
-        <button class="task" data-act="task" data-i="${i}" aria-label="Open task ${i + 1}, ${esc(t.thread)}">
-          <div class="task-head">
-            <span class="task-num">#${i + 1}</span>
-            <span class="task-thread">${esc(t.thread)}</span>
-            ${chip(statusWord(t.status || 'reported'), statusClass(t.status))}
-            <span class="chev">${ic('chevron-right', 'ic sm')}</span>
-          </div>
-          <p class="task-prompt">${esc(shrinkText(t.prompt))}</p>
-          ${first ? `<p class="task-result" title="${esc(report)}">${esc(first)}</p>` : ''}
-          <div class="task-meta"><span>round ${esc(t.round)} · by ${esc(t.created_by || 'runner')}</span><span class="r">${scopeLabel(t)}</span></div>
-        </button>`;
-    }).join('')}</div>`;
-  }
+  // ---- centre: no run --------------------------------------------------------------------------
 
   function emptyState() {
     if (state.health === false) {
@@ -838,73 +1056,91 @@
           <span class="empty-gem" aria-hidden="true">◆</span>
           <p>No runs yet — start one when you have a goal for your agents.</p>
           <div class="empty-actions"><button class="btn primary" data-act="new-run">${ic('plus')}New run</button></div>
+          <p class="empty-note">POST /runs on 127.0.0.1:4737</p>
         </div>`;
     }
-    if (state.currentId && !state.detail) return '<div class="facts-empty">Reading the run…</div>';
-    return '<div class="facts-empty">Nothing is selected. Pick a run in the list.</div>';
+    return '<p class="facts-empty" style="padding:24px">Reading the run…</p>';
   }
 
-  function runHeader() {
-    const { goal, threads = [], tasks = [] } = state.detail;
-    const chips = [
-      statusChip(state.detail.run?.status),
-      chip(`${roundsUsed()} rounds`, 'num'),
-      chip(`${fmt(state.detail.run?.tokens_used)} tokens`, 'num'),
-      chip(`${threads.length} threads`, 'num'),
-      chip(`${tasks.length} tasks`, 'num'),
-    ].join('');
-    return `
-      <h1>${esc(runTitle())}</h1>
-      <div class="head-sub">
-        <p class="done" title="${esc(goal?.done || '')}">${esc(goal?.done || 'No done condition recorded.')}</p>
-        <div class="chips">${chips}</div>
-      </div>`;
+  // ---- right rail ------------------------------------------------------------------------------
+
+  function checksHtml() {
+    const rounds = state.detail?.rounds || [];
+    if (!rounds.length) return '<p class="facts-empty">No rounds recorded.</p>';
+    return rounds.map((r) => {
+      const checks = r.readiness?.checks || [];
+      // A round with a failed task never runs its checks, so `failing` is the only reason it has.
+      const failing = (r.readiness?.failing || []).map((f) => String(f).replace(/^task-failed:/, 'task failed: '));
+      return `
+        <div class="chk-round">Round ${esc(r.index)}${r.verdict ? ' · ' + esc(statusWord(r.verdict)) : ''}</div>
+        ${checks.map((c) => `
+          <div class="chk">
+            <span class="name" title="${esc(c.detail || c.name)}">${esc(c.name)}</span>
+            ${chip(c.passed ? 'pass' : 'fail', c.passed ? 'ok' : 'bad')}
+          </div>`).join('')}
+        ${failing.map((f) => `
+          <div class="chk">
+            <span class="name" title="${esc(f)}">${esc(f)}</span>${chip('fail', 'bad')}
+          </div>`).join('')}
+        ${checks.length || failing.length ? '' : '<p class="facts-empty" style="padding:6px 0">No checks in this round.</p>'}`;
+    }).join('');
   }
 
-  function panesHtml() {
-    const hidden = (id) => (state.tab === id ? '' : ' hidden');
+  function gatePanel() {
+    const { rounds = [] } = state.detail;
+    const round = rounds[rounds.length - 1] || { index: 0, readiness: { checks: [] } };
+    const checks = round.readiness?.checks || [];
+    const draft = state.noteDrafts.get(state.currentId) || '';
     return `
-      <section class="pane" role="tabpanel" id="pane-board" aria-labelledby="tab-board" tabindex="0"${hidden('board')}>
-        ${boardGroups()}
-      </section>
-      <section class="pane" role="tabpanel" id="pane-tasks" aria-labelledby="tab-tasks" tabindex="0"${hidden('tasks')}>
-        ${tasksHtml()}
-      </section>
-      <section class="pane" role="tabpanel" id="pane-log" aria-labelledby="tab-log" tabindex="0"${hidden('log')}>
-        <div class="logbar"><span>board.md</span>${chip('read only')}<span class="sp">${state.board ? state.board.split('\n').length : 0} lines</span></div>
-        ${state.boardError ? `<p class="nr-error" role="alert">${esc(state.boardError)}</p>` : ''}
-        <pre class="log-pre" tabindex="0" aria-label="board.md, read only">${esc(state.board || (state.boardError ? '' : 'The board is empty.'))}</pre>
+      <section class="gate-panel" aria-label="Gate">
+        <div class="gate-phead"><span class="gate-k">Gate · round ${esc(round.index)}</span>${chip('open', 'warn')}</div>
+        <p class="gate-copy">${checks.length ? 'The checks passed.' : 'This round recorded no checks.'} Nothing has been merged. Accept to record the decision, or send it back with a note the team reads.</p>
+        <div class="gate-checks">${checks.length ? checks.map((c) => `
+          <div class="gate-check">
+            <svg class="${c.passed ? 'ic' : 'ic bad'}" aria-hidden="true"><use href="#i-${c.passed ? 'check' : 'x'}"></use></svg>
+            <span title="${esc(c.name)}">${esc(c.name)}</span>
+            ${chip(c.passed ? 'pass' : 'fail', c.passed ? 'ok' : 'bad')}
+          </div>`).join('') : '<div class="gate-check">No checks were recorded for this round. An empty list passes.</div>'}
+        </div>
+        <label class="field-label" for="gate-note">Note to the team <span>needed only to send back</span></label>
+        <textarea class="gate-note" id="gate-note" rows="2" placeholder="What should change before this is accepted?">${esc(draft)}</textarea>
+        <div class="gate-actions">
+          <button class="btn primary" data-act="accept-gate"${state.gateBusy ? ' disabled' : ''}>Accept and merge</button>
+          <button class="btn" data-act="send-back"${state.gateBusy ? ' disabled' : ''}>Send back with note</button>
+        </div>
+        <p class="gate-inline" id="gateInline" role="status" hidden></p>
       </section>`;
   }
 
-  function renderBoard() {
-    const board = $('#board');
-    const scroll = $('#scroll');
-    if (!board || !scroll) return;
-    const top = scroll.scrollTop;
+  function gateReceipt() {
+    const { run, rounds = [] } = state.detail;
+    const passedRound = rounds.find((r) => r.verdict === 'pass');
+    const checks = passedRound?.readiness?.checks || [];
+    const n = checks.filter((c) => c.passed).length;
+    const at = passedRound ? passedRound.index : Math.max(0, roundsUsed() - 1);
+    const verb = run.status === 'merged' ? 'merged' : 'accepted';
+    return `
+      <div class="gate-bar">
+        <span class="gate-ic">${ic('check')}</span>
+        <div class="gate-t"><b>Gate closed · ${verb}</b><br>${verb === 'merged' ? 'Merged' : 'Accepted'} at round ${at} · ${n} of ${checks.length} checks passed</div>
+      </div>`;
+  }
 
-    if (!state.detail) {
-      board.innerHTML = emptyState();
-    } else {
-      board.innerHTML = `${runHeader()}${gateArea()}${tabsHtml()}${panesHtml()}`;
+  function gateSection() {
+    const run = state.detail.run;
+    if (run.status === 'reviewed') return gatePanel();
+    if (run.status === 'accepted' || run.status === 'merged') return gateReceipt();
+    if (['blocked', 'budget_exhausted', 'no_progress', 'human_paused'].includes(run.status)) {
+      return `<p class="facts-empty">The gate did not open: the run is ${esc(statusWord(run.status))}. Its reason is in the centre panel.</p>`;
     }
-    if (state.lastRunId === state.currentId) scroll.scrollTop = top;
-    else scroll.scrollTop = 0;
-
-    requestAnimationFrame(initExpanders);
+    return `<p class="facts-empty">Nothing to decide. The gate opens when the round's checks pass.</p>`;
   }
 
-  function initExpanders() {
-    $$('.led-body.clamp').forEach((p) => {
-      const btn = document.querySelector(`[data-act="more"][data-target="${p.id}"]`);
-      if (!btn) return;
-      const over = p.scrollHeight > p.clientHeight + 1;
-      btn.hidden = !over;
-      if (!over) p.classList.remove('clamp');
-    });
+  function gateCount() {
+    const run = state.detail?.run;
+    if (run?.status === 'reviewed') return 'open';
+    return run?.status === 'accepted' || run?.status === 'merged' ? 'closed' : '—';
   }
-
-  // ---- facts -----------------------------------------------------------------------------------
 
   function factsHtml() {
     if (!state.detail) {
@@ -914,41 +1150,21 @@
           <div class="path">${esc(shortProject() || '—')}</div>
           <div class="frow"><span>Runs</span><span class="v">${state.runs.length}</span></div>
         </div>
-        <div class="facts-empty">${state.health === false ? 'The runner is not answering, so there is nothing to check.' : 'The board fills in as threads report. Nothing to check yet.'}</div>`;
+        <p class="facts-empty">${state.health === false ? 'The runner is not answering, so there is nothing to check.' : 'The board fills in as threads report.'}</p>`;
     }
 
-    const { run, goal, rounds = [], threads = [] } = state.detail;
-    const budget = goal?.budget || { rounds: null, tokens: null };
-    const checks = rounds.flatMap((r) => (r.readiness?.checks || []).map((c) => ({ ...c, round: r.index })));
+    const { rounds = [], threads = [], ledger = [] } = state.detail;
+    const checks = rounds.flatMap((r) => r.readiness?.checks || []);
     const passed = checks.filter((c) => c.passed).length;
-    const pct = budget.tokens ? Math.min(100, Math.round(((Number(run.tokens_used) || 0) / budget.tokens) * 100)) : 0;
-    const spent = rounds.reduce((sum, r) => sum + (Number(r.cost_usd) || 0), 0);
-    const duration = run.ended_at && run.started_at
-      ? Math.floor((run.ended_at - run.started_at) / 60000) + 'm ' + Math.round(((run.ended_at - run.started_at) % 60000) / 1000) + 's'
-      : run.started_at ? 'in progress' : '—';
-
-    const checkGroups = rounds.map((r) => `
-      <div class="chk-round">Round ${esc(r.index)}</div>
-      ${(r.readiness?.checks || []).map((c) => `
-        <div class="chk">
-          <span class="name" title="${esc(c.detail || c.name)}">${esc(c.name)}</span>
-          ${chip(c.passed ? 'pass' : 'fail', c.passed ? 'ok' : 'bad')}
-        </div>`).join('') || '<div class="facts-empty">No checks.</div>'}`).join('');
-
-    const roundRows = rounds.map((r) => `
-      <div class="frow">
-        <span>R${esc(r.index)} · ${esc(statusWord(r.verdict || r.status))}</span>
-        <span class="v">${r.tokens != null ? fmt(r.tokens) + ' tok' : '—'}${r.cost_usd != null ? ' · ' + money(r.cost_usd) : ''}</span>
-      </div>`).join('');
 
     const threadRows = threads.map((t) => {
-      const s = safetyForAgent(t.agent);
+      const safety = safetyOf(t.agent);
       return `
         <div class="thread">
           <span class="dot ${t.status === 'idle' ? '' : 'ok'}"></span>
-          <span class="th-name">${esc(t.name)}</span>
-          <span class="chip ${s.cls}" title="${esc(s.note)}">${esc(s.label)}</span>
-          <span class="th-agent">${esc(t.agent || 'unknown')}</span>
+          <span class="th-name-sm">${esc(t.name)}</span>
+          <span class="chip ${safety === 'unknown' ? '' : 'safe'}" title="${esc(safetyLine(safety))}">${esc(SAFETY_LABEL[safety] || 'Unknown')}</span>
+          <span class="th-agent-sm">${esc(t.agent || 'unknown')}</span>
         </div>`;
     }).join('');
 
@@ -967,40 +1183,28 @@
     }).join('');
 
     return `
-      <div class="fsec">
-        <div class="fsec-head"><h2>Project</h2></div>
-        <div class="path" title="${esc(run.project || '')}">${esc(shortProject(run.project))}</div>
-        <div class="runid">
-          <span class="k">Run id</span>
-          <code title="${esc(run.id)}">${esc(run.id)}</code>
-          <button class="copybtn" data-act="copy-id" aria-label="Copy run id" title="Copy run id">${ic('copy')}</button>
-        </div>
-        <div class="frow"><span>Duration</span><span class="v">${duration}</span></div>
-      </div>
-      <div class="fsec">
-        <div class="fsec-head"><h2>Rounds</h2><span class="n">${rounds.length}</span></div>
-        ${roundRows || '<div class="facts-empty">No rounds recorded.</div>'}
-      </div>
-      <div class="fsec" id="checks">
-        <div class="fsec-head"><h2>Checks · all rounds</h2><span class="n">${passed} / ${checks.length}</span></div>
-        ${checkGroups || '<div class="facts-empty">No checks recorded.</div>'}
-      </div>
-      <div class="fsec">
-        <div class="fsec-head"><h2>Budget</h2><span class="n">${pct}%</span></div>
-        <div class="bar" role="img" aria-label="${pct}% of the token budget used"><i data-pct="${pct}"></i></div>
-        <div class="brow"><span>Tokens</span><span class="v"><b>${fmt(run.tokens_used)}</b> / ${budget.tokens ? fmt(budget.tokens) : '—'}</span></div>
-        <div class="brow"><span>Rounds</span><span class="v"><b>${roundsUsed()}</b> / ${budget.rounds ?? '—'}</span></div>
-        <div class="brow"><span>Spend</span><span class="v">${money(spent)}</span></div>
-      </div>
-      <div class="fsec">
-        <div class="fsec-head"><h2>Threads</h2><span class="n">${threads.length}</span></div>
-        ${threadRows || '<div class="facts-empty">No threads yet.</div>'}
-        <div class="legend">Ilvuno does not sandbox agents; each CLI is bounded by its own permissions.</div>
-      </div>
-      <div class="fsec">
-        <div class="fsec-head"><h2>Artifacts</h2><span class="n">${artifactList.length}</span></div>
-        ${artifactRows || '<div class="facts-empty">Nothing collected yet.</div>'}
-      </div>`;
+      <section class="fsec" aria-labelledby="sec-board">
+        <div class="fsec-head"><h2 id="sec-board">Board</h2><span class="n">${ledger.length}</span>
+          <button class="fsec-link" data-act="board">View all</button></div>
+        ${ledger.length ? ledger.slice().reverse().map((e) => ledgerHtml(e)).join('') : '<p class="facts-empty">No board entries yet.</p>'}
+      </section>
+      <section class="fsec" aria-labelledby="sec-checks">
+        <div class="fsec-head"><h2 id="sec-checks">Checks</h2><span class="n">${passed} / ${checks.length}</span></div>
+        ${checksHtml()}
+      </section>
+      <section class="fsec" id="gate" tabindex="-1" aria-labelledby="sec-gate">
+        <div class="fsec-head"><h2 id="sec-gate">Gate</h2><span class="n">${gateCount()}</span></div>
+        ${gateSection()}
+      </section>
+      <section class="fsec" aria-labelledby="sec-artifacts">
+        <div class="fsec-head"><h2 id="sec-artifacts">Artifacts</h2><span class="n">${artifactList.length}</span></div>
+        ${artifactRows || '<p class="facts-empty">Nothing collected yet.</p>'}
+      </section>
+      <section class="fsec" aria-labelledby="sec-threads">
+        <div class="fsec-head"><h2 id="sec-threads">Threads</h2><span class="n">${threads.length}</span></div>
+        ${threadRows || '<p class="facts-empty">No threads yet.</p>'}
+        <p class="legend">Ilvuno does not sandbox agents; each CLI is bounded by its own permissions.</p>
+      </section>`;
   }
 
   function roundOfArtifact(a) {
@@ -1013,11 +1217,133 @@
     if (!body) return;
     const top = body.scrollTop;
     body.innerHTML = factsHtml();
-    const bar = $('.bar i', body);
-    if (bar) bar.style.width = `${bar.dataset.pct || 0}%`;
     if (state.lastRunId === state.currentId) body.scrollTop = top;
     else body.scrollTop = 0;
-    $('#factsLbl').textContent = state.detail ? 'Run' : 'No run';
+    $('#factsLbl').textContent = state.detail ? 'Run work' : 'No run';
+  }
+
+  // ---- centre render ---------------------------------------------------------------------------
+
+  function renderView() {
+    const view = $('#view');
+    const scroll = $('#scroll');
+    if (!view || !scroll) return;
+    const top = scroll.scrollTop;
+    const key = `${state.currentId}|${state.view}|${state.thread}`;
+    const same = key === state.lastThreadKey;
+
+    if (!state.detail) {
+      view.className = 'view';
+      view.innerHTML = emptyState();
+      scroll.scrollTop = 0;
+    } else if (state.view === 'board') {
+      view.className = 'view wide';
+      view.innerHTML = boardViewHtml();
+      if (same) scroll.scrollTop = top;
+      else scroll.scrollTop = 0;
+    } else {
+      view.className = 'view';
+      view.innerHTML = threadViewHtml();
+      if (same) scroll.scrollTop = top;
+      else pinBottom(scroll);
+    }
+    state.lastThreadKey = key;
+    requestAnimationFrame(initExpanders);
+  }
+
+  // A thread opens at its newest turn. Pin again next frame and once the fonts are in: a font swap
+  // changes every height, and without the second pin the pane rests half-way up an old message.
+  function pinBottom(el) {
+    const stick = () => { el.scrollTop = el.scrollHeight; };
+    stick();
+    requestAnimationFrame(() => requestAnimationFrame(stick));
+    document.fonts?.ready.then(stick);
+  }
+
+  function initExpanders() {
+    $$('.led-body.clamp').forEach((p) => {
+      const btn = p.parentElement.querySelector(`[data-act="more"][data-target="${p.id}"]`);
+      if (!btn) return;
+      const over = p.scrollHeight > p.clientHeight + 1;
+      btn.hidden = !over;
+      if (!over) p.classList.remove('clamp');
+    });
+  }
+
+  // ---- composer --------------------------------------------------------------------------------
+
+  function composerReason(thread) {
+    const run = state.detail?.run;
+    if (state.health === false) return 'The runner is not answering.';
+    if (!thread) return 'No thread is selected.';
+    if (!run) return 'No run is selected.';
+    if (run.status !== 'working') return `This run is ${statusWord(run.status)}. Start a new run to continue.`;
+    return '';
+  }
+
+  function autosizeText(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 150) + 'px';
+  }
+
+  function renderComposer() {
+    const form = $('#composer');
+    const thread = currentThread();
+    const show = !!state.detail && state.view === 'thread' && !!thread;
+    form.hidden = !show;
+    if (!show) return;
+
+    const text = $('#composerText');
+    const send = $('[data-act="send-message"]');
+    const note = $('#composerNote');
+    const error = $('#composerError');
+    const draft = state.drafts.get(thread.name) || '';
+    if (text.value !== draft) text.value = draft;
+    autosizeText(text);
+
+    const reason = composerReason(thread);
+    const usable = !reason && !state.sending;
+    text.disabled = !usable;
+    text.placeholder = `Message ${thread.name}…`;
+    send.disabled = !usable || !draft.trim();
+    form.querySelector('.composer-box').classList.toggle('is-off', !usable);
+    note.textContent = reason || (thread.tasks.length
+      ? `Ctrl+Enter sends. It arrives as a message task on ${thread.name}.`
+      : `${thread.name} has no task yet. Sending starts its first one, as a message.`);
+
+    const err = state.sendError && state.sendError.thread === thread.name ? state.sendError.message : '';
+    error.hidden = !err;
+    error.textContent = err;
+  }
+
+  async function sendMessage() {
+    const thread = currentThread();
+    const text = $('#composerText');
+    if (!thread || !text || state.sending) return;
+    const prompt = (state.drafts.get(thread.name) || text.value || '').trim();
+    if (!prompt) return;
+    const reason = composerReason(thread);
+    if (reason) {
+      state.sendError = { thread: thread.name, message: reason };
+      renderComposer();
+      return;
+    }
+    state.sending = true;
+    state.sendError = null;
+    renderComposer();
+    try {
+      await postJson(`/runs/${encodeURIComponent(state.currentId)}/tasks`, { thread: thread.name, prompt, kind: 'message' });
+      state.drafts.set(thread.name, '');
+      state.sending = false;
+      await loadRun(state.currentId, { refresh: true });
+      await refreshRuns();
+      showToast(`Message sent to ${thread.name}.`);
+      $('#composerText')?.focus({ preventScroll: true });
+    } catch (err) {
+      state.sending = false;
+      state.sendError = { thread: thread.name, message: err.message };
+    }
+    renderAll();
   }
 
   // ---- chrome ----------------------------------------------------------------------------------
@@ -1055,12 +1381,18 @@
     const title = state.detail ? runTitle() : state.runs.length ? 'No run selected' : 'No runs yet';
     $('#crumbTitle').textContent = title;
     $('#crumbTitle').title = title;
+    $('#runMeta').innerHTML = runMetaHtml();
     $('#settingsVersion').textContent = state.version ? `v${state.version}` : 'Ilvuno';
     document.title = state.detail ? `${runTitle()} — Ilvuno` : 'Ilvuno';
 
+    const app = $('#app');
+    app.dataset.right = state.rightOpen ? 'open' : '';
+    const toggle = $('.facts-toggle');
+    toggle.setAttribute('aria-expanded', String(state.rightOpen));
+
     const offline = state.health === false;
     $('#offlineBanner').hidden = !offline;
-    $('#app').classList.toggle('is-offline', offline);
+    app.classList.toggle('is-offline', offline);
     renderConn();
     applyInert();
   }
@@ -1077,18 +1409,14 @@
       return;
     }
     $('#drawerTitle').textContent = `#${index + 1} · ${t.thread}`;
-    $('#drawerState').innerHTML = t.status ? chip(statusWord(t.status), statusClass(t.status)) : '';
+    $('#drawerState').innerHTML = `${t.kind === 'message' ? chip('message') : ''}${t.status ? chip(statusWord(t.status), statusClass(t.status)) : ''}`;
 
-    const arts = (state.detail.artifacts || []).filter((a) => {
-      const m = String(a.path || '').match(/\/rounds\/r(\d+)\/([^/]+)\//);
-      return m && Number(m[1]) === Number(t.round) && m[2] === t.thread;
-    });
-
-    const scope = t.scope && t.scope.length
+    const arts = artifactsFor(t);
+    const scope = (t.scope || []).length
       ? t.scope.map((p) => p === 'run'
         ? `<div class="dfile">${ic('folder')}<span>Whole run</span></div>`
         : `<div class="dfile" title="${esc(p)}">${ic('folder')}<span>${esc(relPath(p))}</span></div>`).join('')
-      : '<div class="dnone">No files declared.</div>';
+      : '<div class="dnone">No files declared. A message task has no scope.</div>';
 
     const produced = arts.length
       ? arts.map((a) => {
@@ -1099,18 +1427,18 @@
 
     $('#drawerBody').innerHTML = `
       <div class="dsec">
-        <h3>Prompt <span>round ${esc(t.round)}</span></h3>
+        <h3>Prompt <span>round ${esc(t.round ?? '—')}</span></h3>
         <div class="dprompt">${esc(shrinkText(t.prompt))}</div>
       </div>
       <div class="dsec">
         <h3>What the agent said <span>${fmt((t.message || '').length)} chars</span></h3>
-        <div class="dmsg" tabindex="0">${esc(shrinkText(t.message || 'No message.'))}</div>
+        <div class="dmsg md" tabindex="0">${md(shrinkText(t.message || 'No message.'))}</div>
       </div>
       <div class="dsec">
         <h3>Report <span>by ${esc(t.thread)}</span></h3>
         <div class="dreport">
-          <div class="ok">${ic('check')} reported</div>
-          ${esc(shrinkText(t.result || 'No result line.'))}
+          <div class="ok">${ic('check')} ${esc(statusWord(t.status || 'reported'))}</div>
+          <div class="md">${md(shrinkText(t.result || 'No result line.'))}</div>
         </div>
       </div>
       <div class="dsec">
@@ -1154,7 +1482,7 @@
               </div>
               <div class="agent-path" title="${esc(a.path || '')}">${esc(a.path || 'not on the PATH of the ilvunod process')}</div>
               <div class="agent-safety"><span class="chip ${a.safety === 'unknown' ? '' : 'safe'}">permissions</span><span>${esc(safetyLine(a.safety))}</span></div>
-            </div>`).join('') || '<div class="facts-empty">The API reported no agents.</div>'}
+            </div>`).join('') || '<p class="facts-empty">The API reported no agents.</p>'}
         </div>
         <div class="note">Ilvuno does not sandbox agents; each CLI is bounded by its own permissions.</div>`;
     }
@@ -1168,11 +1496,11 @@
           <div class="k">Budget</div>
           <div class="form-row">
             <div class="form-label">Rounds<small>The runner refuses to start another round past this number.</small></div>
-            <input class="num" type="number" min="1" max="20" value="${esc(s.budget_rounds)}" data-setting="budget_rounds" aria-label="Default rounds">
+            <input class="num-input" type="number" min="1" max="20" value="${esc(s.budget_rounds)}" data-setting="budget_rounds" aria-label="Default rounds">
           </div>
           <div class="form-row">
             <div class="form-label">Tokens<small>A soft stop. The round in flight finishes; no new round starts.</small></div>
-            <input class="num" type="text" inputmode="numeric" value="${esc(fmt(s.budget_tokens))}" data-setting="budget_tokens" aria-label="Default tokens">
+            <input class="num-input" type="text" inputmode="numeric" value="${esc(fmt(s.budget_tokens))}" data-setting="budget_tokens" aria-label="Default tokens">
           </div>
         </div>
         <div class="set-sec">
@@ -1216,9 +1544,15 @@
         </div>
       </div>
       <div class="set-sec">
+        <div class="k">Run</div>
+        <div class="kv"><span>Run id</span><span class="v">${esc(state.currentId || '—')}</span></div>
+        <div class="kv"><span>Threads</span><span class="v">${state.detail?.threads?.length || 0}</span></div>
+      </div>
+      <div class="set-sec">
         <div class="k">Keyboard</div>
-        <div class="kv"><span>Command palette</span><span class="keys"><span class="kbd">⌘K</span></span></div>
-        <div class="kv"><span>New run</span><span class="keys"><span class="kbd">⌘N</span></span></div>
+        <div class="kv"><span>Command palette</span><span class="keys"><span class="kbd">Ctrl K</span></span></div>
+        <div class="kv"><span>New run</span><span class="keys"><span class="kbd">Ctrl N</span></span></div>
+        <div class="kv"><span>Send a message</span><span class="keys"><span class="kbd">Ctrl ↵</span></span></div>
         <div class="kv"><span>Close a panel or dialog</span><span class="keys"><span class="kbd">Esc</span></span></div>
       </div>
       <div class="note">Agent detection is on the Agents tab. A real run fails on spawn rather than guessing.</div>`;
@@ -1254,6 +1588,8 @@
     } finally {
       state.agentsLoading = false;
       renderSettings();
+      renderRail();
+      renderFacts();
     }
   }
 
@@ -1301,13 +1637,14 @@
   function paletteActions() {
     const status = state.detail?.run?.status;
     const atGate = status === 'reviewed';
-    const canResume = status === 'blocked' || status === 'budget_exhausted';
+    const canResume = ['blocked', 'budget_exhausted', 'no_progress', 'human_paused'].includes(status);
     const out = [{ act: 'new-run', label: 'New run', icon: 'plus', keys: 'new run start', on: true }];
+    if (state.view !== 'board') out.push({ act: 'board', label: 'Show the board', icon: 'board', keys: 'board entries ledger view all', on: !!state.detail });
+    if (state.view === 'board') out.push({ act: 'back-thread', label: 'Back to the conversation', icon: 'message', keys: 'conversation thread back', on: !!currentThread() || !!state.thread });
     if (atGate) {
-      out.push({ act: 'accept-gate', label: 'Accept gate', icon: 'check', keys: 'accept merge gate done', on: true });
-      out.push({ act: 'send-back', label: 'Send back', icon: 'x', keys: 'send back reject gate note', on: true });
+      out.push({ act: 'accept-gate', label: 'Accept and merge', icon: 'check', keys: 'accept merge gate done', on: true });
+      out.push({ act: 'send-back', label: 'Send back with a note', icon: 'x', keys: 'send back reject gate note', on: true });
     }
-    out.push({ act: 'freeze', label: 'Freeze run', icon: 'clock', keys: 'freeze stop pause run', on: false, hint: 'no API route' });
     if (canResume) out.push({ act: 'resume', label: 'Resume run', icon: 'chevron-right', keys: 'resume continue blocked budget', on: true });
     out.push({ act: 'settings', label: 'Settings', icon: 'settings', keys: 'settings preferences agents', on: true });
     out.push({ act: 'toggle-theme', label: `Toggle theme (${resolveTheme(state.settings?.theme || 'dark') === 'dark' ? 'to light' : 'to dark'})`, icon: 'moon', keys: 'theme dark light toggle', on: true });
@@ -1317,7 +1654,7 @@
   let palActive = 0;
 
   function paletteHtml() {
-    const runSection = state.runs.length
+    const runs = state.runs.length
       ? `<div class="pal-section" data-group="Runs"><div class="pal-group">Runs</div>
           ${state.runs.map((r) => `
             <button class="pal-item" id="pal-run-${esc(r.id)}" data-act="palette-run" data-id="${esc(r.id)}" data-search="${esc(`${r.title || ''} ${statusWord(r.status)} ${projectName(r.project)}`.toLowerCase())}" role="option" aria-selected="false">
@@ -1327,13 +1664,23 @@
             </button>`).join('')}
         </div>`
       : '';
+    const threads = runThreads();
+    const threadSection = threads.length
+      ? `<div class="pal-section" data-group="Threads"><div class="pal-group">Threads · this run</div>
+          ${threads.map((t, i) => `
+            <button class="pal-item" id="pal-thread-${i}" data-act="thread" data-name="${esc(t.name)}" data-search="${esc(`${t.name} ${t.agent} ${(lastTask(t)?.prompt || '')}`.toLowerCase())}" role="option" aria-selected="false">
+              ${ic('message')}
+              <span class="lbl">${esc(t.name)}</span>
+              <span class="hint">${esc(t.agent)}</span>
+            </button>`).join('')}
+        </div>`
+      : '';
     const actions = paletteActions().map((a, i) => `
       <button class="pal-item" id="pal-act-${i}" data-act="${a.act}" data-search="${esc(a.label.toLowerCase() + ' ' + a.keys)}" role="option" aria-selected="false"${a.on ? '' : ' aria-disabled="true"'}>
         ${ic(a.icon)}
         <span class="lbl">${esc(a.label)}</span>
-        ${a.hint ? `<span class="hint">${esc(a.hint)}</span>` : ''}
       </button>`).join('');
-    return `${runSection}<div class="pal-section" data-group="Actions"><div class="pal-group">Actions</div>${actions}</div><div class="pal-empty" id="palEmpty" hidden>No matching runs or actions.</div>`;
+    return `${runs}${threadSection}<div class="pal-section" data-group="Actions"><div class="pal-group">Actions</div>${actions}</div><div class="pal-empty" id="palEmpty" hidden>No matches.</div>`;
   }
 
   function openPalette() {
@@ -1347,7 +1694,7 @@
   }
 
   function allPaletteItems() {
-    return $$('.pal-item', $('#palList')).filter((el) => !el.hidden);
+    return $$('.pal-item', $('#palList')).filter((el) => !el.hidden && !el.closest('[hidden]'));
   }
 
   function markPalette() {
@@ -1383,7 +1730,7 @@
     const empty = $('#palEmpty');
     if (empty) empty.hidden = count > 0;
     const countEl = $('#palCount');
-    if (countEl) countEl.textContent = q ? `${count} result${count === 1 ? '' : 's'}` : `${state.runs.length} runs · ${paletteActions().length} actions`;
+    if (countEl) countEl.textContent = q ? `${count} result${count === 1 ? '' : 's'}` : `${state.runs.length} run${state.runs.length === 1 ? '' : 's'} · ${runThreads().length} thread${runThreads().length === 1 ? '' : 's'} · ${paletteActions().length} actions`;
     palActive = 0;
     markPalette();
   }
@@ -1427,11 +1774,13 @@
       state.currentId = id;
       state.detail = null;
       state.board = '';
-      state.tab = 'board';
+      state.view = 'thread';
+      state.thread = null;
       state.drawerIndex = -1;
       state.lastRunId = null;
       state.expanded = new Set();
-      setRoute('board');
+      state.lastThreadKey = '';
+      setRoute('thread');
       connectEvents(id);
       await loadRun(id);
       $('#nr-goal').value = '';
@@ -1458,7 +1807,8 @@
   async function decideGate(decision, note = '') {
     if (!state.currentId || state.gateBusy) return;
     state.gateBusy = true;
-    renderBoard();
+    renderFacts();
+    renderChrome();
     gateInline(decision === 'accept' ? 'Accepting…' : 'Sending back…');
     try {
       const body = decision === 'accept' ? { decision } : { decision, note };
@@ -1470,7 +1820,8 @@
       showToast(decision === 'accept' ? 'Gate accepted.' : 'Sent back to the team.');
     } catch (err) {
       state.gateBusy = false;
-      renderBoard();
+      renderFacts();
+      renderChrome();
       gateInline(err.message, 'bad');
       showToast(err.message);
     }
@@ -1499,90 +1850,42 @@
     }
   }
 
-  async function copyRunId() {
-    const id = String(state.currentId || '');
-    if (!id) return;
-    try {
-      await navigator.clipboard.writeText(id);
-      showToast('Run id copied.');
-      return;
-    } catch (err) {
-      // The async clipboard can be refused; fall back to a selection.
-    }
-    const ta = document.createElement('textarea');
-    ta.value = id;
-    ta.setAttribute('readonly', '');
-    ta.className = 'copy-fallback';
-    document.body.append(ta);
-    ta.select();
-    let ok = false;
-    try {
-      ok = document.execCommand('copy');
-    } catch (err) {
-      ok = false;
-    }
-    ta.remove();
-    showToast(ok ? 'Run id copied.' : 'Copy failed. Select the id instead.');
+  function selectThread(name) {
+    if (!name) return;
+    state.thread = name;
+    state.view = 'thread';
+    state.sendError = null;
+    setRoute('t/' + name);
   }
 
-  function showChecks() {
-    const el = $('#checks');
+  function focusGate() {
+    if (!state.rightOpen) {
+      state.rightOpen = true;
+      renderChrome();
+    }
+    const el = $('#gate');
     if (!el) return;
-    if (dialogName()) setRoute(state.tab === 'tasks' || state.tab === 'log' ? state.tab : 'board');
-    setTimeout(() => {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.classList.add('flash');
-      setTimeout(() => el.classList.remove('flash'), 1400);
-    }, 40);
-  }
-
-  async function toggleTheme() {
-    const next = resolveTheme(state.settings?.theme || cachedTheme() || 'dark') === 'dark' ? 'light' : 'dark';
-    if (state.settings) {
-      await saveSettings({ theme: next }, { themeToo: true });
-      return;
-    }
-    // Settings could not be read (offline). Change the window now; the runner is told on the next save.
-    try {
-      localStorage.setItem('ilvuno-theme', next);
-    } catch (err) {
-      // No storage, no persistence; the window still changes.
-    }
-    applyTheme();
-    renderRail();
-    showToast(next === 'light' ? 'Light theme.' : 'Dark theme.');
+    el.scrollIntoView({ block: 'center' });
+    el.classList.add('flash');
+    setTimeout(() => el.classList.remove('flash'), 1400);
+    el.focus({ preventScroll: true });
   }
 
   // ---- render all ------------------------------------------------------------------------------
 
-  function focusAfterRender() {
-    const name = dialogName();
-    if (!name && state.lastDialog) {
-      restoreOpener(state.lastDialog);
-      state.lastDialog = null;
-      state.lastFocusKey = '';
-      return;
-    }
-    if (name) {
-      state.lastDialog = name;
-      focusDialogOnce(name);
-    }
-  }
-
-  function captureFocus() {
+  function focusToken() {
     const node = document.activeElement;
     if (!node || !node.closest || !node.closest('#app')) return null;
-    const act = node.dataset.act;
-    if (!act) return null;
-    if (act === 'more') return `[data-act="more"][data-target="${node.dataset.target}"]`;
-    if (act === 'select-run') return `[data-act="select-run"][data-id="${node.dataset.id}"]`;
-    if (act === 'tab') return `[data-act="tab"][data-tab="${node.dataset.tab}"]`;
-    if (node.dataset.i !== undefined) return `[data-act="${act}"][data-i="${node.dataset.i}"]`;
-    return `[data-act="${act}"]`;
+    const d = node.dataset;
+    if (!d || !d.act) return null;
+    return { act: d.act, name: d.name, i: d.i, id: d.id, tab: d.tab, target: d.target };
   }
 
-  function restoreFocus(selector) {
-    const el = selector && document.querySelector(selector);
+  function restoreFocus(token) {
+    if (!token) return;
+    const all = $$(`[data-act="${token.act}"]`);
+    const el = all.find((n) => ['name', 'i', 'id', 'tab', 'target']
+      .every((key) => token[key] === undefined || n.dataset[key] === token[key]));
     if (!el || el.closest('[inert]')) return;
     setTimeout(() => el.focus({ preventScroll: true }), 0);
   }
@@ -1591,10 +1894,12 @@
     return JSON.stringify({
       id: state.currentId, detail: state.detail, board: state.board, boardError: state.boardError,
       runs: state.runs, runsError: state.runsError, health: state.health, version: state.version,
-      conn: state.conn, tab: state.tab, drawer: state.drawerIndex, settings: state.settings,
-      settingsError: state.settingsError, settingsTab: state.settingsTab, agents: state.agents,
-      agentsError: state.agentsError, agentsLoading: state.agentsLoading, gateBusy: state.gateBusy,
-      route: routeName(),
+      conn: state.conn, view: state.view, thread: state.thread, right: state.rightOpen,
+      drawer: state.drawerIndex, settings: state.settings, settingsError: state.settingsError,
+      settingsTab: state.settingsTab, agents: state.agents, agentsError: state.agentsError,
+      agentsLoading: state.agentsLoading, gateBusy: state.gateBusy, sending: state.sending,
+      sendError: state.sendError, expanded: Array.from(state.expanded),
+      note: Array.from(state.noteDrafts.entries()), route: routeName(),
     });
   }
 
@@ -1603,11 +1908,11 @@
   function renderAll(force = false) {
     const signature = viewSignature();
     if (!force && signature === lastSignature) return;
-    lastSignature = signature;
-    const focused = captureFocus();
+    const focused = focusToken();
 
     renderRail();
-    renderBoard();
+    renderView();
+    renderComposer();
     renderFacts();
     renderChrome();
 
@@ -1636,6 +1941,21 @@
     focusAfterRender();
     if (!dialogElement()) restoreFocus(focused);
     state.lastRunId = state.currentId;
+    lastSignature = signature;
+  }
+
+  function focusAfterRender() {
+    const name = dialogName();
+    if (!name && state.lastDialog) {
+      restoreOpener(state.lastDialog);
+      state.lastDialog = null;
+      state.lastFocusKey = '';
+      return;
+    }
+    if (name) {
+      state.lastDialog = name;
+      focusDialogOnce(name);
+    }
   }
 
   // ---- input and events ------------------------------------------------------------------------
@@ -1649,10 +1969,13 @@
       state.detail = null;
       state.board = '';
       state.boardError = '';
-      state.tab = 'board';
+      state.thread = null;
       state.expanded = new Set();
+      state.sendError = null;
     }
+    if (state.view !== 'board') state.view = 'thread';
     connectEvents(id);
+    setRoute(homeRoute());
     renderAll();
     loadRun(id);
   }
@@ -1681,17 +2004,27 @@
       case 'close-drawer':
         closeDialog();
         break;
-      case 'select-run':
-        setRoute('board');
-        selectRun(target.dataset.id);
+      case 'thread':
+        if (dialogName() === 'palette') {
+          selectThread(target.dataset.name);
+          renderAll();
+        } else {
+          selectThread(target.dataset.name);
+        }
         break;
       case 'palette-run':
-        setRoute('board');
+        state.view = 'thread';
         selectRun(target.dataset.id);
         break;
-      case 'tab':
-        state.tab = target.dataset.tab;
-        setRoute(state.tab);
+      case 'board':
+        if (dialogName() === 'palette') state.lastDialog = 'palette';
+        state.view = 'board';
+        setRoute('board');
+        break;
+      case 'back-thread':
+        if (dialogName() === 'palette') state.lastDialog = 'palette';
+        state.view = 'thread';
+        setRoute(homeRoute());
         break;
       case 'task':
         state.opener = target;
@@ -1700,6 +2033,14 @@
         break;
       case 'settings-tab':
         setRoute('settings-' + target.dataset.tab);
+        break;
+      case 'toggle-right': {
+        state.rightOpen = !state.rightOpen;
+        renderChrome();
+        break;
+      }
+      case 'focus-gate':
+        focusGate();
         break;
       case 'toggle-theme':
         if (dialogName() === 'palette') closeDialog();
@@ -1717,9 +2058,6 @@
         if (dialogName() === 'palette') closeDialog();
         resumeRun();
         break;
-      case 'freeze':
-        showToast('The local API has no freeze route; nothing was changed.');
-        break;
       case 'toggle-gate': {
         if (!state.settings) return;
         const next = !state.settings.human_gate;
@@ -1727,12 +2065,6 @@
         saveSettings({ human_gate: next });
         break;
       }
-      case 'copy-id':
-        copyRunId();
-        break;
-      case 'checks':
-        showChecks();
-        break;
       case 'more': {
         const body = document.getElementById(target.dataset.target);
         if (!body) return;
@@ -1778,6 +2110,23 @@
     if (state.health === false) showToast('Still not reachable. Start the runner, then retry.');
   }
 
+  async function toggleTheme() {
+    const next = resolveTheme(state.settings?.theme || cachedTheme() || 'dark') === 'dark' ? 'light' : 'dark';
+    if (state.settings) {
+      await saveSettings({ theme: next }, { themeToo: true });
+      return;
+    }
+    // Settings could not be read (offline). Change the window now; the runner is told on the next save.
+    try {
+      localStorage.setItem('ilvuno-theme', next);
+    } catch (err) {
+      // No storage, no persistence; the window still changes.
+    }
+    applyTheme();
+    renderRail();
+    showToast(next === 'light' ? 'Light theme.' : 'Dark theme.');
+  }
+
   document.addEventListener('click', (e) => {
     const target = e.target.closest('[data-act]');
     if (!target) return;
@@ -1786,12 +2135,34 @@
   });
 
   document.addEventListener('input', (e) => {
-    if (e.target.id === 'palInput') filterPalette();
-    if (e.target.id === 'gate-note' && state.currentId) state.noteDrafts.set(state.currentId, e.target.value);
+    const el = e.target;
+    if (el.id === 'palInput') filterPalette();
+    if (el.id === 'gate-note' && state.currentId) state.noteDrafts.set(state.currentId, el.value);
+    if (el.id === 'composerText' && state.thread) {
+      state.drafts.set(state.thread, el.value);
+      if (state.sendError) {
+        state.sendError = null;
+        state.lastSignature = '';
+      }
+      autosizeText(el);
+      const send = $('[data-act="send-message"]');
+      if (send) send.disabled = !el.value.trim() || !!composerReason(currentThread()) || state.sending;
+    }
   });
 
   document.addEventListener('change', (e) => {
     const input = e.target;
+    if (input.id === 'runSelect') {
+      if (input.value === '__new') {
+        renderRunSelect();
+        state.opener = input;
+        newRunError('');
+        openDialog('newrun');
+        return;
+      }
+      selectRun(input.value);
+      return;
+    }
     const setting = input.dataset?.setting;
     if (!setting) return;
     if (setting === 'theme') {
@@ -1808,12 +2179,14 @@
         renderSettings();
         return;
       }
-      const value = Number(digits);
-      saveSettings({ [setting]: value });
+      saveSettings({ [setting]: Number(digits) });
     }
   });
 
-  document.addEventListener('submit', (e) => e.preventDefault());
+  document.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (e.target.id === 'composer') sendMessage();
+  });
 
   $('#drawerScrim').addEventListener('click', closeDialog);
   $('#settingsOverlay').addEventListener('click', (e) => {
@@ -1844,7 +2217,13 @@
   document.addEventListener('keydown', (e) => {
     const key = String(e.key).toLowerCase();
     const dialog = dialogElement();
+    const inComposer = e.target?.id === 'composerText';
 
+    if (inComposer && (e.metaKey || e.ctrlKey) && key === 'enter') {
+      e.preventDefault();
+      sendMessage();
+      return;
+    }
     if ((e.metaKey || e.ctrlKey) && key === 'k') {
       e.preventDefault();
       if (dialogName() === 'palette') closeDialog();
@@ -1875,20 +2254,7 @@
       return;
     }
 
-    const tabBtn = e.target.closest ? e.target.closest('.tab') : null;
-    if (tabBtn && ['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) {
-      e.preventDefault();
-      const tabs = $$('.tab');
-      const i = tabs.indexOf(tabBtn);
-      const j = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1
-        : e.key === 'ArrowRight' ? (i + 1) % tabs.length : (i - 1 + tabs.length) % tabs.length;
-      tabs[j].focus();
-      state.tab = tabs[j].dataset.tab;
-      setRoute(state.tab);
-      return;
-    }
-
-    if (e.key === 'Escape' && routeName() !== 'board') {
+    if (e.key === 'Escape' && routeName() !== 'thread') {
       e.preventDefault();
       closeDialog();
     }
