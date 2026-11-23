@@ -102,14 +102,14 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">1,605 words<br>5 sections<br>172 lines of source</div>
+  <div class="meta">1,806 words<br>6 sections<br>188 lines of source</div>
   <nav><a class="lvl2" href="#1-what-is-approved-and-what-is-not">1. What is approved, and what is not</a>
 <a class="lvl3" href="#approved-in-the-prd-the-data-model-or-the-roadmap">Approved — in the PRD, the data model or the roadmap</a>
 <a class="lvl3" href="#not-approved-do-not-build-without-the-users-word">Not approved — do not build without the user&#x27;s word</a>
 <a class="lvl2" href="#2-milestones">2. Milestones</a>
 <a class="lvl3" href="#m0-the-thread-first-shell-done">M0 — The thread-first shell · done</a>
-<a class="lvl3" href="#m1-the-runs-facts-in-the-rail-next">M1 — The run&#x27;s facts, in the rail · next</a>
-<a class="lvl3" href="#m2-stop-a-working-run-next">M2 — Stop a working run · next</a>
+<a class="lvl3" href="#m1-the-runs-facts-in-the-rail-done">M1 — The run&#x27;s facts, in the rail · done</a>
+<a class="lvl3" href="#m2-stop-a-working-run-done">M2 — Stop a working run · done</a>
 <a class="lvl3" href="#m3-new-run-from-a-goal-file-later">M3 — New run from a goal file · later</a>
 <a class="lvl3" href="#m4-choose-the-agent-for-a-thread-later">M4 — Choose the agent for a thread · later</a>
 <a class="lvl3" href="#m5-what-the-agent-actually-ran-blocked">M5 — What the agent actually ran · blocked</a>
@@ -118,7 +118,8 @@ td code,th code{font-size:12px}
 <a class="lvl3" href="#m8-settings-that-stick-or-say-why-not-later">M8 — Settings that stick, or say why not · later</a>
 <a class="lvl2" href="#3-how-to-verify">3. How to verify</a>
 <a class="lvl2" href="#4-defects-found-and-fixed">4. Defects found and fixed</a>
-<a class="lvl2" href="#5-open-questions-for-the-user">5. Open questions for the user</a></nav>
+<a class="lvl2" href="#5-known-limits">5. Known limits</a>
+<a class="lvl2" href="#6-open-questions-for-the-user">6. Open questions for the user</a></nav>
   <a class="back" href="index.html">&larr; index</a>
 </aside>
 <main>
@@ -258,27 +259,33 @@ would break <code>docs/prd.md</code> §6 and <code>AGENTS.md</code>. So they are
 <li>Evidence: commit <code>cf3a083</code>, <code>cargo test --workspace</code> → 130 passed</li>
 <li>Known: <code>gate.png</code> comes from an older run with a gate open; the demo run is accepted</li>
 </ul>
-<h3 id="m1-the-runs-facts-in-the-rail-next">M1 — The run's facts, in the rail · next</h3>
+<h3 id="m1-the-runs-facts-in-the-rail-done">M1 — The run's facts, in the rail · done</h3>
 <p>The v3 shell showed project, run id, duration, rounds, tokens and a budget bar. v4 dropped them. All of
 these are real fields on <code>GET /runs/:id</code>; none need new data.</p>
 <ul>
-<li>[ ] A <strong>Run</strong> section above Board in the right rail: project folder (short), run id (short, copyable),
-duration, rounds used / cap, tokens used / cap with a bar</li>
-<li>[ ] Every number comes from the API. No spend in dollars — the engine records no cost (v3's <code>$0.12</code>
+<li>[x] A <strong>Run</strong> section above Board in the right rail: folder, run id, how long it has run, rounds used
+against the cap, tokens used against the cap, and a bar</li>
+<li>[x] Every number comes from the API. No spend in dollars — the engine records no cost (v3's <code>$0.12</code>
 was invented)</li>
-<li>[ ] A missing value renders <code>—</code>, never <code>0</code></li>
-<li>[ ] Fits at 1440 and 1280 without horizontal scroll</li>
-<li>Acceptance: screenshot <code>shots/run-facts.png</code>; <code>jq</code> of the same run shows the same numbers</li>
+<li>[x] A missing value renders <code>—</code>, never <code>0</code></li>
+<li>[x] The folder keeps its leading slash on short paths (<code>/tmp/stop2</code>, not <code>tmp/stop2</code>)</li>
+<li>[x] Fits at 1440; at 1280 the rail folds and opening it shows the same block, with no sideways scroll</li>
+<li>Evidence: commit <code>4c2adfe</code>; <code>shots/threads.png</code> shows the block against run <code>6ba693b9</code>, whose API
+answers <code>362211</code> tokens of <code>600000</code> in <code>2</code> of <code>3</code> rounds — the same numbers on screen</li>
 </ul>
-<h3 id="m2-stop-a-working-run-next">M2 — Stop a working run · next</h3>
-<p>Today a run can only be resumed after it stops itself. A person watching a bad round cannot stop it.</p>
+<h3 id="m2-stop-a-working-run-done">M2 — Stop a working run · done</h3>
+<p>A run could only be stopped by waiting for it to stop itself. A person watching a bad round had no move.</p>
 <ul>
-<li>[ ] <code>POST /runs/{id}/stop</code>: the current turn finishes, no new turn starts, status <code>human_paused</code></li>
-<li>[ ] The command and its receipt are journaled in one transaction (the five invariants still hold)</li>
-<li>[ ] A <strong>Stop</strong> button in the topbar while <code>status = working</code>, with a confirm that says what happens</li>
-<li>[ ] The stop banner says who stopped it and what to do next (Resume is there)</li>
-<li>Acceptance: <code>cargo test --workspace</code> green with a new test; a real run stopped mid-round; the child
-process is gone (<code>pgrep</code> for the agent CLI returns nothing); screenshot</li>
+<li>[x] <code>POST /runs/{id}/stop</code>: the turn in flight finishes, no new task or round starts, status
+<code>human_paused</code>, reason <code>stopped by you</code></li>
+<li>[x] The status change is journaled in one transaction with the projection (<code>run.stop</code> + <code>run.transition</code>)</li>
+<li>[x] A <strong>Stop</strong> button in the topbar while the run is working; its tooltip says what happens</li>
+<li>[x] The banner says who stopped it and offers Resume</li>
+<li>[x] Resume works — it did not before: <code>drive_with</code> now reopens a stopped run before the loop reads it</li>
+<li>Evidence: commit <code>40d1009</code>; <code>cargo test --workspace</code> → 133 passed, including
+<code>stopping_a_run_pauses_it_and_keeps_the_reason</code>, <code>a_finished_run_cannot_be_stopped</code>,
+<code>a_stopped_run_can_be_resumed</code>. Stopped a real run 8s in (12 shell sections): the turn finished, the
+task finished as <code>reported</code>, the round stayed <code>open</code>, and <code>shots/stopped.png</code> is that screen.</li>
 </ul>
 <h3 id="m3-new-run-from-a-goal-file-later">M3 — New run from a goal file · later</h3>
 <p>The New run dialog takes pasted JSON. People keep goals in files.</p>
@@ -327,7 +334,7 @@ change (Claude <code>tool_use</code>, ACP <code>session/update</code>).</li>
 <h2 id="3-how-to-verify">3. How to verify</h2>
 <pre><code class="language-bash">RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace          # 130 tests today
 ILVUNO_HOME=/tmp/demo-real ./target/debug/ilvunod &amp;      # the runner the window reads
-tools/shot.sh /tmp/check.png 1280 900                    # one shot at a width
+tools/shot.sh /tmp/check.png 1280 900                    # one shot at a width (opens a real 1280 window)
 tools/shots.sh                                           # the full set into crates/desktop/shots/
 </code></pre>
 <p>The window's HTML, CSS and JS are compiled into the binary (<code>frontendDist</code>), so <strong>an edit needs
@@ -377,9 +384,30 @@ tools/shots.sh                                           # the full set into cra
 <td>it escaped <code>message</code> instead of using <code>md()</code></td>
 <td><code>cf3a083</code></td>
 </tr>
+<tr>
+<td><strong>Resume did nothing on any stopped run</strong></td>
+<td>nothing set a run back to <code>working</code>, so the driver read the paused state and returned at once</td>
+<td><code>40d1009</code></td>
+</tr>
+<tr>
+<td>&quot;1 rounds&quot;, and &quot;start a new run&quot; on a paused run</td>
+<td>plural and status copy</td>
+<td><code>40d1009</code></td>
+</tr>
+<tr>
+<td>Short folder paths lost their leading slash</td>
+<td>the shortening rule assumed a deep path</td>
+<td><code>40d1009</code></td>
+</tr>
 </tbody>
 </table>
-<h2 id="5-open-questions-for-the-user">5. Open questions for the user</h2>
+<h2 id="5-known-limits">5. Known limits</h2>
+<ul>
+<li>&quot;Ran for&quot; keeps counting while a run is paused or at the gate, because the engine has no end time for
+those states. It is honest for a finished run and generous for a paused one.</li>
+<li><code>gate.png</code> is an older run with a gate open; the demo run is accepted.</li>
+</ul>
+<h2 id="6-open-questions-for-the-user">6. Open questions for the user</h2>
 <ol>
 <li><strong>Tool activity in the conversation (M5).</strong> In or out of v1? It needs a provider-contract change.</li>
 <li><strong>Git (worktrees, branches, PR, merge).</strong> Roadmap stage 2, and the biggest single piece of the

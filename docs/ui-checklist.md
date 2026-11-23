@@ -66,29 +66,36 @@ Status: **done** · **next** · **blocked** (needs a decision) · **later** (app
 - Evidence: commit `cf3a083`, `cargo test --workspace` → 130 passed
 - Known: `gate.png` comes from an older run with a gate open; the demo run is accepted
 
-### M1 — The run's facts, in the rail · next
+### M1 — The run's facts, in the rail · done
 
 The v3 shell showed project, run id, duration, rounds, tokens and a budget bar. v4 dropped them. All of
 these are real fields on `GET /runs/:id`; none need new data.
 
-- [ ] A **Run** section above Board in the right rail: project folder (short), run id (short, copyable),
-      duration, rounds used / cap, tokens used / cap with a bar
-- [ ] Every number comes from the API. No spend in dollars — the engine records no cost (v3's `$0.12`
+- [x] A **Run** section above Board in the right rail: folder, run id, how long it has run, rounds used
+      against the cap, tokens used against the cap, and a bar
+- [x] Every number comes from the API. No spend in dollars — the engine records no cost (v3's `$0.12`
       was invented)
-- [ ] A missing value renders `—`, never `0`
-- [ ] Fits at 1440 and 1280 without horizontal scroll
-- Acceptance: screenshot `shots/run-facts.png`; `jq` of the same run shows the same numbers
+- [x] A missing value renders `—`, never `0`
+- [x] The folder keeps its leading slash on short paths (`/tmp/stop2`, not `tmp/stop2`)
+- [x] Fits at 1440; at 1280 the rail folds and opening it shows the same block, with no sideways scroll
+- Evidence: commit `4c2adfe`; `shots/threads.png` shows the block against run `6ba693b9`, whose API
+  answers `362211` tokens of `600000` in `2` of `3` rounds — the same numbers on screen
 
-### M2 — Stop a working run · next
+### M2 — Stop a working run · done
 
-Today a run can only be resumed after it stops itself. A person watching a bad round cannot stop it.
+A run could only be stopped by waiting for it to stop itself. A person watching a bad round had no move.
 
-- [ ] `POST /runs/{id}/stop`: the current turn finishes, no new turn starts, status `human_paused`
-- [ ] The command and its receipt are journaled in one transaction (the five invariants still hold)
-- [ ] A **Stop** button in the topbar while `status = working`, with a confirm that says what happens
-- [ ] The stop banner says who stopped it and what to do next (Resume is there)
-- Acceptance: `cargo test --workspace` green with a new test; a real run stopped mid-round; the child
-      process is gone (`pgrep` for the agent CLI returns nothing); screenshot
+- [x] `POST /runs/{id}/stop`: the turn in flight finishes, no new task or round starts, status
+      `human_paused`, reason `stopped by you`
+- [x] The status change is journaled in one transaction with the projection (`run.stop` + `run.transition`)
+- [x] A **Stop** button in the topbar while the run is working; its tooltip says what happens
+- [x] The banner says who stopped it and offers Resume
+- [x] Resume works — it did not before: `drive_with` now reopens a stopped run before the loop reads it
+- Evidence: commit `40d1009`; `cargo test --workspace` → 133 passed, including
+  `stopping_a_run_pauses_it_and_keeps_the_reason`, `a_finished_run_cannot_be_stopped`,
+  `a_stopped_run_can_be_resumed`. Stopped a real run 8s in (12 shell sections): the turn finished, the
+  task finished as `reported`, the round stayed `open`, and `shots/stopped.png` is that screen.
+      
 
 ### M3 — New run from a goal file · later
 
@@ -143,7 +150,7 @@ Cursor both show this, and it is the first thing people look for when a run fail
 ```bash
 RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace          # 130 tests today
 ILVUNO_HOME=/tmp/demo-real ./target/debug/ilvunod &      # the runner the window reads
-tools/shot.sh /tmp/check.png 1280 900                    # one shot at a width
+tools/shot.sh /tmp/check.png 1280 900                    # one shot at a width (opens a real 1280 window)
 tools/shots.sh                                           # the full set into crates/desktop/shots/
 ```
 
@@ -161,8 +168,17 @@ The window's HTML, CSS and JS are compiled into the binary (`frontendDist`), so 
 | Palette count read "1 runs" | plural missing | `cf3a083` |
 | Shortcuts said ⌘ on Linux | copy written for macOS | `cf3a083` |
 | The task drawer printed raw markdown | it escaped `message` instead of using `md()` | `cf3a083` |
+| **Resume did nothing on any stopped run** | nothing set a run back to `working`, so the driver read the paused state and returned at once | `40d1009` |
+| "1 rounds", and "start a new run" on a paused run | plural and status copy | `40d1009` |
+| Short folder paths lost their leading slash | the shortening rule assumed a deep path | `40d1009` |
 
-## 5. Open questions for the user
+## 5. Known limits
+
+- "Ran for" keeps counting while a run is paused or at the gate, because the engine has no end time for
+  those states. It is honest for a finished run and generous for a paused one.
+- `gate.png` is an older run with a gate open; the demo run is accepted.
+
+## 6. Open questions for the user
 
 1. **Tool activity in the conversation (M5).** In or out of v1? It needs a provider-contract change.
 2. **Git (worktrees, branches, PR, merge).** Roadmap stage 2, and the biggest single piece of the
