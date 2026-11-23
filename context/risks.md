@@ -83,3 +83,9 @@ The tool input was already capped at 2,000 characters; the window shows only sel
 The fold shows the newest 50 rows per task. Individual tool result text is not stored in the journal, so
 the window cannot show tool output or a tool-level error. It can show the first line of a recorded
 `dispatch.failed` reason or summary. No new provider call was needed for the real-window screenshots.
+
+PR review found a separate stage 2-C risk: the gate diff showed committed changes, while acceptance could
+merge that commit and close the run even if a thread worktree also held uncommitted files. Commit `54c0004`
+closes this gap. Acceptance checks every worktree before merging and again inside the merge path; dirty
+files are named and the run stays at the gate. The API and git tests cover this. The full workspace suite
+now has 160 passing tests and 3 ignored live-provider tests.

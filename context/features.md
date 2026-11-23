@@ -109,3 +109,9 @@ The real run showed **7 tools and 2 denied permissions**. The window screenshot 
 [`tool-activity.png`](../crates/desktop/shots/tool-activity.png); the open fold is
 [`tool-activity-open.png`](../crates/desktop/shots/tool-activity-open.png). The workspace had **158
 passing tests and 3 ignored live-provider tests**.
+
+## PR review follow-up · 2026-11-24
+
+Gate acceptance now refuses a thread worktree with uncommitted files and names those paths. Only an
+untracked `provider-stderr.log` is ignored; a staged or tracked copy is still dirty. The API and git
+coverage passed as part of the workspace suite: **160 tests passed and 3 ignored** (`54c0004`).

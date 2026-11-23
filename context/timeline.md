@@ -71,3 +71,4 @@ evening was verification — and every one of the serious defects (resume, the s
 | Phase | What landed |
 |---|---|
 | **M5** | The API reads filtered journal history. The SSE stream sends bounded tool rows and dispatch IDs. The conversation shows a closed-by-default activity fold under each task, with keyboard access, safe targets, permissions and failures. Tests passed and the real window screenshots were read (`6648207`). Report: [`03-tool-activity`](prompts/reports/2026-11-24-03-tool-activity.md). |
+| **PR review** | Review found that gate acceptance could miss uncommitted thread-worktree files. Acceptance now refuses dirty worktrees and reports their paths (`54c0004`); the workspace suite passed with 160 tests and 3 ignored. The README now says “coding agents” (`db7594b`). |
