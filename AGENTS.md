@@ -5,6 +5,8 @@ a goal is met. Rust runner, Tauri shell, SQLite. Linux first.
 
 Read in this order before touching code:
 
+0. `context/README.md` — the project's memory: the story, the timeline, every decision, where we disagreed,
+   and what is still open. Append to it; do not rewrite it.
 1. `docs/prd.md` — who it is for, the two templates, what v0 must prove.
 2. `research/08-round-machine.md` — the engine: objects, states, rights, done specs.
 3. `docs/data-model.md` — the tables and the invariants.

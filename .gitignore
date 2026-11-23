@@ -8,6 +8,7 @@ runs/
 # Generated reading pages. The source is the .md; run tools/render-report.py to make the HTML.
 research/*.html
 docs/*.html
+context/*.html
 # Generated prototypes and design mocks. Run tools/render-prototype.py / tools/render-app-v3.py.
 proto/
 mock/
@@ -15,3 +16,6 @@ mock/
 research/orchestrator-landscape.pdf
 # An export tools/demo.sh leaves behind; fixtures/ is the one we keep.
 .demo-export/
+# Design references and tool exports the owner keeps locally. The fonts the window
+# ships live in crates/desktop/ui/fonts/ with their licence, not here.
+assets/

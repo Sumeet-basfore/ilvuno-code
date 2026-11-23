@@ -1,0 +1,55 @@
+# Timeline
+
+All dates are **2026-11-23** (IST) unless said otherwise. Times are commit times from `git log`, which is
+the only clock this repository keeps. The day is 19 h 20 min long, 57 commits.
+
+## Before this repository
+
+The project had a first attempt: a Go CLI at `projects/ilvuno`, repository
+`github.com/Sumeet-basfore/ilvuno-code`, Apache-2.0, with a readiness study, a git-floor experiment and two
+open PRs. It reached an M0 harness and 1,632 lines. It is the source of the licence this repo carries and of
+`research/14-git-floor.md`.
+
+## The day
+
+| Time | Phase | What landed |
+|---|---|---|
+| 01:36–01:47 | **Engine** | Specs and research imported. Runner with the state machine, the five invariants and the journal (`16b8362`); Claude adapter with the control protocol and a fake provider (`351883b`); dispatch, replay and gate (`c59b5ea`). |
+| 09:30–09:56 | **Corrections from the user** | The board was unreachable for workers (`19726ee`), docs rewritten for a non-native reader (`7249f9c`), *agents are choices, not roles* (`7d11120`), per-slot providers (`e28ae2e`), ACP provider (`03d1d4b`), same-provider warning (`b1c0145`). |
+| 10:13–10:37 | **Provider reality** | ACP tool output read from text blocks (`3144fa7`), three live goal variants (`256c688`), absolute binary path plus a Codex mode that asks (`699cc59`), the product thesis with three disagreements (`0916141`). |
+| 11:24–12:48 | **Threads, export, API** | The research plan replaced by threads and tasks (`dca1aa7`), board readable and budget checked per task (`8ea0c3f`), export as files (`86f549a`), four board prototypes (`f20a387`, `96f6e1c`), CLI and API share one drive path (`b4f3bee`), `ilvunod` on 4737 (`e2bd1cf`), a `base` for HTTP goals (`c4e25fc`), `tools/demo.sh` and the README (`67d864d`), the roadmap (`26adad1`). |
+| 13:05–13:26 | **Stage 0 window** | CORS opened to the window only (`6d932d8`), the window reads a real run (`b435557`), `tools/window.sh` (`230cd43`), a contrast fix (`41352e9`), CORS narrowed and JSON required on writes (`be6126c`), first dark shell (`ff86b04`). |
+| 14:36–15:49 | **Two rejections** | v3 mock with the board leading (`dadfc23`), `/agents` and `/settings` so settings can be real (`5991e0e`), the v3 shell ported into `crates/desktop/ui` (`37270e3`), and the UI anatomy of Cursor, Codex and Vibe Kanban (`481d10c`). |
+| 16:00–17:12 | **Thread-first** | A message becomes a task with no scope (`53e5d2e`), the thread-first layout (`cf3a083`), the UI completion checklist with what is *not* approved (`ab4e40e`). |
+| 17:38–18:20 | **M1, M2, M6** | Run facts in the rail (`4c2adfe`), stop a run and fix resume (`40d1009`), control borders and a build that watches `ui/` (`9541b44`). |
+| 18:50–19:24 | **Published** | Apache-2.0 licence and a README that matches the window (`1e81f2e`), git-floor research adopted (`dfe88d2`), agent picker per thread (`d36828b`). |
+| 19:48–20:17 | **M7, M3, M8** | Honest stopped states and a waiting state (`d58ec15`), open a goal from a file (`d7b4a22`), a settings error belongs to its edit (`9e99bb8`). |
+| 20:44–20:56 | **Repo and stage 2** | Roadmap says stage 1 is done (`417e371`), generated pages untracked, 13 MB → 7.2 MB (`a3ca060`), the git core with 5 tests (`37e6296`). |
+
+## Pushes
+
+Counted from the session record, not from git — git does not clock a push.
+
+1. **The replacement.** `--force-with-lease` over the old Go history, deleting its `main` and its two stale
+   branches; the open PRs closed themselves. Licence and README went in first.
+2. **After M4** (agent picker), 3. **after the docs for M3/M7/M8**, 4. **after the roadmap correction**,
+   5. **after the generated-page cleanup**, 6. **after the git core**.
+
+Six pushes after the first. GitHub's events API only returned the old repository's pre-existing events
+(Nov 19–22), so per-push timestamps cannot be recovered from here; the milestone batches above are the
+honest record.
+
+## Real runs, which cost tokens and time
+
+| Run | What happened | Cost |
+|---|---|---|
+| two-reader board experiment | 2 rounds, 13 board entries, reached the gate on the 4th live attempt | ~35 min, 362k of 600k tokens |
+| stop test | stopped 8 s into a 12-section writing task; the turn finished after the stop; round stayed open | 183k of 400k tokens |
+| blocked test | one-word reply, a check that could not pass; round closed `block`, run left waiting | 63k tokens |
+| budget test | two tasks, 1,000-token budget; stopped after one turn | 63,274 of 1,000 tokens |
+
+## The shape of the day
+
+The morning was the engine and the user's corrections. The afternoon was the window, rejected twice. The
+evening was verification — and every one of the serious defects (resume, the stale build, the hidden menu,
+"working" with nothing running) was found by looking at the real thing, not by reading the code.
