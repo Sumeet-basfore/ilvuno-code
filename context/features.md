@@ -86,3 +86,14 @@ tools/window.sh                                     # the runner and the window
 ```
 
 Screenshots of every screen and every state: `crates/desktop/shots/` and `crates/desktop/shots/states/`.
+
+## Stage 2-C update · gate diff and merge (2026-11-23)
+
+| Feature | Proof |
+|---|---|
+| Per-thread diff endpoint with a 128 KiB patch cap and full diffstat | `crates/api/src/runs.rs`, `crates/runner/src/git.rs`; API tests in `crates/api/tests/worktrees.rs` |
+| Run detail includes each thread's branch, short commit and diffstat | `crates/runner/src/export.rs`; live API response for throwaway run `ae186839-1120-4401-a1fc-77225af4bb11` |
+| Accept refuses a dirty project, merges branches in task order, aborts conflicts and is idempotent | `crates/runner/src/run_status.rs`; five scripted API cases in `worktrees.rs` |
+| Gate lists branch, diffstat, folded patch and the files/threads to merge | `crates/desktop/ui/app.js`, `style.css`; screenshot read at `/tmp/ilvuno-stage2-live.HZtImU/gate.png` |
+| Adapter stderr is excluded from thread commits so it does not pollute the gate diff | `crates/runner/src/git.rs`; `provider_stderr_capture_is_not_committed_as_thread_work` |
+| Real accepted run landed `hello.txt` only after the gate; merge subject includes the run id | Throwaway repo run `ae186839-1120-4401-a1fc-77225af4bb11`; 62,623 tokens |

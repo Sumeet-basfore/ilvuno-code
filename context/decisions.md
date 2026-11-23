@@ -66,3 +66,11 @@ Status: **settled** · **reversed** · **open** (needs the user)
 | **O1** | Show what the agent actually ran (M5) — in v1 or later? | the conversation's most-wanted missing panel; the data is already there |
 | **O2** | Stage 2 approved through phase C (gate shows diff, accept merges)? | the north star |
 | **O3** | Rewrite git history to drop the removed blobs, then force-push? | repository size only |
+
+## Stage 2-C · merge rules settled (2026-11-23)
+
+| # | Decision | Why | What would reverse it |
+|---|---|---|---|
+| **D22** | Accept merges each checked-out thread branch into the project's current branch, in first-task order. The project must be clean before the first merge. Each merge and its journal event share a transaction. A conflict aborts that merge and blocks the run with the file names. Repeated accept is safe. Folder mode records acceptance without merging. | The gate must show the work and make acceptance change the project. A dirty tree or unresolved conflict must never be hidden. | A merge that cannot be aborted cleanly, or a test that shows the project can be left half-merged. |
+
+O2 is resolved: stage 2 continues through phase C. The gate diff and merge path landed in `e430433`.

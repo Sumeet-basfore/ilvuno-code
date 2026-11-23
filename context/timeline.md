@@ -59,3 +59,9 @@ evening was verification — and every one of the serious defects (resume, the s
 | Time | Phase | What landed |
 |---|---|---|
 | 23:09 | **Stage 2-A/B** | A clean git project gives every thread its own worktree and branch, with a commit after each task; folder mode is the fallback and journals why (`ff669cc`). |
+
+## Stage 2 · gate diff and merge
+
+| Time | Phase | What landed |
+|---|---|---|
+| 23:32 | **Stage 2-C** | The API returns a bounded diff per thread; the gate shows each branch, stat and patch. Accept checks for a clean project, merges checked-out branches in task order, and records each landing. Conflicts abort and block with file names. The scripted suite and a real throwaway-project run passed (`e430433`). |

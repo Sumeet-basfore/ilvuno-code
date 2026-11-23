@@ -67,3 +67,11 @@
   design would need rethinking.
 - A provider that only works over PTY → D2 reverses, and the cost of D2 returns.
 - A second person using it → packaging, multi-project and permissions move ahead of git polish.
+
+## Stage 2-C update (2026-11-23)
+
+The gate diff and merge path is now implemented. The dirty-tree refusal, conflict abort, file-name report,
+repeat-accept behavior and folder-mode behavior have scripted coverage. The old risk that agents could
+write a branch whose diff could not be reviewed before acceptance is resolved for the current Linux build.
+Two runs on one project are still not serialized; that remains a separate risk before concurrent runs are
+used against the same project.

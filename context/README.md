@@ -41,3 +41,9 @@ These came from the user during the work and are not negotiable defaults:
 4. Agents are choices, not roles. One subscription must be able to fill every thread.
 5. Nothing lands without a person. The gate is the product.
 6. Trust is earned by checks: run the tests, look at the real window, measure the number, or say you did not.
+
+## Current state update · 2026-11-23
+
+Stage 2-C is in: the gate can show each thread's diff and merge accepted branches into the project's
+current branch. It refuses a dirty project and stops on a conflict. The next blocked step for the north
+star is no longer gate merging; stage 3 and dogfooding still remain.
