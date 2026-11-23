@@ -65,3 +65,9 @@ evening was verification — and every one of the serious defects (resume, the s
 | Time | Phase | What landed |
 |---|---|---|
 | 23:32 | **Stage 2-C** | The API returns a bounded diff per thread; the gate shows each branch, stat and patch. Accept checks for a clean project, merges checked-out branches in task order, and records each landing. Conflicts abort and block with file names. The scripted suite and a real throwaway-project run passed (`e430433`). |
+
+## Stage 3 · tool activity (2026-11-24)
+
+| Phase | What landed |
+|---|---|
+| **M5** | The API reads filtered journal history. The SSE stream sends bounded tool rows and dispatch IDs. The conversation shows a closed-by-default activity fold under each task, with keyboard access, safe targets, permissions and failures. Tests passed and the real window screenshots were read (`6648207`). Report: [`03-tool-activity`](prompts/reports/2026-11-24-03-tool-activity.md). |

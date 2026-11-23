@@ -8,7 +8,7 @@ report it leaves.
 | — | [`00-verify-and-harden.md`](00-verify-and-harden.md) | prove the current build still works; fix regressions, add nothing | run any time |
 | 1 | [`01-stage2-worktrees.md`](01-stage2-worktrees.md) | a thread works in a git worktree of the project, on its own branch | ready |
 | 2 | [`02-stage2-gate-diff-and-merge.md`](02-stage2-gate-diff-and-merge.md) | the gate shows the diff; accepting merges it | done 2026-11-23 |
-| 3 | [`03-tool-activity.md`](03-tool-activity.md) | the conversation shows what the agent actually ran | **needs the owner's yes** |
+| 3 | [`03-tool-activity.md`](03-tool-activity.md) | the conversation shows what the agent actually ran | done 2026-11-24 |
 | 4 | [`04-first-dogfood-change.md`](04-first-dogfood-change.md) | Ilvuno changes Ilvuno, once, for real | after 01 + 02 |
 | 5 | [`05-truth-in-the-ui.md`](05-truth-in-the-ui.md) | budget bar, permission log, an honest reopen after a kill | after 02 |
 | 6 | [`06-packaging.md`](06-packaging.md) | an installable Linux build | last |

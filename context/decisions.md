@@ -74,3 +74,12 @@ Status: **settled** · **reversed** · **open** (needs the user)
 | **D22** | Accept merges each checked-out thread branch into the project's current branch, in first-task order. The project must be clean before the first merge. Each merge and its journal event share a transaction. A conflict aborts that merge and blocks the run with the file names. Repeated accept is safe. Folder mode records acceptance without merging. | The gate must show the work and make acceptance change the project. A dirty tree or unresolved conflict must never be hidden. | A merge that cannot be aborted cleanly, or a test that shows the project can be left half-merged. |
 
 O2 is resolved: stage 2 continues through phase C. The gate diff and merge path landed in `e430433`.
+
+## Stage 3 · tool activity settled (2026-11-24)
+
+| # | Decision | Why | What would reverse it |
+|---|---|---|---|
+| **D23** | O1 is resolved: show tool activity in v1 using existing journal rows. Use dispatch boundary rows to place activity under the right task. Show only the tool name, a short target, permission state and the first line of a recorded dispatch failure. | The user approved M5. The journal and SSE already have the needed records, so the window can stay read-only and the provider contract stays unchanged. | If the runner stops recording a reliable dispatch boundary, revisit how a tool row is tied to a task before showing it. |
+
+O1 is resolved. The implementation is `6648207`; run and screenshot evidence is in
+[`context/prompts/reports/2026-11-24-03-tool-activity.md`](prompts/reports/2026-11-24-03-tool-activity.md).

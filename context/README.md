@@ -47,3 +47,9 @@ These came from the user during the work and are not negotiable defaults:
 Stage 2-C is in: the gate can show each thread's diff and merge accepted branches into the project's
 current branch. It refuses a dirty project and stops on a conflict. The next blocked step for the north
 star is no longer gate merging; stage 3 and dogfooding still remain.
+
+## Current state update · 2026-11-24
+
+Stage 3 M5 is done. The conversation shows the tools, targets and permission decisions for each task. It
+reads the existing journal and event stream. It does not change a run or write new journal rows. Prompt 04,
+the first dogfood change, remains next.

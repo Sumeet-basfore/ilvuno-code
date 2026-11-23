@@ -39,6 +39,7 @@ Written down because it is the most expensive kind of error to repeat.
 | "Tool activity needs a provider-contract change" | It does not: `tool.call` and `permission.decided` are already journaled and streamed. | Reading the journal of a real run (R4). |
 | "Dogfooding is next" | Impossible: agents write in `run/threads/<name>/`, not in the project. | Reading `dispatch.rs` (R5). |
 | Coordinates read off a scaled screenshot | Three clicks landed on the wrong control, twice blamed the app. | Measuring the element's rectangle from an unscaled capture. |
+| The first count of tool activity was 14 calls and 3 denials | The real run has 7 tool calls and 2 denied permissions. | Recounting the filtered journal rows before reading the screenshots. |
 
 ## Where we agreed, and why it stuck
 

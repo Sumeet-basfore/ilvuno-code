@@ -97,3 +97,15 @@ Screenshots of every screen and every state: `crates/desktop/shots/` and `crates
 | Gate lists branch, diffstat, folded patch and the files/threads to merge | `crates/desktop/ui/app.js`, `style.css`; screenshot read at `/tmp/ilvuno-stage2-live.HZtImU/gate.png` |
 | Adapter stderr is excluded from thread commits so it does not pollute the gate diff | `crates/runner/src/git.rs`; `provider_stderr_capture_is_not_committed_as_thread_work` |
 | Real accepted run landed `hello.txt` only after the gate; merge subject includes the run id | Throwaway repo run `ae186839-1120-4401-a1fc-77225af4bb11`; 62,623 tokens |
+
+## Stage 3 · tool activity update (2026-11-24)
+
+M5 is no longer blocked. The API returns bounded, filtered journal pages. The window shows tool names,
+short targets, permission decisions and recorded task failures under the matching task. It reads existing
+history and SSE rows; it does not change a run or write journal rows. Commit `6648207` adds three API
+tests for paging, scripted tool and permission rows, and the stored input cap, plus an SSE boundary test.
+
+The real run showed **7 tools and 2 denied permissions**. The window screenshot is
+[`tool-activity.png`](../crates/desktop/shots/tool-activity.png); the open fold is
+[`tool-activity-open.png`](../crates/desktop/shots/tool-activity-open.png). The workspace had **158
+passing tests and 3 ignored live-provider tests**.

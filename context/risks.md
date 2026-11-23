@@ -75,3 +75,11 @@ repeat-accept behavior and folder-mode behavior have scripted coverage. The old 
 write a branch whose diff could not be reviewed before acceptance is resolved for the current Linux build.
 Two runs on one project are still not serialized; that remains a separate risk before concurrent runs are
 used against the same project.
+
+## Stage 3 update (2026-11-24)
+
+O1 is resolved. The window reads tool calls, permission decisions and dispatch boundaries from the journal.
+The tool input was already capped at 2,000 characters; the window shows only selected names and targets.
+The fold shows the newest 50 rows per task. Individual tool result text is not stored in the journal, so
+the window cannot show tool output or a tool-level error. It can show the first line of a recorded
+`dispatch.failed` reason or summary. No new provider call was needed for the real-window screenshots.
