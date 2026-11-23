@@ -37,7 +37,9 @@ async fn one_prompt_round_trip_on_a_real_agent() {
     };
     let mut session = AcpProvider::new(command).open(spec).await.expect("open session");
     println!("capabilities: {:?}", session.capabilities());
-    session.send_turn("Reply with exactly one word: ok").await.expect("send turn");
+    let prompt = std::env::var("ILVUNO_ACP_LIVE_PROMPT")
+        .unwrap_or_else(|_| "Reply with exactly one word: ok".to_string());
+    session.send_turn(&prompt).await.expect("send turn");
 
     let mut text = String::new();
     let mut finished = None;
@@ -63,7 +65,10 @@ async fn one_prompt_round_trip_on_a_real_agent() {
         }
     }
     session.shutdown().await;
-    assert!(text.to_lowercase().contains("ok"), "reply text: {text:?}");
+    if std::env::var_os("ILVUNO_ACP_LIVE_PROMPT").is_none() {
+        assert!(text.to_lowercase().contains("ok"), "reply text: {text:?}");
+    }
+    println!("reply text: {text}");
     assert!(
         matches!(finished, Some(Event::TurnFinished { error: None, .. })),
         "turn did not finish cleanly: {finished:?}"

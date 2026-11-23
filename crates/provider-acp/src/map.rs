@@ -6,7 +6,8 @@
 
 use agent_client_protocol::v1::schema::{
     ContentBlock, ContentChunk, Cost, PermissionOption, PermissionOptionId, PermissionOptionKind, PromptResponse,
-    SessionNotification, SessionUpdate, StopReason, ToolCall, ToolCallStatus, ToolCallUpdate, ToolKind, UsageUpdate,
+    SessionNotification, SessionUpdate, StopReason, ToolCall, ToolCallContent, ToolCallStatus, ToolCallUpdate,
+    ToolKind, UsageUpdate,
 };
 use provider_core::{Decision, Event};
 use serde_json::{json, Value};
@@ -79,7 +80,7 @@ fn tool_update_event(update: &ToolCallUpdate) -> Event {
     match fields.status {
         Some(status @ (ToolCallStatus::Completed | ToolCallStatus::Failed)) => Event::ToolResult {
             id: update.tool_call_id.to_string(),
-            output: clip_text(&output_text(fields.raw_output.as_ref())),
+            output: clip_text(&output_text(fields.raw_output.as_ref(), fields.content.as_deref())),
             status: status_name(&status).to_string(),
         },
         _ => Event::Raw {
@@ -197,11 +198,23 @@ fn stop_name(stop: &StopReason) -> &'static str {
     }
 }
 
-fn output_text(raw: Option<&Value>) -> String {
+/// A tool's output as text: the raw output when the agent sent one, else its text content blocks.
+fn output_text(raw: Option<&Value>, content: Option<&[ToolCallContent]>) -> String {
     match raw {
         Some(Value::String(s)) => s.clone(),
         Some(other) => other.to_string(),
-        None => String::new(),
+        None => content
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|block| match block {
+                ToolCallContent::Content(c) => match &c.content {
+                    ContentBlock::Text(t) => Some(t.text.clone()),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("\n"),
     }
 }
 
@@ -284,6 +297,23 @@ mod tests {
                 },
                 Event::ToolResult { id: "c1".into(), output: "exit 0".into(), status: "completed".into() },
             ]
+        );
+    }
+
+    #[test]
+    fn completed_update_without_raw_output_carries_its_text_content() {
+        let frame = note(json!({
+            "sessionUpdate": "tool_call_update", "toolCallId": "c10", "status": "completed",
+            "content": [{ "type": "content", "content": { "type": "text", "text": "/usr/bin/ilvuno\nPATH=/x" } }]
+        }));
+        let events = update_events(&frame, &mut CostTracker::default());
+        assert_eq!(
+            events,
+            vec![Event::ToolResult {
+                id: "c10".into(),
+                output: "/usr/bin/ilvuno\nPATH=/x".into(),
+                status: "completed".into()
+            }]
         );
     }
 
