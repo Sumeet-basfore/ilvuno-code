@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ilvuno brief: security model and provider contract</title>
+</head>
+<body>
+  <main>
+    <h1>Ilvuno brief</h1>
+
+    <section id="security-model">
+      <h2>Security model</h2>
+      <p>Ilvuno does not sandbox the agent processes it runs. They are limited only by the permissions their CLI already has and by the vendor's own controls. Ilvuno's job is to avoid handing agents any extra power. The model covers v1 only: one user on a local machine, with no server and no multi-tenancy.</p>
+      <p>The repository, the agent processes and the network are not trusted. The user, the runner and the UI are trusted. Provider CLIs are opaque, and their output is read as data. The main risk is repository text reaching an agent, which may then act on the filesystem or shell.</p>
+      <p>The runner keeps provider credentials out of agent environments, gives each worker its own worktree that cannot switch branches or see <code>main</code>, and performs merges only after an accepted round. Scope is checked at dispatch and at report, but this detects problems rather than preventing them. Every command is journaled with a request ID. There is no network allowlist.</p>
+      <p>Readers must keep approvals on, give workers no git remote, stop workers from pushing or running destructive git commands, keep artifacts local, pin adapter package versions, and keep the human gate on for every round.</p>
+    </section>
+
+    <section id="provider-contract">
+      <h2>Provider contract</h2>
+      <p>The contract defines what an adapter (the piece that talks to an agent CLI) must do, and what the runner promises in return. The adapter is a translator, not a decision-maker. It never writes the database, never decides that a round is done, and never retries a turn on its own. Version 1 has two adapters: <code>claude</code> (stream-json with a control protocol) and <code>acp</code> (the Agent Client Protocol, pointed at any agent's ACP command).</p>
+      <p>The runner sends commands such as spawn, session open and resume, prompt, permission reply, interrupt, park and unpark, and shutdown. Every command carries a request ID, so a repeated ID never produces a second turn. The adapter sends back eleven event kinds. Anything that does not fit goes into a raw event, so no information is lost.</p>
+      <p>Permissions differ by wire, but both map to one runner event, and the runner's policy decides. Claude needs an initialize handshake first, or every tool is silently denied. ACP clients choose an outcome by option kind, preferring allow once over allow always. ACP agents must run in a mode that asks, such as <code>workspace-write</code>, because the default mode of <code>codex-acp</code> bypasses the runner's policy.</p>
+      <p>Workers may run only <code>ilvuno note</code> and <code>ilvuno report</code>, and only for their own task. Reads are allowed in the thread's own folder, the run folder, and absolute paths in the task's scope. Writes are allowed only in the thread's own folder. Error classes have fixed responses. Spawn failures are not retried blindly, auth and usage limits pause the run, a protocol error marks the session broken, and unknown errors are recorded and never silently resent. An adapter crash counts as a failed turn and must never take the runner down. <code>/tmp</code> is not a boundary.</p>
+    </section>
+  </main>
+</body>
+</html>
