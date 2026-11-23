@@ -169,11 +169,14 @@ pub fn run_task(home: &Home, caller_task: Option<&str>, thread: &str, prompt: &s
             (run_id, CreatedBy::User, None)
         }
     };
-    let outcome = store.transact("task.create", None, |tx, p| {
-        create_task(tx, p, &NewTask { run_id: &run_id, thread, prompt, scope, created_by, author_thread: author.as_deref() })
-    })?;
+    submit_task(home, &mut store, &NewTask { run_id: &run_id, thread, prompt, scope, created_by, author_thread: author.as_deref() })
+}
+
+/// Write one task and refresh the board. This is the write behind `ilvuno task` and `POST /runs/:id/tasks`.
+pub fn submit_task(home: &Home, store: &mut Store, task: &NewTask<'_>) -> Result<Outcome<TaskRef>> {
+    let outcome = store.transact("task.create", None, |tx, p| create_task(tx, p, task))?;
     if let Outcome::Applied(_) = outcome {
-        ledger::render_board(store.conn(), &run_id, &home.board_path(&run_id))?;
+        ledger::render_board(store.conn(), task.run_id, &home.board_path(task.run_id))?;
     }
     Ok(outcome)
 }

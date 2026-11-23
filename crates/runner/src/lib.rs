@@ -11,6 +11,7 @@ pub mod home;
 pub mod ledger;
 pub mod note;
 pub mod policy;
+pub mod query;
 pub mod prompts;
 pub mod replay;
 pub mod report;

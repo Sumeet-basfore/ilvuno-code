@@ -1,9 +1,10 @@
 //! Run-level transitions: status, token accounting, verdicts, the human gate, merge and freeze.
 
 use crate::commands::{self, latest_round, load_run};
+use crate::home::Home;
 use crate::ledger;
 use crate::state::{check_merge, RunStatus, Verdict};
-use crate::store::{Outcome, Pending};
+use crate::store::{Outcome, Pending, Store};
 use crate::tasks::{self, CreatedBy, NewTask};
 use anyhow::{anyhow, Result};
 use rusqlite::{params, Transaction};
@@ -91,6 +92,16 @@ pub fn record_verdict(
         set_run_status(tx, pending, run_id, RunStatus::Reviewed, Some("gate opened"))?;
     }
     Ok(())
+}
+
+/// The human gate as the CLI and the API run it: decide, then refresh the board so its status is not stale.
+/// A refusal changes nothing and is returned as `Refused`.
+pub fn decide_gate_and_render(home: &Home, store: &mut Store, run_id: &str, decision: &GateDecision) -> Result<Outcome<()>> {
+    let outcome = store.transact("gate.decide", None, |tx, p| gate_decide(tx, p, run_id, decision))?;
+    if let Outcome::Applied(_) = outcome {
+        ledger::render_board(store.conn(), run_id, &home.board_path(run_id))?;
+    }
+    Ok(outcome)
 }
 
 /// Human gate. Accept moves the run to `accepted`; send-back records a human block and resumes work.

@@ -32,7 +32,8 @@ pub fn export(store: &Store, home: &Home, run_id: &str, out: &Path) -> Result<Pa
     Ok(out.to_path_buf())
 }
 
-fn run_json(conn: &Connection, run_id: &str) -> Result<Value> {
+/// One run as the `run.json` of an export. The API serves this same shape.
+pub fn run_json(conn: &Connection, run_id: &str) -> Result<Value> {
     let (status, rounds_used, tokens, started, ended, blocked): (String, i64, i64, i64, Option<i64>, Option<String>) = conn
         .query_row(
             "SELECT status, rounds_used, tokens_used, started_at, ended_at, blocked_reason FROM runs WHERE id = ?1",

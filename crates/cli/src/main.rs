@@ -2,8 +2,9 @@
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
-use runner::commands::{self, ReportStatus};
-use runner::driver::{Driver, RunEnd};
+use cli::ops;
+use runner::commands::ReportStatus;
+use runner::driver::RunEnd;
 use runner::goal::{self, GoalPlan};
 use runner::note::run_note;
 use runner::report::run_report;
@@ -12,8 +13,6 @@ use runner::store::Outcome;
 use runner::tasks::run_task;
 use runner::{replay, Home, Store};
 use std::path::{Path, PathBuf};
-
-mod providers;
 
 /// Set by the runner on the orchestrator's session: the task that is calling `ilvuno task`.
 const CALLER_TASK_ENV: &str = "ILVUNO_TASK";
@@ -98,22 +97,10 @@ enum GateAction {
     },
 }
 
-fn home() -> Home {
-    let root = std::env::var_os("ILVUNO_HOME").map(PathBuf::from).unwrap_or_else(|| {
-        PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".local/share/ilvuno")
-    });
-    Home::new(root)
-}
-
-/// Directory of this binary, so agents can run `ilvuno` by name.
-fn own_bin_dir() -> Option<PathBuf> {
-    std::env::current_exe().ok().and_then(|p| p.parent().map(Path::to_path_buf))
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
-    let home = home();
+    let home = ops::home_from_env();
     match cli.command {
         Command::InitDb => {
             Store::open(&home.db_path())?;
@@ -129,7 +116,7 @@ async fn main() -> Result<()> {
                 }
                 _ => bail!("pass either --goal or --resume"),
             };
-            let end = drive(&home, &mut store, &plan, &run_id).await?;
+            let end = ops::drive(&home, &mut store, &plan, &run_id).await?;
             print_end(&run_id, &end);
             if let RunEnd::Stopped { .. } = end {
                 std::process::exit(2);
@@ -159,17 +146,14 @@ async fn main() -> Result<()> {
                 GateAction::Accept => GateDecision::Accept,
                 GateAction::SendBack { note } => GateDecision::SendBack { note },
             };
-            let outcome = store.transact("gate.decide", None, |tx, p| run_status::gate_decide(tx, p, &run, &decision))?;
-            if let Outcome::Refused(reason) = outcome {
+            if let Outcome::Refused(reason) = run_status::decide_gate_and_render(&home, &mut store, &run, &decision)? {
                 bail!("gate refused: {reason}");
             }
-            // The board is what a human reads: refresh it after the decision so its status is not stale.
-            runner::ledger::render_board(store.conn(), &run, &home.board_path(&run))?;
             match decision {
                 GateDecision::Accept => println!("run {run} accepted by human"),
                 GateDecision::SendBack { .. } => {
                     let plan = goal::load_snapshot(store.conn(), &run)?;
-                    let end = drive(&home, &mut store, &plan, &run).await?;
+                    let end = ops::drive(&home, &mut store, &plan, &run).await?;
                     print_end(&run, &end);
                 }
             }
@@ -235,34 +219,13 @@ async fn main() -> Result<()> {
 }
 
 fn start_run(store: &mut Store, home: &Home, goal_path: &Path) -> Result<(String, GoalPlan)> {
-    let plan = GoalPlan::load(goal_path).with_context(|| format!("goal {}", goal_path.display()))?;
-    // Refuse a driver this build lacks before any run row is written.
-    providers::build(&plan)?;
+    // The goal's folder is where its relative paths resolve, so it is read from the file's location.
+    let probe = GoalPlan::load(goal_path).with_context(|| format!("goal {}", goal_path.display()))?;
     let raw = std::fs::read_to_string(goal_path)?;
-    let base = plan.base().to_path_buf();
-    let new_goal = plan.new_goal()?;
-    let run_id = match store.transact("run.create", None, |tx, p| {
-        let run_id = commands::create_run(tx, p, &new_goal, home)?;
-        goal::snapshot(tx, &run_id, &raw, &base)?;
-        Ok(Outcome::Applied(run_id))
-    })? {
-        Outcome::Applied(id) => id,
-        other => bail!("run not created: {other:?}"),
-    };
+    let base = probe.base().to_path_buf();
+    let (run_id, plan) = ops::create_run(store, home, &raw, |_| base.clone())?;
     println!("run {run_id} created from {}", goal_path.display());
     Ok((run_id, plan))
-}
-
-async fn drive(home: &Home, store: &mut Store, plan: &GoalPlan, run_id: &str) -> Result<RunEnd> {
-    let instances = providers::build(plan)?;
-    let bin_dir = own_bin_dir();
-    let driver = Driver {
-        providers: &instances,
-        home,
-        ilvuno_bin_dir: bin_dir.as_deref(),
-        max_usd: plan.usd_per_call(),
-    };
-    driver.drive(store, plan, run_id).await
 }
 
 fn print_end(run_id: &str, end: &RunEnd) {
