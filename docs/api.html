@@ -102,7 +102,7 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">568 words<br>4 sections<br>73 lines of source</div>
+  <div class="meta">624 words<br>4 sections<br>77 lines of source</div>
   <nav><a class="lvl2" href="#safety-in-v1">Safety in v1</a>
 <a class="lvl2" href="#endpoints">Endpoints</a>
 <a class="lvl3" href="#events">Events</a>
@@ -202,7 +202,12 @@ behind a proxy or a port forward.</li>
 </tr>
 </tbody>
 </table>
-<p><code>POST /runs</code> takes the same keys as <code>examples/board-experiment.json</code>. The body is the goal itself.</p>
+<p><code>POST /runs</code> takes the same keys as <code>examples/board-experiment.json</code>, plus one optional key:</p>
+<ul>
+<li><code>&quot;base&quot;: &quot;/abs/path/to/project&quot;</code> — the folder relative paths resolve from. A goal file on disk uses its
+own folder; a goal sent over HTTP has none, so the app must send <code>base</code>. Without it, relative paths
+resolve from the run folder and <code>../</code> sources will not be found. A <code>base</code> that is not a folder is a 400.</li>
+</ul>
 <h3 id="events">Events</h3>
 <p>Each journal row appended while you are connected sends one event:</p>
 <pre><code>event: journal

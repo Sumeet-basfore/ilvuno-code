@@ -26,6 +26,10 @@ const TITLE_LEN: usize = 80;
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GoalFile {
+    /// Optional project folder for relative paths. The desktop app sends it over HTTP, where there is
+    /// no goal file on disk to take a parent from.
+    #[serde(default)]
+    pub base: Option<String>,
     pub goal: String,
     #[serde(default)]
     pub done: Option<String>,
@@ -117,11 +121,22 @@ impl GoalPlan {
         Self::from_raw(&raw, &base)
     }
 
-    /// Validate goal JSON. `base` is the folder the goal file sits in.
+    /// Validate goal JSON. `base` is the folder the goal file sits in; a `base` key in the JSON wins,
+    /// because a goal posted over HTTP has no file to take a parent from.
     pub fn from_raw(raw: &str, base: &Path) -> Result<Self> {
         let file: GoalFile = serde_json::from_str(raw).context("parse goal")?;
         validate(&file)?;
-        Ok(Self { file, base: base.to_path_buf() })
+        let base = match file.base.as_deref() {
+            Some(b) => {
+                let p = std::fs::canonicalize(b).with_context(|| format!("goal base {b}"))?;
+                if !p.is_dir() {
+                    anyhow::bail!("goal base {} is not a folder", p.display());
+                }
+                p
+            }
+            None => base.to_path_buf(),
+        };
+        Ok(Self { file, base })
     }
 
     pub fn base(&self) -> &Path {

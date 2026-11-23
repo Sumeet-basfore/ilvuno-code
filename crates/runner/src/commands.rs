@@ -112,6 +112,10 @@ pub fn create_run(tx: &Transaction<'_>, pending: &mut Pending, goal: &NewGoal, h
         "run.created",
         json!({ "goal_id": goal_id, "budget_rounds": goal.budget_rounds, "budget_tokens": goal.budget_tokens, "threads": names }),
     );
+    // Entering the first state is a transition like any other; without it a run that never started
+    // looks to replay as if the projection invented "working".
+    pending.push(&run_id, None, None, "run.transition",
+        json!({ "from": null, "to": "working", "reason": "created" }));
     if goal.threads.iter().any(|t| t.name == ORCHESTRATOR) {
         let prompt = kickoff_prompt(&goal.goal_text, goal.done.as_deref());
         let scope = [RUN_SCOPE.to_string()];

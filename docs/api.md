@@ -31,7 +31,11 @@ RUSTUP_TOOLCHAIN=1.100.0 cargo run -p api --bin ilvunod
 | POST | `/runs/:id/gate` | `{"decision":"accept"}` or `{"decision":"send_back","note":"…"}` | `200 {"run_id","status"}` | `run_status::decide_gate_and_render` |
 | POST | `/runs/:id/resume` | Continue a run, as `ilvuno run --resume` does | `202 {"run_id","status"}` | `goal::load_snapshot`, `drive_with` |
 
-`POST /runs` takes the same keys as `examples/board-experiment.json`. The body is the goal itself.
+`POST /runs` takes the same keys as `examples/board-experiment.json`, plus one optional key:
+
+- `"base": "/abs/path/to/project"` — the folder relative paths resolve from. A goal file on disk uses its
+  own folder; a goal sent over HTTP has none, so the app must send `base`. Without it, relative paths
+  resolve from the run folder and `../` sources will not be found. A `base` that is not a folder is a 400.
 
 ### Events
 
