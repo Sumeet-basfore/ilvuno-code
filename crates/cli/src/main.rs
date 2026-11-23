@@ -57,6 +57,12 @@ enum Command {
     Freeze { run: String },
     /// Print the journal transitions and check them against the projection.
     Replay { run: String },
+    /// Write one run as plain files: run.json, board.md, journal.jsonl, artifacts/.
+    Export {
+        run: String,
+        #[arg(long)]
+        out: PathBuf,
+    },
     /// Agent-only: report the outcome of a task. Agents call this; humans rarely do.
     Report {
         #[arg(long)]
@@ -206,6 +212,11 @@ async fn main() -> Result<()> {
                     std::process::exit(1);
                 }
             }
+        }
+        Command::Export { run, out } => {
+            let store = Store::open(&home.db_path())?;
+            let dir = runner::export::export(&store, &home, &run, &out)?;
+            println!("exported {run} to {}", dir.display());
         }
         Command::Report { task, status, summary, files } => {
             let files: Vec<String> = files.into_iter().filter(|f| !f.trim().is_empty()).collect();

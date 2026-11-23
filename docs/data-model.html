@@ -102,7 +102,7 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">1,078 words<br>3 sections<br>197 lines of source</div>
+  <div class="meta">1,237 words<br>4 sections<br>228 lines of source</div>
   <nav><a class="lvl2" href="#entities">Entities</a>
 <a class="lvl3" href="#goals">goals</a>
 <a class="lvl3" href="#runs">runs</a>
@@ -116,7 +116,8 @@ td code,th code{font-size:12px}
 <a class="lvl3" href="#providerinstances">providerinstances</a>
 <a class="lvl3" href="#settings">settings</a>
 <a class="lvl2" href="#derived-views-not-tables">Derived views, not tables</a>
-<a class="lvl2" href="#invariants-the-runner-enforces-in-code">Invariants the runner enforces in code</a></nav>
+<a class="lvl2" href="#invariants-the-runner-enforces-in-code">Invariants the runner enforces in code</a>
+<a class="lvl2" href="#export-bundle">Export bundle</a></nav>
   <a class="back" href="index.html">&larr; index</a>
 </aside>
 <main>
@@ -694,6 +695,57 @@ you approved is reproducible even if the world changed afterwards.</li>
 <li>No write to a worktree other than the thread's own.</li>
 <li><code>same request_id</code> twice ⇒ one dispatch, one receipt.</li>
 </ol>
+<hr />
+<h2 id="export-bundle">Export bundle</h2>
+<p><code>ilvuno export &lt;run&gt; --out &lt;dir&gt;</code> writes one run as plain files. It is the fixture prototypes read, and the
+shape the UI will read. Nothing is invented; every field comes from the database.</p>
+<pre><code>run.json        run, goal, threads, rounds, tasks, ledger, artifacts
+board.md        the same board a thread reads
+journal.jsonl   one JSON object per line: seq, at, kind, round_id, thread_id, payload
+artifacts/      the files the run produced
+</code></pre>
+<p><code>run.json</code> top level:</p>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run</code></td>
+<td>id, status, rounds_used, tokens_used, started_at, ended_at, blocked_reason, <strong>project</strong> (the goal file's folder)</td>
+</tr>
+<tr>
+<td><code>goal</code></td>
+<td>text, done, checks, message_policy, budget</td>
+</tr>
+<tr>
+<td><code>threads[]</code></td>
+<td>name, agent, role, prompt, status, native_session</td>
+</tr>
+<tr>
+<td><code>rounds[]</code></td>
+<td>index, status, verdict, readiness (checks + failing), tokens, cost_usd</td>
+</tr>
+<tr>
+<td><code>tasks[]</code></td>
+<td>prompt, status, created_by, scope, thread, result, <strong>message</strong>, round</td>
+</tr>
+<tr>
+<td><code>ledger[]</code></td>
+<td>id, kind, body, scope, round, thread</td>
+</tr>
+<tr>
+<td><code>artifacts[]</code></td>
+<td>kind, path, bytes, sha256, thread</td>
+</tr>
+</tbody>
+</table>
+<p><code>message</code> is the task's final text, kept once per task (20k chars max). Deltas are not stored; the provider
+keeps the original session.</p>
+<hr />
 
 </main>
 </div>

@@ -10,6 +10,7 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("0001_init", include_str!("../migrations/0001_init.sql")),
     ("0002_providers", include_str!("../migrations/0002_providers.sql")),
     ("0003_tasks", include_str!("../migrations/0003_tasks.sql")),
+    ("0004_messages", include_str!("../migrations/0004_messages.sql")),
 ];
 
 pub fn now_ms() -> i64 {

@@ -5,6 +5,7 @@ pub mod commands;
 pub mod dispatch;
 pub mod driver;
 pub mod execution;
+pub mod export;
 pub mod goal;
 pub mod home;
 pub mod ledger;

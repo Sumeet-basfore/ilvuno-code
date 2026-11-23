@@ -19,6 +19,8 @@ use std::path::{Component, Path, PathBuf};
 const MAX_TURNS_PER_DISPATCH: u32 = 2;
 const NUDGE: &str = "You have not reported yet. Run your `ilvuno report` command now, exactly once.";
 const TRUNCATE_TOOL_INPUT: usize = 2000;
+/// What a thread said, kept per task. Enough for a thread view; the provider keeps the session.
+const MAX_RESULT_TEXT: usize = 20000;
 
 pub struct ExecCtx<'a> {
     pub home: &'a Home,
@@ -130,7 +132,13 @@ pub async fn execute<P: Provider>(
             fail(store, run_id, task_id, &describe(&e))?;
             break;
         }
-        let turn = pump_turn(&mut session, store, &policy, run_id, &task.round_id, &task.thread_id).await?;
+        let (turn, said) = pump_turn(&mut session, store, &policy, run_id, &task.round_id, &task.thread_id).await?;
+        if !said.trim().is_empty() {
+            let keep: String = said.chars().take(MAX_RESULT_TEXT).collect();
+            store.transact("dispatch.message", None, |tx, p| {
+                execution::record_result_text(tx, p, run_id, task_id, &task.round_id, &task.thread_id, &keep)
+            })?;
+        }
         if status_of(store.conn(), task_id)? != "running" {
             break;
         }
@@ -263,12 +271,13 @@ async fn pump_turn<S: Session>(
     run_id: &str,
     round_id: &str,
     thread_id: &str,
-) -> Result<TurnEnd> {
+) -> Result<(TurnEnd, String)> {
+    let mut said = String::new();
     loop {
         let event = match session.next_event().await {
             Ok(Some(event)) => event,
-            Ok(None) => return Ok(TurnEnd::Died("stream closed".into())),
-            Err(e) => return Ok(TurnEnd::Died(describe(&e))),
+            Ok(None) => return Ok((TurnEnd::Died("stream closed".into()), said)),
+            Err(e) => return Ok((TurnEnd::Died(describe(&e)), said)),
         };
         match event {
             Event::PermissionRequest { request_id, tool, input, .. } => {
@@ -280,7 +289,7 @@ async fn pump_turn<S: Session>(
                     Ok(Outcome::Applied(()))
                 })?;
                 if let Err(e) = session.reply_permission(&request_id, decision).await {
-                    return Ok(TurnEnd::Died(describe(&e)));
+                    return Ok((TurnEnd::Died(describe(&e)), said));
                 }
             }
             Event::ToolCall { name, input, .. } => {
@@ -299,12 +308,14 @@ async fn pump_turn<S: Session>(
                 })?;
             }
             Event::TurnFinished { error, .. } => {
-                return Ok(match error {
+                let end = match error {
                     Some(e) if !e.is_empty() => TurnEnd::Died(e),
                     _ => TurnEnd::Finished,
-                });
+                };
+                return Ok((end, said));
             }
-            Event::SessionEnded { reason } => return Ok(TurnEnd::Died(reason)),
+            Event::SessionEnded { reason } => return Ok((TurnEnd::Died(reason), said)),
+            Event::TextDelta { text } => said.push_str(&text),
             _ => {}
         }
     }

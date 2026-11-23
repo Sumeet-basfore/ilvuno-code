@@ -195,3 +195,34 @@ Single row, key/value. Defaults for budget, message policy, gate behaviour, them
 3. No `merge` action unless `rounds.verdict ∈ {pass, pass_with_notes}` **and** `runs.status = accepted`.
 4. No write to a worktree other than the thread's own.
 5. `same request_id` twice ⇒ one dispatch, one receipt.
+
+---
+
+## Export bundle
+
+`ilvuno export <run> --out <dir>` writes one run as plain files. It is the fixture prototypes read, and the
+shape the UI will read. Nothing is invented; every field comes from the database.
+
+```
+run.json        run, goal, threads, rounds, tasks, ledger, artifacts
+board.md        the same board a thread reads
+journal.jsonl   one JSON object per line: seq, at, kind, round_id, thread_id, payload
+artifacts/      the files the run produced
+```
+
+`run.json` top level:
+
+| key | contents |
+|---|---|
+| `run` | id, status, rounds_used, tokens_used, started_at, ended_at, blocked_reason, **project** (the goal file's folder) |
+| `goal` | text, done, checks, message_policy, budget |
+| `threads[]` | name, agent, role, prompt, status, native_session |
+| `rounds[]` | index, status, verdict, readiness (checks + failing), tokens, cost_usd |
+| `tasks[]` | prompt, status, created_by, scope, thread, result, **message**, round |
+| `ledger[]` | id, kind, body, scope, round, thread |
+| `artifacts[]` | kind, path, bytes, sha256, thread |
+
+`message` is the task's final text, kept once per task (20k chars max). Deltas are not stored; the provider
+keeps the original session.
+
+---

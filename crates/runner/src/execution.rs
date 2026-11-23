@@ -93,3 +93,24 @@ pub fn record_tool_call(pending: &mut Pending, run_id: &str, round_id: &str, thr
 pub fn record_permission(pending: &mut Pending, run_id: &str, round_id: &str, thread_id: &str, payload: Value) {
     pending.push(run_id, Some(round_id), Some(thread_id), "permission.decided", payload);
 }
+
+/// Keep the final text of a task's last turn. Deltas are not stored, so this is the whole message.
+pub fn record_result_text(
+    tx: &Transaction<'_>,
+    pending: &mut Pending,
+    run_id: &str,
+    dispatch_id: &str,
+    round_id: &str,
+    thread_id: &str,
+    text: &str,
+) -> Result<Outcome<()>> {
+    tx.execute("UPDATE dispatch SET result_text = ?2 WHERE id = ?1", params![dispatch_id, text])?;
+    pending.push(
+        run_id,
+        Some(round_id),
+        Some(thread_id),
+        "dispatch.message",
+        json!({ "dispatch_id": dispatch_id, "chars": text.chars().count() }),
+    );
+    Ok(Outcome::Applied(()))
+}

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brief: Ilvuno security model and provider contract</title>
+</head>
+<body>
+  <h1>Brief: Ilvuno security model and provider contract</h1>
+
+  <section id="security">
+    <h2>Security model</h2>
+    <p>Ilvuno does not sandbox its agents. They run with the permissions the user already gave their CLI and with the vendor's own sandbox, so Ilvuno's job is to avoid giving them more access. The scope is a single user on a local machine. The repository is treated as untrusted, because instructions hidden in files can lead an agent to read files or run commands. Prompt injection is rated as a high residual risk.</p>
+    <p>The runner enforces a few things. Credentials stay out of agent environments. Each worker has its own worktree and cannot switch branches or touch <code>main</code>. Merges happen only in the runner after an accepted round. Diffs outside the declared scope are flagged, but not blocked. Every command and effect is journaled with a request id.</p>
+    <p>Known limits: there is no network allowlist, so an injected agent with shell access could send files out. Ilvuno cannot stop a determined injection, does not protect a machine that is already root-compromised, and does not protect against a malicious provider CLI. Defaults are conservative: approvals stay on, messaging is round-based, a human gate sits on every round, and the budget is 3 rounds or 150k tokens. Telemetry is off.</p>
+    <p>If an incident happens, freeze the run to park threads while keeping worktrees, read the journal, and do not rely on the runner to delete branches. If credentials may have leaked, rotate them at the provider, because Ilvuno never stores them.</p>
+  </section>
+
+  <section id="provider-contract">
+    <h2>Provider contract</h2>
+    <p>Version 1 has two adapters. <code>claude</code> speaks the native stream-json and control protocol. <code>acp</code> speaks the Agent Client Protocol and can point at any agent's ACP command. The design gives no first-party privilege: anything <code>claude</code> needs must also be available through ACP.</p>
+    <p>The adapter only translates. It never writes to the database, never decides that a round is finished, and never retries a turn on its own. If it cannot answer a question, it reports <code>unknown</code> and the runner decides. Commands flow from runner to adapter and carry a <code>request_id</code>, so resending the same id must not start a second turn. Eleven event kinds flow back, and <code>raw</code> keeps any provider payload the contract does not yet model.</p>
+    <p>Capabilities are declared, not probed. The runner greys out features an adapter lacks and never fakes them. Permissions differ by wire but map to one event. <code>claude</code> needs an <code>initialize</code> handshake first, or every tool is silently denied. ACP picks an option by its kind, never by position, and needs <code>"mode": "workspace-write"</code>. <code>/tmp</code> is writable in that mode, so it is not a boundary.</p>
+    <p>Prompts are part of the contract. The worker and orchestrator prompts ship with the runner and are injected on every turn. Workers log intent before touching a file, stay in their own folder, never switch branches or merge, ask when they need a decision, and report once. The orchestrator plans and delegates but does not write the deliverable.</p>
+    <p>Access rules: a thread writes only inside its own folder and reads its own folder, the run folder, and any absolute path in its task scope. Error classes have fixed responses. A spawn failure marks the instance unavailable. Auth failures and usage limits pause the run and tell the human. A turn failure gets one retry. A protocol error marks the session broken. Unknown outcomes are recorded and never silently resent. An adapter crash counts as a turn failure and never takes down the runner.</p>
+  </section>
+</body>
+</html>

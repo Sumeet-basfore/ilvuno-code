@@ -83,7 +83,7 @@ fn setup(name: &str, goal_json: &str, script: Script) -> Env {
     // Enough finished turns for every task the scenario starts. Each turn ends at once: the agent reports
     // from inside the hook, before the events are read.
     for _ in 0..30 {
-        provider.push_turn(vec![usage(), finished()]);
+        provider.push_turn(vec![said("I did the task in my folder."), usage(), finished()]);
     }
     Env { dir, home, store, run_id, plan, provider }
 }
@@ -142,6 +142,11 @@ fn line_after(text: &str, marker: &str) -> String {
 
 fn usage() -> Event {
     Event::Usage { tokens_in: 900, tokens_out: 150, cache_read_tokens: 0, context_used: None, cost_usd: Some(0.01) }
+}
+
+/// What the agent says. Only the final text per task is stored; deltas are summed into it.
+fn said(text: &str) -> Event {
+    Event::TextDelta { text: text.to_string() }
 }
 
 fn finished() -> Event {
@@ -231,6 +236,10 @@ async fn orchestrator_plans_checks_fail_then_it_is_woken_and_the_run_reaches_the
     let spawns = env.provider.spawns();
     assert_eq!(spawns.len(), 5, "orchestrator kickoff, two readers, orchestrator wake, brief writer");
     assert_eq!(spawns.iter().filter(|s| s.env.iter().any(|(k, _)| k == "ILVUNO_TASK")).count(), 2);
+    // What a thread said is kept once per task, so a thread view has something to show.
+    assert_eq!(count(&env.store, "SELECT COUNT(*) FROM dispatch WHERE result_text LIKE 'I did the task%'"), 5,
+        "every finished task keeps its final message");
+    assert_eq!(count(&env.store, "SELECT COUNT(*) FROM journal WHERE kind = 'dispatch.message'"), 5);
     // The board names each thread and each author, so a person can follow it without a transcript.
     let board = std::fs::read_to_string(env.home.board_path(&env.run_id)).expect("board");
     assert!(board.contains("by reader-1") && board.contains("by orchestrator") && board.contains("by user"), "{board}");

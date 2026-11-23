@@ -94,6 +94,16 @@ English is the user's second language. Write so a child could follow.
    position.
 7. `webkit2gtk-4.1` is not installed; Tauri needs it. Install before the shell work, with the user's ok.
 
+## One command exports a run for the UI
+
+```bash
+RUSTUP_TOOLCHAIN=1.100.0 ./target/debug/ilvuno export <run-id> --out fixtures/<name>
+```
+
+Writes `run.json`, `board.md`, `journal.jsonl`, `artifacts/`. `fixtures/board-experiment/` is a real
+accepted run: use it for UI work instead of inventing data. The shape is documented in
+`docs/data-model.md` under "Export bundle".
+
 ## Reports are HTML, not markdown
 
 Markdown is the source; HTML is the reading artifact. Never hand-write report HTML.
