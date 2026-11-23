@@ -1,6 +1,6 @@
 //! Permission policy: the runner decides, the adapter only translates (docs/provider-contract.md).
 //! Deny by default. A worker may read its sources and its own directory, write only its own
-//! directory, and run exactly one shell command: its own `ilvuno report`.
+//! directory, and run exactly two shell commands: its own `ilvuno report` and `ilvuno note`.
 
 use crate::state::check_write_path;
 use provider_core::Decision;
@@ -69,10 +69,11 @@ impl WorkerPolicy {
             return Err("shell control syntax is not permitted".into());
         }
         let prefix = format!("{} report --task {} ", self.ilvuno_bin, self.task_id);
-        if command.starts_with(&prefix) {
+        let note_prefix = format!("{} note --task {} ", self.ilvuno_bin, self.task_id);
+        if command.starts_with(&prefix) || command.starts_with(&note_prefix) {
             Ok(())
         } else {
-            Err("only the worker report command is permitted".into())
+            Err("only the worker report and note commands are permitted".into())
         }
     }
 }
@@ -123,6 +124,16 @@ mod tests {
         assert!(!denied(&p.decide("Read", &json!({"file_path": "/repo/research/09-spike.md"}))));
         assert!(!denied(&p.decide("Read", &json!({"file_path": "/runs/r1/threads/researcher-a/x"}))));
         assert!(denied(&p.decide("Read", &json!({"file_path": "/home/sumeet/.aws/credentials"}))));
+    }
+
+    #[test]
+    fn bash_allows_its_own_note_command() {
+        let p = policy();
+        let ok = json!({"command": "ilvuno note --task task-7 --kind intent --body \"writing findings.md\""});
+        assert!(!denied(&p.decide("Bash", &ok)));
+        assert!(denied(&p.decide("Bash", &json!({"command": "ilvuno note --task task-8 --kind intent --body x"}))));
+        assert!(denied(&p.decide("Bash", &json!({"command": "ilvuno note --task task-7 --kind intent --body x; rm -rf ~"}))));
+        assert!(denied(&p.decide("Bash", &json!({"command": "ilvuno gate r1 accept"}))));
     }
 
     #[test]

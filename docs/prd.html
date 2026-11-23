@@ -102,7 +102,7 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">822 words<br>9 sections<br>100 lines of source</div>
+  <div class="meta">887 words<br>9 sections<br>105 lines of source</div>
   <nav><a class="lvl2" href="#1-the-product-in-one-paragraph">1. The product in one paragraph</a>
 <a class="lvl2" href="#2-who-it-is-for">2. Who it is for</a>
 <a class="lvl2" href="#3-jobs-to-be-done">3. Jobs to be done</a>
@@ -162,8 +162,12 @@ AI review that never sees the conversation that produced the code.</p>
 <h2 id="4-the-two-templates">4. The two templates</h2>
 <p><strong>Research run.</strong> Roles: orchestrator, 2–4 researchers, one synthesizer, one citation checker.
 Loop: <code>plan → gather → compare → synthesize → verify → report</code>.
-Done: every section cites at least one resolved source; no placeholders; every recorded finding is either
-cited or explicitly rejected; contradictions are resolved or recorded as a decision. Then the human gate.</p>
+Done in v0: every <code>&lt;section&gt;</code> of the brief carries a citation that resolves to a real section of the
+source; all required sections are cited; no placeholder markers. Then the human gate.</p>
+<p>Two further checks — <em>every recorded finding is cited or rejected</em> and <em>contradictions are resolved</em> —
+are named in the goal but <strong>not implemented in v0</strong>. They are reported as <code>skip</code> with a reason at the
+gate, never as <code>pass</code>. Claim extraction is the work that would make them real; until then the human gate
+is the judge of those two, and the readiness report says so.</p>
 <p><strong>Feature run.</strong> Roles: orchestrator, builder, reviewer (different provider required), merger.
 Loop: <code>plan → build → review → fix → verify → ready</code>.
 Done: the named test command exits 0; reviewer verdict is not blocking; the diff touches only declared

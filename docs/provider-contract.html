@@ -102,7 +102,7 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">1,044 words<br>8 sections<br>158 lines of source</div>
+  <div class="meta">1,134 words<br>8 sections<br>165 lines of source</div>
   <nav><a class="lvl2" href="#the-boundary">The boundary</a>
 <a class="lvl2" href="#commands-runner-adapter">Commands (runner → adapter)</a>
 <a class="lvl2" href="#events-adapter-runner">Events (adapter → runner)</a>
@@ -276,9 +276,10 @@ Board: read `&lt;run&gt;/board.md` before you start and before you report.
 Message policy for this run: &lt;round|anytime|never&gt;.
 
 Rules:
-- Announce your intent on the board before you touch a file.
+- Before you touch a file, say so: `ilvuno note --task &lt;task_id&gt; --kind intent --body &quot;what you are about to do&quot;`.
 - Write only inside your worktree. Never switch branches. Never merge.
-- When you need a decision you cannot make: write a `question` to the board and stop your turn.
+- When you need a decision you cannot make, ask and stop your turn:
+  `ilvuno note --task &lt;task_id&gt; --kind question --body &quot;the question&quot;`.
 - When you finish: report exactly once with `ilvuno report --task &lt;task_id&gt; --status ok|failed
   --summary &quot;&lt;3 sentences&gt;&quot; --files &quot;&lt;paths&gt;&quot;`.
 - Do not spawn other agents. Do not poll for work. You will be woken.
@@ -286,6 +287,11 @@ Rules:
 === TASK ===
 &lt;task text&gt;
 </code></pre>
+<p><strong>Worker CLI surface:</strong> exactly two commands are permitted to a worker — <code>ilvuno note</code>
+(<code>intent</code> | <code>finding</code> | <code>question</code> | <code>answer</code>, scope must stay inside the dispatch's scope) and
+<code>ilvuno report</code>. Everything else, including reading the board file by any other means, is refused by the
+runner's policy. If the preamble asks for something the policy forbids, that is a bug in one of them —
+v0 shipped exactly that bug once and it cost every worker four refused turns.</p>
 <p><strong>Orchestrator contract</strong> (adapted from t3's, which is the version that works):</p>
 <pre><code>You plan and delegate. You do not write code or prose deliverables yourself.
 Before dispatching, write one `intent` per worker naming the files or sources it will own.

@@ -6,6 +6,7 @@ use provider_claude::ClaudeProvider;
 use runner::commands::{self, ReportStatus};
 use runner::driver::{Driver, RunEnd};
 use runner::goal::{self, GoalPlan};
+use runner::note::run_note;
 use runner::report::run_report;
 use runner::run_status::{self, GateDecision};
 use runner::store::Outcome;
@@ -52,6 +53,17 @@ enum Command {
         summary: String,
         #[arg(long, value_delimiter = ',', num_args = 0..)]
         files: Vec<String>,
+    },
+    /// Worker-only: append a note (intent, finding, question, answer) to the run board.
+    Note {
+        #[arg(long)]
+        task: String,
+        #[arg(long, value_parser = ["intent", "finding", "question", "answer"])]
+        kind: String,
+        #[arg(long)]
+        body: String,
+        #[arg(long, value_delimiter = ',', num_args = 0..)]
+        scope: Vec<String>,
     },
 }
 
@@ -152,6 +164,17 @@ async fn main() -> Result<()> {
                     println!("projection MISMATCH: {p}");
                 }
                 std::process::exit(1);
+            }
+        }
+        Command::Note { task, kind, body, scope } => {
+            let scope: Vec<String> = scope.into_iter().filter(|s| !s.trim().is_empty()).collect();
+            match run_note(&home, &task, &kind, &body, &scope)? {
+                Outcome::Applied(id) => println!("noted {kind} #{id} for {task}"),
+                Outcome::Duplicate(_) => println!("already noted {task}"),
+                Outcome::Refused(reason) => {
+                    eprintln!("note refused: {reason}");
+                    std::process::exit(1);
+                }
             }
         }
         Command::Report { task, status, summary, files } => {

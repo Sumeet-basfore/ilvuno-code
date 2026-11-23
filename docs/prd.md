@@ -37,8 +37,13 @@ Not the user in v1: enterprises, non-coders, anyone expecting a hosted service.
 
 **Research run.** Roles: orchestrator, 2–4 researchers, one synthesizer, one citation checker.
 Loop: `plan → gather → compare → synthesize → verify → report`.
-Done: every section cites at least one resolved source; no placeholders; every recorded finding is either
-cited or explicitly rejected; contradictions are resolved or recorded as a decision. Then the human gate.
+Done in v0: every `<section>` of the brief carries a citation that resolves to a real section of the
+source; all required sections are cited; no placeholder markers. Then the human gate.
+
+Two further checks — *every recorded finding is cited or rejected* and *contradictions are resolved* —
+are named in the goal but **not implemented in v0**. They are reported as `skip` with a reason at the
+gate, never as `pass`. Claim extraction is the work that would make them real; until then the human gate
+is the judge of those two, and the readiness report says so.
 
 **Feature run.** Roles: orchestrator, builder, reviewer (different provider required), merger.
 Loop: `plan → build → review → fix → verify → ready`.

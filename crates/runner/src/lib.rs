@@ -13,6 +13,7 @@ pub mod research;
 pub mod run_status;
 pub mod home;
 pub mod ledger;
+pub mod note;
 pub mod policy;
 pub mod state;
 pub mod store;

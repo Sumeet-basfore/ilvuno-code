@@ -369,6 +369,48 @@ pub fn report_dispatch(
 
 
 
+/// `ilvuno note`: a worker's board entry. The scope must stay inside the dispatch's declared scope,
+/// and a worker may only write the kinds it is entitled to.
+pub fn note(
+    tx: &Transaction<'_>,
+    pending: &mut Pending,
+    dispatch_id: &str,
+    kind: &str,
+    body: &str,
+    scope: &[String],
+) -> Result<Outcome<i64>> {
+    const WORKER_KINDS: &[&str] = &["intent", "finding", "question", "answer"];
+    let row = match dispatch_row_opt(tx, dispatch_id)? {
+        Some(row) => row,
+        None => return Ok(Outcome::Refused(format!("unknown task {dispatch_id}"))),
+    };
+    let run_id = run_of_round(tx, &row.round_id)?;
+    if row.status != "queued" && row.status != "running" {
+        let reason = format!("task already {}", row.status);
+        pending.push(&run_id, Some(&row.round_id), Some(&row.thread_id), "note.refused", json!({ "reason": reason }));
+        return Ok(Outcome::Refused(reason));
+    }
+    if !WORKER_KINDS.contains(&kind) {
+        let reason = format!("kind {kind} is not writable by a worker");
+        pending.push(&run_id, Some(&row.round_id), Some(&row.thread_id), "note.refused", json!({ "reason": reason }));
+        return Ok(Outcome::Refused(reason));
+    }
+    if body.trim().is_empty() {
+        return Ok(Outcome::Refused("note body is empty".into()));
+    }
+    let scope: Vec<String> = if scope.is_empty() { row.scope.clone() } else { scope.to_vec() };
+    if let Some(outside) = scope.iter().find(|s| !row.scope.contains(s)) {
+        let reason = format!("scope entry {outside} is outside this dispatch's scope");
+        pending.push(&run_id, Some(&row.round_id), Some(&row.thread_id), "note.refused", json!({ "reason": reason }));
+        return Ok(Outcome::Refused(reason));
+    }
+    let id = crate::ledger::append(
+        tx, pending, &run_id, Some(&row.round_id), Some(&row.thread_id), kind, &scope, body,
+        json!({ "dispatch_id": dispatch_id }),
+    )?;
+    Ok(Outcome::Applied(id))
+}
+
 struct DispatchRowData {
     round_id: String,
     thread_id: String,

@@ -106,9 +106,10 @@ Board: read `<run>/board.md` before you start and before you report.
 Message policy for this run: <round|anytime|never>.
 
 Rules:
-- Announce your intent on the board before you touch a file.
+- Before you touch a file, say so: `ilvuno note --task <task_id> --kind intent --body "what you are about to do"`.
 - Write only inside your worktree. Never switch branches. Never merge.
-- When you need a decision you cannot make: write a `question` to the board and stop your turn.
+- When you need a decision you cannot make, ask and stop your turn:
+  `ilvuno note --task <task_id> --kind question --body "the question"`.
 - When you finish: report exactly once with `ilvuno report --task <task_id> --status ok|failed
   --summary "<3 sentences>" --files "<paths>"`.
 - Do not spawn other agents. Do not poll for work. You will be woken.
@@ -116,6 +117,12 @@ Rules:
 === TASK ===
 <task text>
 ```
+
+**Worker CLI surface:** exactly two commands are permitted to a worker — `ilvuno note`
+(`intent` | `finding` | `question` | `answer`, scope must stay inside the dispatch's scope) and
+`ilvuno report`. Everything else, including reading the board file by any other means, is refused by the
+runner's policy. If the preamble asks for something the policy forbids, that is a bug in one of them —
+v0 shipped exactly that bug once and it cost every worker four refused turns.
 
 **Orchestrator contract** (adapted from t3's, which is the version that works):
 
