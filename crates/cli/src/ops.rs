@@ -59,7 +59,29 @@ pub async fn drive_with<P: Provider>(
     plan: &GoalPlan,
     run_id: &str,
 ) -> Result<RunEnd> {
+    reopen_if_stopped(store, run_id)?;
     let bin_dir = own_bin_dir();
     let driver = Driver { providers, home, ilvuno_bin_dir: bin_dir.as_deref(), max_usd: plan.usd_per_call() };
     driver.drive(store, plan, run_id).await
+}
+
+/// Driving is also resuming: a run that was stopped goes back to working first, or the loop would read the
+/// very state it is being resumed from and end at once. Recorded like any other transition.
+fn reopen_if_stopped(store: &mut Store, run_id: &str) -> Result<()> {
+    use runner::RunStatus;
+    let status = commands::load_run(store.conn(), run_id)?.status;
+    let stopped = matches!(
+        status,
+        RunStatus::Blocked | RunStatus::BudgetExhausted | RunStatus::NoProgress | RunStatus::HumanPaused
+    );
+    if !stopped {
+        return Ok(());
+    }
+    store.transact("run.reopen", None, |tx, p| {
+        // The run is open again: no end time (it would freeze "Ran for"), and no stale stop reason.
+        tx.execute("UPDATE runs SET ended_at = NULL, blocked_reason = NULL WHERE id = ?1", [run_id])?;
+        runner::run_status::set_run_status(tx, p, run_id, RunStatus::Working, Some("resumed by you"))?;
+        Ok(Outcome::Applied(()))
+    })?;
+    Ok(())
 }

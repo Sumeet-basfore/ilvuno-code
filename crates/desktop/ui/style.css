@@ -120,6 +120,8 @@ svg.ic.sm{width:12px;height:12px}
 .meta .chip{height:19px;flex:none}
 .meta-btn{display:inline-flex;align-items:center;gap:5px;height:19px;padding:0 6px;border:1px solid var(--accent-line);border-radius:4px;background:var(--accent-weak);font-family:var(--mono);font-size:9.5px;line-height:1;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);white-space:nowrap;transition:filter .12s}
 .meta-btn:hover{filter:brightness(1.14)}
+.meta-btn.stop{border-color:var(--red-line);background:var(--red-weak);color:var(--red)}
+.meta-btn[aria-disabled="true"]{opacity:.55;pointer-events:none}
 .conn{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9.5px;line-height:1;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap;flex:none}
 .conn .dot{box-shadow:none}
 

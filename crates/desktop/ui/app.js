@@ -103,6 +103,7 @@
     agentsError: '',
     agentsLoading: false,
     settingsTab: 'general',
+    stopping: false,
     settingsRoute: '',
     drawerIndex: -1,
     expanded: new Set(),
@@ -464,8 +465,10 @@
 
   // The rail has room for two folder names, not the whole path; the title attribute keeps the rest.
   function tailPath(path, keep = 2) {
-    const parts = String(path || '').split('/').filter(Boolean);
-    if (parts.length <= keep) return parts.join('/');
+    const raw = String(path || '');
+    const parts = raw.split('/').filter(Boolean);
+    // Short paths keep their leading slash: "tmp/stop2" would read as a relative path.
+    if (parts.length <= keep) return raw.startsWith('/') ? raw : parts.join('/');
     return '…/' + parts.slice(-keep).join('/');
   }
 
@@ -848,6 +851,11 @@
       statusChip(run.status),
       chip(`${roundsUsed()}/${budget.rounds ?? '—'} rounds · ${compact(run.tokens_used)}/${budget.tokens ? compact(budget.tokens) : '—'} tokens`, 'num'),
       atGate ? `<button class="meta-btn" data-act="focus-gate">${ic('check', 'ic sm')}Gate open</button>` : '',
+      // One click, no dialog: nothing is merged, and Resume sits in the stop banner afterwards.
+      run.status === 'working'
+        ? `<button class="meta-btn stop" data-act="stop-run" ${state.stopping ? 'aria-disabled="true"' : ''}
+             title="The turn in flight finishes; no new task or round starts">${ic('stop', 'ic sm')}${state.stopping ? 'Stopping' : 'Stop'}</button>`
+        : '',
     ].join('');
   }
 
@@ -929,7 +937,7 @@
         <p>${esc(reason)}</p>
         <div class="runstop-actions">
           <button class="btn" data-act="resume">Resume run</button>
-          <span class="runstop-meta">${fmt(run.tokens_used)} tokens · ${roundsUsed()} rounds</span>
+          <span class="runstop-meta">${fmt(run.tokens_used)} tokens · ${roundsUsed()} round${roundsUsed() === 1 ? '' : 's'}</span>
         </div>
       </section>`;
   }
@@ -1314,7 +1322,11 @@
     if (state.health === false) return 'The runner is not answering.';
     if (!thread) return 'No thread is selected.';
     if (!run) return 'No run is selected.';
-    if (run.status !== 'working') return `This run is ${statusWord(run.status)}. Start a new run to continue.`;
+    if (run.status !== 'working') {
+      // A stopped run is not finished: Resume picks it up, and saying "start a new run" would hide that.
+      const resumable = ['blocked', 'budget_exhausted', 'no_progress', 'human_paused'].includes(run.status);
+      return `This run is ${statusWord(run.status)}. ${resumable ? 'Resume it to continue.' : 'Start a new run to continue.'}`;
+    }
     return '';
   }
 
@@ -1351,6 +1363,24 @@
     const err = state.sendError && state.sendError.thread === thread.name ? state.sendError.message : '';
     error.hidden = !err;
     error.textContent = err;
+  }
+
+  /// Stop a run that is working. The runner lets the turn in flight finish, so this reports "stopping"
+  /// until the run's own status changes; the banner then says who stopped it and offers Resume.
+  async function stopRun() {
+    if (!state.currentId || state.stopping) return;
+    state.stopping = true;
+    renderChrome();
+    try {
+      await postJson(`/runs/${encodeURIComponent(state.currentId)}/stop`, {});
+      showToast('Stopping after the current turn.');
+      await loadRun(state.currentId, { refresh: true });
+      await refreshRuns();
+    } catch (err) {
+      showToast(err.message);
+    }
+    state.stopping = false;
+    renderAll();
   }
 
   async function sendMessage() {
@@ -2076,6 +2106,9 @@
         renderChrome();
         break;
       }
+      case 'stop-run':
+        stopRun();
+        break;
       case 'focus-gate':
         focusGate();
         break;

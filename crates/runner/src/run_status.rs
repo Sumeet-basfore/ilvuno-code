@@ -68,6 +68,29 @@ pub fn record_usage(
     Ok(())
 }
 
+/// A person stopped the run. The turn in flight finishes, because half a turn leaves nothing worth
+/// keeping; no new task and no new round start. `resume` picks the run up where it stopped.
+pub fn stop(store: &mut Store, run_id: &str, note: Option<&str>) -> Result<Outcome<()>> {
+    let run = load_run(store.conn(), run_id)?;
+    if run.status == RunStatus::HumanPaused {
+        return Ok(Outcome::Refused("this run is already stopped".into()));
+    }
+    if run.status.is_terminal() || run.status == RunStatus::Reviewed {
+        return Ok(Outcome::Refused(format!(
+            "this run is {}; there is nothing to stop",
+            run.status.as_str()
+        )));
+    }
+    let reason = match note.map(str::trim).filter(|n| !n.is_empty()) {
+        Some(n) => format!("stopped by you: {n}"),
+        None => "stopped by you".to_string(),
+    };
+    store.transact("run.stop", None, |tx, p| {
+        set_run_status(tx, p, run_id, RunStatus::HumanPaused, Some(&reason))?;
+        Ok(Outcome::Applied(()))
+    })
+}
+
 /// Record the round verdict and the readiness snapshot assembled before the gate.
 pub fn record_verdict(
     tx: &Transaction<'_>,

@@ -1,4 +1,4 @@
-//! Run routes: list, detail, board, start, resume.
+//! Run routes: list, detail, board, start, stop, resume.
 
 use crate::blocking::{blocking, open_store, require_run};
 use crate::drive::spawn_drive;
@@ -87,6 +87,40 @@ where
     claim.set_holder(&run_id);
     spawn_drive(&state, claim, plan, run_id.clone());
     Ok((StatusCode::ACCEPTED, Json(json!({ "run_id": run_id, "status": "working" }))))
+}
+
+/// `POST /runs/:id/stop`: the current turn finishes, then nothing else starts. `resume` continues.
+pub async fn stop<P>(State(state): State<AppState<P>>, Path(run_id): Path<String>, body: Bytes) -> ApiResult<Json<Value>>
+where
+    P: Provider + Send + Sync + 'static,
+{
+    let note = if body.is_empty() {
+        None
+    } else {
+        serde_json::from_slice::<StopBody>(&body)
+            .map_err(|e| ApiError::BadRequest(format!("invalid request body: {e}")))?
+            .note
+    };
+    let home = state.home.clone();
+    let run = run_id.clone();
+    let status = blocking(move || {
+        let mut store = open_store(&home)?;
+        require_run(&store, &run)?;
+        match runner::run_status::stop(&mut store, &run, note.as_deref())? {
+            runner::Outcome::Applied(()) => {}
+            runner::Outcome::Refused(reason) => return Err(ApiError::Conflict(reason)),
+            runner::Outcome::Duplicate(_) => return Err(ApiError::Conflict("this run is already stopped".into())),
+        }
+        require_run(&store, &run)
+    })
+    .await?;
+    Ok(Json(json!({ "run_id": run_id, "status": status })))
+}
+
+#[derive(serde::Deserialize)]
+struct StopBody {
+    #[serde(default)]
+    note: Option<String>,
 }
 
 /// `POST /runs/:id/resume`: the same path as `ilvuno run --resume`.

@@ -70,6 +70,10 @@ impl<P: Provider> Driver<'_, P> {
                 return Ok(RunEnd::Idle);
             };
             self.run_open_tasks(store, plan, run_id, &round).await?;
+            // A stop that arrived during a turn wins over closing the round: no checks, no wake-up.
+            if self.paused(store, run_id)? {
+                return Ok(RunEnd::Paused);
+            }
             if let Some(end) = self.close_round(store, plan, run_id, &round)? {
                 return Ok(end);
             }
@@ -83,6 +87,10 @@ impl<P: Provider> Driver<'_, P> {
         while let Some(task) = next_open_task(store.conn(), &round.id, &attempted)? {
             // Checked per task, not per round: one round of three tasks can blow the run's budget.
             if self.budget_exhausted(store, run_id)? {
+                break;
+            }
+            // Same for a stop: the turn that is running finishes, the next one never starts.
+            if self.paused(store, run_id)? {
                 break;
             }
             attempted.insert(task.id.clone());
@@ -104,6 +112,11 @@ impl<P: Provider> Driver<'_, P> {
             |r| Ok((r.get(0)?, r.get(1)?)),
         )?;
         Ok(used as u64 >= limit as u64)
+    }
+
+    /// True once a person has stopped the run.
+    fn paused(&self, store: &Store, run_id: &str) -> Result<bool> {
+        Ok(load_run(store.conn(), run_id)?.status == RunStatus::HumanPaused)
     }
 
     /// Close the round if no task is open: run the checks, record the verdict, and either stop, or wake the

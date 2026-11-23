@@ -33,6 +33,7 @@ where
         .route("/runs/{id}/events", get(events::stream::<P>))
         .route("/runs/{id}/tasks", post(actions::create_task::<P>))
         .route("/runs/{id}/gate", post(actions::gate::<P>))
+        .route("/runs/{id}/stop", post(runs::stop::<P>))
         .route("/runs/{id}/resume", post(runs::resume::<P>))
         .route("/agents", get(agents::list::<P>))
         .route("/settings", get(settings::read_route::<P>).put(settings::write_route::<P>))
