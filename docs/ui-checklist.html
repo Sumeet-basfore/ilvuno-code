@@ -102,7 +102,7 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">1,939 words<br>6 sections<br>195 lines of source</div>
+  <div class="meta">2,062 words<br>6 sections<br>207 lines of source</div>
   <nav><a class="lvl2" href="#1-what-is-approved-and-what-is-not">1. What is approved, and what is not</a>
 <a class="lvl3" href="#approved-in-the-prd-the-data-model-or-the-roadmap">Approved — in the PRD, the data model or the roadmap</a>
 <a class="lvl3" href="#not-approved-do-not-build-without-the-users-word">Not approved — do not build without the user&#x27;s word</a>
@@ -111,7 +111,7 @@ td code,th code{font-size:12px}
 <a class="lvl3" href="#m1-the-runs-facts-in-the-rail-done">M1 — The run&#x27;s facts, in the rail · done</a>
 <a class="lvl3" href="#m2-stop-a-working-run-done">M2 — Stop a working run · done</a>
 <a class="lvl3" href="#m3-new-run-from-a-goal-file-later">M3 — New run from a goal file · later</a>
-<a class="lvl3" href="#m4-choose-the-agent-for-a-thread-later">M4 — Choose the agent for a thread · later</a>
+<a class="lvl3" href="#m4-choose-the-agent-for-a-thread-done">M4 — Choose the agent for a thread · done</a>
 <a class="lvl3" href="#m5-what-the-agent-actually-ran-blocked">M5 — What the agent actually ran · blocked</a>
 <a class="lvl3" href="#m6-reachability-and-scaling-done">M6 — Reachability and scaling · done</a>
 <a class="lvl3" href="#m7-every-state-says-what-it-is-later">M7 — Every state says what it is · later</a>
@@ -294,13 +294,23 @@ task finished as <code>reported</code>, the round stayed <code>open</code>, and 
 <li>[ ] A bad file shows the parse error and does not start a run</li>
 <li>Acceptance: a run created from <code>examples/board-experiment.json</code>; a syntax error shown as an error</li>
 </ul>
-<h3 id="m4-choose-the-agent-for-a-thread-later">M4 — Choose the agent for a thread · later</h3>
-<p>The product's claim is &quot;agents are choices&quot;. Today the choice is made once, in the goal file.</p>
+<h3 id="m4-choose-the-agent-for-a-thread-done">M4 — Choose the agent for a thread · done</h3>
+<p>The product's claim is &quot;agents are choices&quot;. The choice was made once, in the goal file.</p>
 <ul>
-<li>[ ] The thread header can change the agent for the <em>next</em> task, from the detected list</li>
-<li>[ ] A same-provider warning when a run would use one CLI for every thread</li>
-<li>[ ] The journal records who chose, and the coordinator's prompt version, per thread</li>
-<li>Acceptance: change a thread from Codex to Claude, next task runs on Claude, journal shows the choice</li>
+<li>[x] The thread header opens a list of the agents the run's goal names; the picker sets the <em>next</em> task</li>
+<li>[x] Refused: an unknown thread, an agent the goal does not name, a thread with a turn in flight, a
+finished run — each with a reason the window shows</li>
+<li>[x] The journal records <code>thread.agent</code> with from, to and who chose</li>
+<li>[x] A note when every thread runs on one agent: it works on one subscription, and a second agent is
+the point</li>
+<li>Evidence: commit <code>d36828b</code>; 136 tests, including
+<code>a_thread_can_move_to_another_agent_and_the_journal_names_both</code>,
+<code>a_thread_with_a_running_turn_keeps_its_agent</code>, <code>the_agent_of_a_thread_can_be_changed</code>.
+Live check on a run naming <code>claude-main</code> and <code>codex-acp</code>: switched <code>checker</code>, the API showed
+<code>claude-main</code>, the journal showed <code>{&quot;from&quot;:&quot;codex-acp&quot;,&quot;to&quot;:&quot;claude-main&quot;,&quot;by&quot;:&quot;user&quot;}</code>,
+<code>shots/agent-picker.png</code> is the menu</li>
+<li>Found: the menu was hidden under the button's own native tooltip — it looked like an empty grey box.
+The button carries <code>aria-label</code> now and no <code>title</code></li>
 </ul>
 <h3 id="m5-what-the-agent-actually-ran-blocked">M5 — What the agent actually ran · blocked</h3>
 <p>The conversation shows the agent's words and its report. It does not show the tools it called. Codex and
@@ -405,6 +415,16 @@ tools/shots.sh                                           # the full set into cra
 <td>Short folder paths lost their leading slash</td>
 <td>the shortening rule assumed a deep path</td>
 <td><code>40d1009</code></td>
+</tr>
+<tr>
+<td>The agent menu looked empty</td>
+<td>the browser's own tooltip covered it</td>
+<td><code>d36828b</code></td>
+</tr>
+<tr>
+<td>Runner tests had no goal snapshot</td>
+<td>the fixture skipped what production writes</td>
+<td><code>d36828b</code></td>
 </tr>
 </tbody>
 </table>

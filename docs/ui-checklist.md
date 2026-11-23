@@ -105,14 +105,24 @@ The New run dialog takes pasted JSON. People keep goals in files.
 - [ ] A bad file shows the parse error and does not start a run
 - Acceptance: a run created from `examples/board-experiment.json`; a syntax error shown as an error
 
-### M4 — Choose the agent for a thread · later
+### M4 — Choose the agent for a thread · done
 
-The product's claim is "agents are choices". Today the choice is made once, in the goal file.
+The product's claim is "agents are choices". The choice was made once, in the goal file.
 
-- [ ] The thread header can change the agent for the *next* task, from the detected list
-- [ ] A same-provider warning when a run would use one CLI for every thread
-- [ ] The journal records who chose, and the coordinator's prompt version, per thread
-- Acceptance: change a thread from Codex to Claude, next task runs on Claude, journal shows the choice
+- [x] The thread header opens a list of the agents the run's goal names; the picker sets the *next* task
+- [x] Refused: an unknown thread, an agent the goal does not name, a thread with a turn in flight, a
+      finished run — each with a reason the window shows
+- [x] The journal records `thread.agent` with from, to and who chose
+- [x] A note when every thread runs on one agent: it works on one subscription, and a second agent is
+      the point
+- Evidence: commit `d36828b`; 136 tests, including
+  `a_thread_can_move_to_another_agent_and_the_journal_names_both`,
+  `a_thread_with_a_running_turn_keeps_its_agent`, `the_agent_of_a_thread_can_be_changed`.
+  Live check on a run naming `claude-main` and `codex-acp`: switched `checker`, the API showed
+  `claude-main`, the journal showed `{"from":"codex-acp","to":"claude-main","by":"user"}`,
+  `shots/agent-picker.png` is the menu
+- Found: the menu was hidden under the button's own native tooltip — it looked like an empty grey box.
+  The button carries `aria-label` now and no `title`
 
 ### M5 — What the agent actually ran · blocked
 
@@ -178,6 +188,8 @@ The window's HTML, CSS and JS are compiled into the binary (`frontendDist`), so 
 | **Resume did nothing on any stopped run** | nothing set a run back to `working`, so the driver read the paused state and returned at once | `40d1009` |
 | "1 rounds", and "start a new run" on a paused run | plural and status copy | `40d1009` |
 | Short folder paths lost their leading slash | the shortening rule assumed a deep path | `40d1009` |
+| The agent menu looked empty | the browser's own tooltip covered it | `d36828b` |
+| Runner tests had no goal snapshot | the fixture skipped what production writes | `d36828b` |
 
 ## 5. Known limits
 
