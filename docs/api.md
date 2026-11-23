@@ -16,13 +16,16 @@ RUSTUP_TOOLCHAIN=1.100.0 cargo run -p api --bin ilvunod
 - **No authentication.** Any program running as your user can start runs and send tasks. Do not put it
   behind a proxy or a port forward.
 - Agents run under the same rules as the CLI. The API adds no permission.
-- **Any origin may read it (`Access-Control-Allow-Origin: *`).** The desktop window's page is not served
-  from `127.0.0.1:4737`, so the browser needs this header to read answers. It is acceptable in v1 only
-  because the data is the user's own and the port is loopback-only: a web page open in the same browser
-  can *read* runs, goals and agent messages from it, and a `POST` from a web page still reaches the runner
-  (the runner needs no origin check to start a run). Before any of these, replace `*` with the window's
-  origin list (`tauri://localhost`, `http://tauri.localhost`): an API that holds data a stranger should not
-  read, a port reachable from another machine, or any auth-free write from a web page.
+- **Only the window's origins may read it.** CORS allows `tauri://localhost` (macOS, Linux) and
+  `http://tauri.localhost` (Windows). A page from any other origin gets no CORS header, so the browser
+  blocks it from reading runs, goals or agent messages.
+- **Every write must be `application/json`.** A cross-site form can POST `text/plain` without a preflight,
+  so requiring JSON forces a preflight — and the origin check refuses it. Anything else is a 415.
+- **Still unauthenticated for local programs.** Any process running as your user can call the API. Do not
+  put it behind a proxy or a port forward.
+
+Before any of these changes, add authentication or drop the HTTP door entirely: a second user on the
+machine, a port reachable from elsewhere, or any client that is not the window.
 
 ## Endpoints
 

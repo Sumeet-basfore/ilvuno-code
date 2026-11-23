@@ -102,7 +102,7 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">755 words<br>4 sections<br>84 lines of source</div>
+  <div class="meta">757 words<br>4 sections<br>87 lines of source</div>
   <nav><a class="lvl2" href="#safety-in-v1">Safety in v1</a>
 <a class="lvl2" href="#endpoints">Endpoints</a>
 <a class="lvl3" href="#events">Events</a>
@@ -124,14 +124,16 @@ the same function the <code>ilvuno</code> CLI calls, and the run data has the sa
 <li><strong>No authentication.</strong> Any program running as your user can start runs and send tasks. Do not put it
 behind a proxy or a port forward.</li>
 <li>Agents run under the same rules as the CLI. The API adds no permission.</li>
-<li><strong>Any origin may read it (<code>Access-Control-Allow-Origin: *</code>).</strong> The desktop window's page is not served
-from <code>127.0.0.1:4737</code>, so the browser needs this header to read answers. It is acceptable in v1 only
-because the data is the user's own and the port is loopback-only: a web page open in the same browser
-can <em>read</em> runs, goals and agent messages from it, and a <code>POST</code> from a web page still reaches the runner
-(the runner needs no origin check to start a run). Before any of these, replace <code>*</code> with the window's
-origin list (<code>tauri://localhost</code>, <code>http://tauri.localhost</code>): an API that holds data a stranger should not
-read, a port reachable from another machine, or any auth-free write from a web page.</li>
+<li><strong>Only the window's origins may read it.</strong> CORS allows <code>tauri://localhost</code> (macOS, Linux) and
+<code>http://tauri.localhost</code> (Windows). A page from any other origin gets no CORS header, so the browser
+blocks it from reading runs, goals or agent messages.</li>
+<li><strong>Every write must be <code>application/json</code>.</strong> A cross-site form can POST <code>text/plain</code> without a preflight,
+so requiring JSON forces a preflight — and the origin check refuses it. Anything else is a 415.</li>
+<li><strong>Still unauthenticated for local programs.</strong> Any process running as your user can call the API. Do not
+put it behind a proxy or a port forward.</li>
 </ul>
+<p>Before any of these changes, add authentication or drop the HTTP door entirely: a second user on the
+machine, a port reachable from elsewhere, or any client that is not the window.</p>
 <h2 id="endpoints">Endpoints</h2>
 <table>
 <thead>

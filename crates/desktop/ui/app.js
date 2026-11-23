@@ -324,12 +324,19 @@ function renderRun(id, data) {
   shell(...sections);
 }
 
+/// The first sentence of the goal, capped. The full text is one fold away: a headline that runs five
+/// lines is not a headline, which the prototype already taught us.
+function shortTitle(text) {
+  const first = String(text || "").split(". ")[0].trim().replace(/\.$/, "");
+  return first.length <= 110 ? first : first.slice(0, 107).replace(/\s+\S*$/, "") + "…";
+}
+
 function runHeader(id, run, goal, threads, tasks) {
   return el(
     "header",
     { class: "run" },
     el("div", { class: "proj" }, run.project),
-    el("h1", {}, goal.text),
+    el("h1", {}, shortTitle(goal.text)),
     el("p", { class: "done" }, goal.done),
     el(
       "div",

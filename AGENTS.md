@@ -93,7 +93,8 @@ English is the user's second language. Write so a child could follow.
    and taking one re-locks the language.
 6. ACP permission answers select by **option kind** (`allow_once` before `allow_always`), never by
    position.
-7. `webkit2gtk-4.1` is not installed; Tauri needs it. Install before the shell work, with the user's ok.
+7. `webkit2gtk-4.1` is installed here (2.52.6) and Tauri builds. The window's CORS origin is
+   `tauri://localhost`; `docs/api.md` lists the two allowed origins and why writes must be JSON.
 
 ## One command exports a run for the UI
 
