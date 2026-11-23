@@ -35,6 +35,7 @@ Status: **settled** · **reversed** · **open** (needs the user)
 | **D18** | The runner's **snapshot commits skip hooks** (`--no-verify`) | a hanging pre-commit hook would freeze the runner; the human reviews the diff at the gate | hooks proving fast and wanted on every turn |
 | **D19** | **Generated pages are not committed**: `research/*.html`, `docs/*.html`, `proto/`, `mock/` | GitHub renders Markdown; the HTML only added diff noise. 210 files/13 MB → 162/7.2 MB | — |
 | **D20** | The licence is **Apache-2.0**, the text the old repository approved (sha256 `cfc7749b…`) | patent grant; the owner already chose it once | the owner choosing differently |
+| **D21** | **A thread works in a git worktree of a clean project** — branch `run/<run8>/<thread>`, checkout under `ILVUNO_HOME/worktrees/…`, a commit after each task. Not a repo, a dirty tree, old git or a worktree that cannot be made: folder mode, journaled once. The project's own working tree is never committed to, checked out or merged | an agent must change the project's code; a scratch folder cannot. The project's HEAD stays still until the gate | a workflow that needs the project tree live, or a repo that cannot use worktrees |
 
 ## Reversed or corrected
 

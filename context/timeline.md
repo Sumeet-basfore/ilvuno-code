@@ -53,3 +53,9 @@ honest record.
 The morning was the engine and the user's corrections. The afternoon was the window, rejected twice. The
 evening was verification — and every one of the serious defects (resume, the stale build, the hidden menu,
 "working" with nothing running) was found by looking at the real thing, not by reading the code.
+
+## Stage 2 · worktrees
+
+| Time | Phase | What landed |
+|---|---|---|
+| 23:09 | **Stage 2-A/B** | A clean git project gives every thread its own worktree and branch, with a commit after each task; folder mode is the fallback and journals why (`ff669cc`). |
