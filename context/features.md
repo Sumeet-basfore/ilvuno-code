@@ -27,7 +27,7 @@ Evidence, not adjectives. A row without a commit, a test or a file is a row to d
 |---|---|
 | Claude over `stream-json` with permissions and interrupt, no SDK | `crates/provider-claude` |
 | Any ACP agent behind one trait | `crates/provider-acp` |
-| Two drivers: `claude`, `acp` (Codex, Pi, Cursor, opencode, Antigravity all speak ACP) | `cli/src/providers.rs` |
+| Two drivers: `claude` (its stream-json protocol) and `acp` (proven with `codex-acp`; any other CLI that speaks ACP should work, and has not been run) | `cli/src/providers.rs`, `research/09-spike.md` |
 | Safety shown per agent, from the CLI's own answer where it can be read | `/agents`, `safetyOf()` |
 
 ### Local API (`ilvunod`, 127.0.0.1:4737)

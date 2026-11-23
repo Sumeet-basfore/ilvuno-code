@@ -18,8 +18,8 @@
   the images remain the only record.
 - **The git floor (2.38.1) has not been run on this machine** (it has 2.55.0). The floor logic is tested; the
   behaviour on an old git is only known from the previous project's study (`research/14-git-floor.md`).
-- **Two drivers only.** Nine of the eleven CLIs that t3 speaks to natively are reachable here only if they
-  speak ACP.
+- **Two drivers only.** `claude` and `acp` are proven. t3 speaks eleven CLIs through their own protocols; here,
+  a CLI works if it speaks ACP, and only `codex-acp` has been run.
 - **The window is not packaged.** No installer, no auto-update, no first-run guide.
 - **A goal whose threads all name one agent is allowed**, and the rail says so. Nothing stops it.
 
