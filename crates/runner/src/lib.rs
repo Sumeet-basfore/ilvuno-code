@@ -10,6 +10,7 @@ pub mod prompts;
 pub mod replay;
 pub mod report;
 pub mod research;
+pub mod second_opinion;
 pub mod run_status;
 pub mod home;
 pub mod ledger;

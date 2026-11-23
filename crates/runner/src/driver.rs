@@ -8,6 +8,7 @@ use crate::dispatch::{self, ExecCtx};
 use crate::goal::GoalPlan;
 use crate::home::Home;
 use crate::research::{self, BRIEF_FILE, SYNTH_SLOT};
+use crate::second_opinion;
 use crate::run_status::{self, set_run_status};
 use crate::state::{is_no_progress, RunStatus, Verdict};
 use crate::store::{Outcome, Store};
@@ -128,11 +129,13 @@ impl<P: Provider> Driver<'_, P> {
         let stalled = is_no_progress(previous.as_deref(), &failing);
 
         let verdict = if failing.is_empty() { Verdict::Pass } else { Verdict::Block };
+        let warnings = second_opinion::for_round(store.conn(), &round.id)?;
         let readiness = json!({
             "checks": checks.iter().map(|c| json!({ "name": c.name, "passed": c.passed, "detail": c.detail })).collect::<Vec<_>>(),
             "skipped": skipped,
             "failing": failing,
             "failed_dispatches": failed_dispatches,
+            "warnings": warnings,
         });
         let round_id = round.id.clone();
         store.transact("round.verdict", None, |tx, p| {

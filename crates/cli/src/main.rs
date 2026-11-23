@@ -257,6 +257,9 @@ fn print_status(store: &Store, run: &str) -> Result<()> {
             for skipped in v["skipped"].as_array().into_iter().flatten() {
                 println!("  [skip] {}: {}", skipped["name"].as_str().unwrap_or("?"), skipped["reason"].as_str().unwrap_or(""));
             }
+            for warning in v["warnings"].as_array().into_iter().flatten() {
+                println!("  [warn] {}", warning.as_str().unwrap_or(""));
+            }
         }
         let mut d = conn.prepare("SELECT slot, status, COALESCE(result_summary, '') FROM dispatch WHERE round_id = ?1 ORDER BY rowid")?;
         for item in d.query_map(rusqlite::params![round_id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?)))? {

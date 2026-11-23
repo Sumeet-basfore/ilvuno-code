@@ -19,3 +19,6 @@ provider-claude.workspace = true
 provider-core.workspace = true
 runner.workspace = true
 tokio.workspace = true
+
+[dev-dependencies]
+uuid.workspace = true
