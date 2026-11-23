@@ -36,11 +36,14 @@ const SHUTDOWN_GRACE: Duration = Duration::from_secs(5);
 #[derive(Debug, Clone)]
 pub struct AcpProvider {
     pub command: String,
+    /// Passed as INITIAL_AGENT_MODE. codex-acp's own default is `agent`, which reviews its own risky
+    /// actions instead of asking the client — approvals never reach the runner in that mode.
+    pub initial_mode: Option<String>,
 }
 
 impl AcpProvider {
-    pub fn new(command: impl Into<String>) -> Self {
-        Self { command: command.into() }
+    pub fn new(command: impl Into<String>, initial_mode: Option<String>) -> Self {
+        Self { command: command.into(), initial_mode }
     }
 
     /// The agent's command, run under `env -i` so the child gets exactly the variables the runner
@@ -59,6 +62,9 @@ impl AcpProvider {
         let mut config = AcpAgentConfig::new("env").arg("-i");
         for (name, value) in env {
             config = config.arg(format!("{name}={value}"));
+        }
+        if let Some(mode) = &self.initial_mode {
+            config = config.arg(format!("INITIAL_AGENT_MODE={mode}"));
         }
         Ok(config.arg(program).args(args))
     }

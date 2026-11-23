@@ -1,7 +1,7 @@
 {
-  "title": "Summarise the Claude and ACP spike (mixed: researcher-a claude, rest codex)",
+  "title": "Summarise the Claude and ACP spike",
   "template": "research",
-  "goal_text": "Summarise research/09-spike.md into one HTML page. Every source section it covers must be cited to the section it summarises. Live evidence run: Summarise the Claude and ACP spike (mixed: researcher-a claude, rest codex).",
+  "goal_text": "Summarise research/09-spike.md into one HTML page. Every source section it covers must be cited to the section it summarises.",
   "source": "../research/09-spike.md",
   "deliverable": {
     "format": [
@@ -45,7 +45,8 @@
     },
     "codex-main": {
       "driver": "acp",
-      "command": "npx -y @agentclientprotocol/codex-acp@2.9.0"
+      "command": "npx -y @agentclientprotocol/codex-acp@2.9.0",
+      "mode": "workspace-write"
     }
   },
   "assignments": {
@@ -55,8 +56,8 @@
   },
   "message_policy": "round",
   "budget": {
-    "rounds": 2,
-    "tokens": 300000,
+    "rounds": 3,
+    "tokens": 600000,
     "max_usd_per_call": 0.2
   }
 }

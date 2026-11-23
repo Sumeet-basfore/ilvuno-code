@@ -96,11 +96,16 @@ pub async fn execute<P: Provider>(
         }
     };
 
+    let bin = cx
+        .ilvuno_bin_dir
+        .map(|d| d.join("ilvuno").to_string_lossy().to_string())
+        .unwrap_or_else(|| "ilvuno".to_string());
     let policy = WorkerPolicy {
         thread_dir: thread_dir.clone(),
         read_sources: vec![cx.plan.source_abs.clone(), cx.home.board_path(run_id)],
         task_id: dispatch_id.to_string(),
-        ilvuno_bin: "ilvuno".to_string(),
+        // Absolute: a Codex worker runs its commands in a login shell whose PATH is not ours.
+        ilvuno_bin: bin.clone(),
     };
     let prompt = render_worker_prompt(&WorkerPrompt {
         coordinator: "runner",
@@ -110,6 +115,7 @@ pub async fn execute<P: Provider>(
         worktree: &thread_dir.to_string_lossy(),
         run_board: &cx.home.run_dir(run_id).to_string_lossy(),
         message_policy: &cx.plan.file.message_policy,
+        bin: &bin,
         task: &task,
     });
     store.transact("dispatch.prompt", None, |tx, p| {

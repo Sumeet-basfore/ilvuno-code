@@ -1,7 +1,7 @@
 //! Versioned prompt texts (docs/provider-contract.md). The worker preamble is injected on every turn;
 //! the journal records `WORKER_PREAMBLE_VERSION` on each dispatch start.
 
-pub const WORKER_PREAMBLE_VERSION: &str = "worker-preamble/1";
+pub const WORKER_PREAMBLE_VERSION: &str = "worker-preamble/3";
 
 /// Verbatim from docs/provider-contract.md, with `<placeholders>` filled by [`render_worker_prompt`].
 /// `<3 sentences>` and `<paths>` stay literal: the worker fills them in its report command.
@@ -13,11 +13,11 @@ Board: read `<run>/board.md` before you start and before you report.
 Message policy for this run: <round|anytime|never>.
 
 Rules:
-- Before you touch a file, say so: `ilvuno note --task <task_id> --kind intent --body \"what you are about to do\"`.
+- Before you touch a file, say so: `<bin> note --task <task_id> --kind intent --body \"what you are about to do\"`.
 - Write only inside your worktree. Never switch branches. Never merge.
 - When you need a decision you cannot make, ask and stop your turn:
-  `ilvuno note --task <task_id> --kind question --body \"the question\"`.
-- When you finish: report exactly once with `ilvuno report --task <task_id> --status ok|failed
+  `<bin> note --task <task_id> --kind question --body \"the question\"`.
+- When you finish: report exactly once with `<bin> report --task <task_id> --status ok|failed
   --summary \"<3 sentences>\" --files \"<paths>\"`.
 - Do not spawn other agents. Do not poll for work. You will be woken.
 
@@ -32,6 +32,7 @@ pub struct WorkerPrompt<'a> {
     pub worktree: &'a str,
     pub run_board: &'a str,
     pub message_policy: &'a str,
+    pub bin: &'a str,
     pub task: &'a str,
 }
 
@@ -44,6 +45,7 @@ pub fn render_worker_prompt(p: &WorkerPrompt<'_>) -> String {
         .replace("<path>", p.worktree)
         .replace("<run>", p.run_board)
         .replace("<round|anytime|never>", p.message_policy)
+        .replace("<bin>", p.bin)
         .replace("<task text>", p.task)
 }
 
@@ -61,6 +63,7 @@ mod tests {
             worktree: "/runs/r/threads/x",
             run_board: "/runs/r",
             message_policy: "round",
+            bin: "ilvuno",
             task: "DO THE THING",
         });
         assert!(text.contains("Your task id is t-1. Your round is 0."));

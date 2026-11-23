@@ -35,7 +35,7 @@ async fn one_prompt_round_trip_on_a_real_agent() {
         session_id: uuid::Uuid::new_v4().to_string(),
         resume: false,
     };
-    let mut session = AcpProvider::new(command).open(spec).await.expect("open session");
+    let mut session = AcpProvider::new(command, None).open(spec).await.expect("open session");
     println!("capabilities: {:?}", session.capabilities());
     let prompt = std::env::var("ILVUNO_ACP_LIVE_PROMPT")
         .unwrap_or_else(|_| "Reply with exactly one word: ok".to_string());

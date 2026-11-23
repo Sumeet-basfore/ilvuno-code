@@ -102,7 +102,7 @@ td code,th code{font-size:12px}
 <div class="wrap">
 <aside>
   <div class="kicker">Project document</div>
-  <div class="meta">1,134 words<br>8 sections<br>165 lines of source</div>
+  <div class="meta">1,281 words<br>8 sections<br>176 lines of source</div>
   <nav><a class="lvl2" href="#the-boundary">The boundary</a>
 <a class="lvl2" href="#commands-runner-adapter">Commands (runner → adapter)</a>
 <a class="lvl2" href="#events-adapter-runner">Events (adapter → runner)</a>
@@ -261,6 +261,12 @@ are persisted because they are evidence of what happened.</p>
 <p><strong>ACP.</strong> The agent calls <code>session/request_permission</code>; the client answers with a <code>RequestPermissionOutcome</code>
 selected by option <strong>kind</strong> (<code>allow_once</code> preferred over <code>allow_always</code>), never by option position.
 Verified against <code>codex-acp 2.9.0</code>.</p>
+<p><strong>ACP needs a mode that asks.</strong> <code>codex-acp</code> defaults to its <code>agent</code> mode, which reviews its own risky
+actions internally — the client never sees a request, so the runner's policy is bypassed. Set
+<code>&quot;mode&quot;: &quot;workspace-write&quot;</code> on the provider entry (passed to the adapter as <code>INITIAL_AGENT_MODE</code>).
+Verified: a write outside the session cwd raises a permission request. In that mode the agent writes
+freely inside its cwd, which is the thread's own directory, so the sandbox and our policy agree. <code>/tmp</code>
+is writable in that mode by default — do not treat <code>/tmp</code> as a boundary.</p>
 <p>Both map onto one runner event: <code>permission_request {tool, input, options}</code>. The runner's policy decides,
 the adapter only translates.</p>
 <h2 id="prompts-are-part-of-the-contract">Prompts are part of the contract</h2>
@@ -339,7 +345,7 @@ version was injected into which thread.</p>
 <tr>
 <td><code>acp:*</code></td>
 <td>ACP over stdio</td>
-<td>yes (<code>request_permission</code>)</td>
+<td>yes (<code>request_permission</code>), only in <code>workspace-write</code> or <code>read-only</code></td>
 <td>depends on agent</td>
 <td>yes</td>
 <td>no</td>
@@ -347,6 +353,9 @@ version was injected into which thread.</p>
 </tr>
 </tbody>
 </table>
+<p><strong>Worker commands are injected with an absolute path.</strong> The preamble's <code>&lt;bin&gt;</code> is the runner binary's
+full path, because a Codex worker runs commands in a login shell whose <code>PATH</code> is not the runner's. The
+policy checks the same absolute prefix.</p>
 <p>Not in v1: PTY scraping. If an agent has neither ACP nor a protocol, it does not ship — labelled, not faked.</p>
 <h2 id="error-taxonomy">Error taxonomy</h2>
 <table>

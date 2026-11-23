@@ -25,7 +25,7 @@ pub fn build(plan: &GoalPlan) -> Result<BTreeMap<String, AnyProvider>> {
     for (id, spec) in plan.providers() {
         let instance = match spec.driver.as_str() {
             "claude" => AnyProvider::Claude(ClaudeProvider { binary: spec.command.clone().unwrap_or_else(|| "claude".into()) }),
-            "acp" => AnyProvider::Acp(AcpProvider::new(spec.command.clone().unwrap_or_default())),
+            "acp" => AnyProvider::Acp(AcpProvider::new(spec.command.clone().unwrap_or_default(), spec.mode.clone())),
             other => bail!("provider {id:?}: driver {other:?} is not available in this build"),
         };
         instances.insert(id.clone(), instance);

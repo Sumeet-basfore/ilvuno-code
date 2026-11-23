@@ -86,6 +86,13 @@ struct Capabilities {
 selected by option **kind** (`allow_once` preferred over `allow_always`), never by option position.
 Verified against `codex-acp 2.9.0`.
 
+**ACP needs a mode that asks.** `codex-acp` defaults to its `agent` mode, which reviews its own risky
+actions internally — the client never sees a request, so the runner's policy is bypassed. Set
+`"mode": "workspace-write"` on the provider entry (passed to the adapter as `INITIAL_AGENT_MODE`).
+Verified: a write outside the session cwd raises a permission request. In that mode the agent writes
+freely inside its cwd, which is the thread's own directory, so the sandbox and our policy agree. `/tmp`
+is writable in that mode by default — do not treat `/tmp` as a boundary.
+
 Both map onto one runner event: `permission_request {tool, input, options}`. The runner's policy decides,
 the adapter only translates.
 
@@ -146,7 +153,11 @@ version was injected into which thread.
 |---|---|---|---|---|---|---|
 | `claude-main` | stream-json + control | yes | yes (`--resume`) | yes | `--json-schema` | initialize handshake mandatory |
 | `codex-main` | `codex app-server` JSON-RPC | yes | yes (`thread/resume`) | yes | yes | types generated from the binary |
-| `acp:*` | ACP over stdio | yes (`request_permission`) | depends on agent | yes | no | adapter quality varies; tier-3 unless tested |
+| `acp:*` | ACP over stdio | yes (`request_permission`), only in `workspace-write` or `read-only` | depends on agent | yes | no | adapter quality varies; tier-3 unless tested |
+
+**Worker commands are injected with an absolute path.** The preamble's `<bin>` is the runner binary's
+full path, because a Codex worker runs commands in a login shell whose `PATH` is not the runner's. The
+policy checks the same absolute prefix.
 
 Not in v1: PTY scraping. If an agent has neither ACP nor a protocol, it does not ship — labelled, not faked.
 

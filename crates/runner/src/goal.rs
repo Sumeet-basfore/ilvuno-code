@@ -52,6 +52,10 @@ pub struct ProviderSpec {
     pub command: Option<String>,
     #[serde(default)]
     pub model: Option<String>,
+    /// Adapter's initial mode. For codex-acp this sets INITIAL_AGENT_MODE; `agent` (its default)
+    /// auto-approves risky actions, so approvals only reach us in `workspace-write` or `read-only`.
+    #[serde(default)]
+    pub mode: Option<String>,
 }
 
 /// Reads the providers map keeping its order: the first entry is the run default.
@@ -205,7 +209,7 @@ impl GoalPlan {
             self.file
                 .providers
                 .iter()
-                .map(|(id, s)| (id.clone(), json!({ "driver": s.driver, "command": s.command, "model": s.model })))
+                .map(|(id, s)| (id.clone(), json!({ "driver": s.driver, "command": s.command, "model": s.model, "mode": s.mode })))
                 .collect(),
         )
     }
@@ -215,7 +219,7 @@ impl GoalPlan {
 /// provider id involved, so the user can find the line to fix.
 fn resolve_providers(file: &mut GoalFile) -> Result<()> {
     if file.providers.is_empty() {
-        let spec = ProviderSpec { driver: "claude".into(), command: None, model: None };
+        let spec = ProviderSpec { driver: "claude".into(), command: None, model: None, mode: None };
         file.providers.push((DEFAULT_PROVIDER.into(), spec));
     }
     let mut seen = BTreeSet::new();
