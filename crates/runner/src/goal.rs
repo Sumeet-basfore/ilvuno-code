@@ -2,14 +2,21 @@
 //! `goals` row and the research plan.
 
 use crate::commands::NewGoal;
+use crate::research::SYNTH_SLOT;
 use anyhow::{bail, Context, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use serde_json::{json, Value};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 /// The most any single agent call may spend (AGENTS.md non-negotiable).
 pub const MAX_USD_PER_CALL: f64 = 0.20;
+
+/// Driver names this build can run. `codex` (native app-server) is not built yet; use `acp` for Codex.
+pub const DRIVERS: &[&str] = &["claude", "acp"];
+
+/// Provider id used when a goal declares no providers at all (the v0 behaviour).
+pub const DEFAULT_PROVIDER: &str = "claude-main";
 
 #[derive(Debug, Deserialize)]
 pub struct GoalFile {
@@ -26,6 +33,44 @@ pub struct GoalFile {
     #[serde(default = "default_policy")]
     pub message_policy: String,
     pub budget: Budget,
+    /// Provider instances the run may use, in file order. Empty means one Claude instance.
+    #[serde(default, deserialize_with = "ordered_providers")]
+    pub providers: Vec<(String, ProviderSpec)>,
+    /// Slot → provider id. A slot not listed here uses the run default.
+    #[serde(default)]
+    pub assignments: BTreeMap<String, String>,
+    /// Run default. Filled at load: the explicit value, else the first entry of `providers`.
+    #[serde(default, rename = "default")]
+    pub default_provider: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+pub struct ProviderSpec {
+    pub driver: String,
+    /// Binary (claude) or adapter command (acp). Required for acp.
+    #[serde(default)]
+    pub command: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
+}
+
+/// Reads the providers map keeping its order: the first entry is the run default.
+fn ordered_providers<'de, D: Deserializer<'de>>(de: D) -> Result<Vec<(String, ProviderSpec)>, D::Error> {
+    struct Ordered;
+    impl<'de> serde::de::Visitor<'de> for Ordered {
+        type Value = Vec<(String, ProviderSpec)>;
+        fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str("a map from provider id to { driver, command, model }")
+        }
+        fn visit_map<A: serde::de::MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+            let mut out = Vec::new();
+            while let Some(entry) = map.next_entry::<String, ProviderSpec>()? {
+                out.push(entry);
+            }
+            Ok(out)
+        }
+    }
+    de.deserialize_map(Ordered)
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -69,7 +114,7 @@ impl GoalPlan {
 
     /// Validate goal JSON. `base` is the directory relative paths in the goal resolve against.
     pub fn from_raw(raw: &str, base: &Path) -> Result<Self> {
-        let file: GoalFile = serde_json::from_str(raw).context("parse goal")?;
+        let mut file: GoalFile = serde_json::from_str(raw).context("parse goal")?;
         if file.template != "research" {
             bail!("only the research template exists in v0 (got {:?})", file.template);
         }
@@ -95,6 +140,7 @@ impl GoalPlan {
         if file.groups.is_empty() {
             bail!("goal has no researcher groups");
         }
+        resolve_providers(&mut file)?;
         let source_name = source_abs
             .file_name()
             .and_then(|n| n.to_str())
@@ -113,6 +159,10 @@ impl GoalPlan {
             budget_rounds: self.file.budget.rounds,
             budget_tokens: self.file.budget.tokens,
             budget_usd: Some(self.file.budget.max_usd_per_call),
+            providers: self.providers_json(),
+            assignments: Value::Object(
+                self.file.assignments.iter().map(|(slot, id)| (slot.clone(), Value::String(id.clone()))).collect(),
+            ),
         }
     }
 
@@ -129,6 +179,73 @@ impl GoalPlan {
     pub fn usd_per_call(&self) -> f64 {
         self.file.budget.max_usd_per_call
     }
+
+    /// Every provider instance the run may use, in file order.
+    pub fn providers(&self) -> &[(String, ProviderSpec)] {
+        &self.file.providers
+    }
+
+    pub fn provider_spec(&self, id: &str) -> Option<&ProviderSpec> {
+        self.file.providers.iter().find(|(p, _)| p == id).map(|(_, spec)| spec)
+    }
+
+    /// The provider id a slot runs on: its assignment, or the run default. Never a fallback that is
+    /// not declared in the goal; validation already checked every assignment.
+    pub fn provider_for_slot(&self, slot: &str) -> &str {
+        self.file
+            .assignments
+            .get(slot)
+            .or(self.file.default_provider.as_ref())
+            .map(String::as_str)
+            .unwrap_or(DEFAULT_PROVIDER)
+    }
+
+    fn providers_json(&self) -> Value {
+        Value::Object(
+            self.file
+                .providers
+                .iter()
+                .map(|(id, s)| (id.clone(), json!({ "driver": s.driver, "command": s.command, "model": s.model })))
+                .collect(),
+        )
+    }
+}
+
+/// Fill the defaults, then refuse anything the run could not honour. Every refusal names the slot or
+/// provider id involved, so the user can find the line to fix.
+fn resolve_providers(file: &mut GoalFile) -> Result<()> {
+    if file.providers.is_empty() {
+        let spec = ProviderSpec { driver: "claude".into(), command: None, model: None };
+        file.providers.push((DEFAULT_PROVIDER.into(), spec));
+    }
+    let mut seen = BTreeSet::new();
+    for (id, spec) in &file.providers {
+        if !seen.insert(id.as_str()) {
+            bail!("provider {id:?} is listed twice in providers");
+        }
+        if !DRIVERS.contains(&spec.driver.as_str()) {
+            bail!("provider {id:?} uses driver {:?}; this build runs only: {}", spec.driver, DRIVERS.join(", "));
+        }
+        if spec.driver == "acp" && spec.command.as_deref().is_none_or(str::is_empty) {
+            bail!("provider {id:?} uses driver acp and needs a command");
+        }
+    }
+    let default = match file.default_provider.take() {
+        Some(id) if file.providers.iter().any(|(p, _)| *p == id) => id,
+        Some(id) => bail!("default provider {id:?} is not in providers"),
+        None => file.providers[0].0.clone(),
+    };
+    file.default_provider = Some(default);
+    let slots: BTreeSet<&str> = file.groups.iter().map(|g| g.slot.as_str()).chain([SYNTH_SLOT]).collect();
+    for (slot, id) in &file.assignments {
+        if !slots.contains(slot.as_str()) {
+            bail!("assignment for slot {slot:?}: this template has no such slot");
+        }
+        if !file.providers.iter().any(|(p, _)| p == id) {
+            bail!("slot {slot:?} is assigned provider {id:?}, which is not in providers");
+        }
+    }
+    Ok(())
 }
 
 /// Numbers from `## N. ...` headings in the source.
@@ -170,4 +287,118 @@ pub fn load_snapshot(conn: &rusqlite::Connection, run_id: &str) -> Result<GoalPl
     let raw = v["raw"].as_str().context("snapshot raw")?;
     let base = v["base"].as_str().context("snapshot base")?;
     GoalPlan::from_raw(raw, Path::new(base))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn research_dir() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../research")
+    }
+
+    /// A goal with the given `providers` / `assignments` / `default` fragments, on the real source.
+    fn goal(extra: &str) -> String {
+        format!(
+            r#"{{
+              "title": "t", "goal_text": "g", "template": "research", "source": "09-spike.md",
+              "groups": [{{"slot": "researcher-a", "sections": [1, 2]}}, {{"slot": "researcher-b", "sections": [3, 4]}}],
+              "required_sections": [1, 2, 3, 4], "checks": [],
+              "budget": {{"rounds": 2, "tokens": 1000}}{extra}
+            }}"#
+        )
+    }
+
+    fn load(extra: &str) -> Result<GoalPlan> {
+        GoalPlan::from_raw(&goal(extra), &research_dir())
+    }
+
+    fn err(extra: &str) -> String {
+        format!("{:#}", load(extra).expect_err("goal must be refused"))
+    }
+
+    #[test]
+    fn goal_without_providers_runs_on_one_claude_instance() {
+        let plan = load("").expect("valid goal");
+        assert_eq!(plan.providers().len(), 1);
+        assert_eq!(plan.provider_for_slot("researcher-a"), DEFAULT_PROVIDER);
+        assert_eq!(plan.provider_for_slot("synthesizer"), DEFAULT_PROVIDER);
+        assert_eq!(plan.provider_spec(DEFAULT_PROVIDER).map(|s| s.driver.as_str()), Some("claude"));
+    }
+
+    #[test]
+    fn each_slot_gets_its_assigned_provider() {
+        let plan = load(
+            r#", "providers": {"fake-a": {"driver": "claude"}, "fake-b": {"driver": "claude"}},
+                 "assignments": {"researcher-a": "fake-a", "researcher-b": "fake-b", "synthesizer": "fake-b"}"#,
+        )
+        .expect("valid goal");
+        assert_eq!(plan.provider_for_slot("researcher-a"), "fake-a");
+        assert_eq!(plan.provider_for_slot("researcher-b"), "fake-b");
+        assert_eq!(plan.provider_for_slot("synthesizer"), "fake-b");
+    }
+
+    #[test]
+    fn same_provider_for_every_slot_is_allowed() {
+        let plan = load(
+            r#", "providers": {"only": {"driver": "claude"}},
+                 "assignments": {"researcher-a": "only", "researcher-b": "only", "synthesizer": "only"}"#,
+        )
+        .expect("valid goal");
+        assert!(["researcher-a", "researcher-b", "synthesizer"].iter().all(|s| plan.provider_for_slot(s) == "only"));
+    }
+
+    #[test]
+    fn unassigned_slots_use_the_first_listed_provider() {
+        let plan = load(
+            r#", "providers": {"first": {"driver": "claude"}, "second": {"driver": "claude"}},
+                 "assignments": {"synthesizer": "second"}"#,
+        )
+        .expect("valid goal");
+        assert_eq!(plan.provider_for_slot("researcher-a"), "first");
+        assert_eq!(plan.provider_for_slot("synthesizer"), "second");
+    }
+
+    #[test]
+    fn explicit_default_overrides_the_first_listed_provider() {
+        let plan = load(r#", "providers": {"first": {"driver": "claude"}, "second": {"driver": "claude"}}, "default": "second""#)
+            .expect("valid goal");
+        assert_eq!(plan.provider_for_slot("researcher-a"), "second");
+    }
+
+    #[test]
+    fn unknown_provider_id_is_refused_naming_slot_and_id() {
+        let message = err(r#", "providers": {"fake-a": {"driver": "claude"}}, "assignments": {"researcher-b": "fake-z"}"#);
+        assert!(message.contains("\"researcher-b\"") && message.contains("\"fake-z\""), "{message}");
+    }
+
+    #[test]
+    fn unknown_driver_is_refused_naming_the_provider() {
+        let message = err(r#", "providers": {"codex-main": {"driver": "codex"}}"#);
+        assert!(message.contains("\"codex-main\"") && message.contains("\"codex\""), "{message}");
+    }
+
+    #[test]
+    fn acp_provider_without_command_is_refused() {
+        let message = err(r#", "providers": {"codex-main": {"driver": "acp"}}"#);
+        assert!(message.contains("\"codex-main\"") && message.contains("command"), "{message}");
+    }
+
+    #[test]
+    fn assignment_to_a_slot_the_template_lacks_is_refused() {
+        let message = err(r#", "providers": {"a": {"driver": "claude"}}, "assignments": {"researcher_b": "a"}"#);
+        assert!(message.contains("researcher_b"), "{message}");
+    }
+
+    #[test]
+    fn unknown_default_is_refused() {
+        let message = err(r#", "providers": {"a": {"driver": "claude"}}, "default": "b""#);
+        assert!(message.contains("\"b\""), "{message}");
+    }
+
+    #[test]
+    fn duplicate_provider_id_is_refused() {
+        let message = err(r#", "providers": {"a": {"driver": "claude"}, "a": {"driver": "claude"}}"#);
+        assert!(message.contains("\"a\""), "{message}");
+    }
 }

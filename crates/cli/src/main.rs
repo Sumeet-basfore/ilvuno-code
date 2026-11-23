@@ -2,7 +2,6 @@
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
-use provider_claude::ClaudeProvider;
 use runner::commands::{self, ReportStatus};
 use runner::driver::{Driver, RunEnd};
 use runner::goal::{self, GoalPlan};
@@ -12,6 +11,8 @@ use runner::run_status::{self, GateDecision};
 use runner::store::Outcome;
 use runner::{replay, Home, Store};
 use std::path::{Path, PathBuf};
+
+mod providers;
 
 #[derive(Parser)]
 #[command(name = "ilvuno", version, about = "Headless multi-agent round runner")]
@@ -195,6 +196,8 @@ async fn main() -> Result<()> {
 
 fn start_run(store: &mut Store, goal_path: &Path) -> Result<(String, GoalPlan)> {
     let plan = GoalPlan::load(goal_path).with_context(|| format!("goal {}", goal_path.display()))?;
+    // Refuse a driver this build lacks before any run row is written.
+    providers::build(&plan)?;
     let raw = std::fs::read_to_string(goal_path)?;
     let base = goal_path.parent().unwrap_or_else(|| Path::new("."));
     let new_goal = plan.new_goal();
@@ -211,10 +214,10 @@ fn start_run(store: &mut Store, goal_path: &Path) -> Result<(String, GoalPlan)> 
 }
 
 async fn drive(home: &Home, store: &mut Store, plan: &GoalPlan, run_id: &str) -> Result<RunEnd> {
-    let provider = ClaudeProvider::default();
+    let instances = providers::build(plan)?;
     let bin_dir = own_bin_dir();
     let driver = Driver {
-        provider: &provider,
+        providers: &instances,
         home,
         ilvuno_bin_dir: bin_dir.as_deref(),
         max_usd: plan.usd_per_call(),

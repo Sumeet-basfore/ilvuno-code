@@ -11,10 +11,11 @@ use crate::research::{self, BRIEF_FILE, SYNTH_SLOT};
 use crate::run_status::{self, set_run_status};
 use crate::state::{is_no_progress, RunStatus, Verdict};
 use crate::store::{Outcome, Store};
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use provider_core::Provider;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::{json, Value};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -27,7 +28,8 @@ pub enum RunEnd {
 }
 
 pub struct Driver<'a, P: Provider> {
-    pub provider: &'a P,
+    /// Provider instances by id. Each dispatch runs on the instance its slot is assigned to.
+    pub providers: &'a BTreeMap<String, P>,
     pub home: &'a Home,
     pub ilvuno_bin_dir: Option<&'a Path>,
     pub max_usd: f64,
@@ -67,14 +69,19 @@ impl<P: Provider> Driver<'_, P> {
 
     async fn continue_round(&self, store: &mut Store, plan: &GoalPlan, run_id: &str, round: &RoundRow) -> Result<()> {
         let round_id = round.id.clone();
-        for (dispatch_id, _slot, _status) in dispatch::open_dispatches(store.conn(), &round_id)? {
+        for (dispatch_id, slot, _status) in dispatch::open_dispatches(store.conn(), &round_id)? {
+            let instance = plan.provider_for_slot(&slot);
+            let provider = self
+                .providers
+                .get(instance)
+                .with_context(|| format!("slot {slot}: provider {instance:?} is not available in this process"))?;
             let cx = ExecCtx {
                 home: self.home,
                 plan,
                 ilvuno_bin_dir: self.ilvuno_bin_dir,
                 max_usd: self.max_usd,
             };
-            dispatch::execute(self.provider, store, &cx, run_id, &round_id, round.index, &dispatch_id).await?;
+            dispatch::execute(provider, store, &cx, run_id, &round_id, round.index, &dispatch_id).await?;
         }
         self.finish_round(store, plan, run_id, round)
     }
@@ -85,7 +92,7 @@ impl<P: Provider> Driver<'_, P> {
         let slots = research::round_slots(plan, index, &notes);
         let root = self.home.threads_dir(run_id);
         let outcome = store.transact("round.plan", None, |tx, p| {
-            commands::plan_round(tx, p, run_id, &slots, &root, dispatch::provider_name())
+            commands::plan_round(tx, p, run_id, &slots, &root)
         })?;
         match outcome {
             Outcome::Applied(_) => Ok(None),

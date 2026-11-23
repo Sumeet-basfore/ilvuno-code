@@ -34,6 +34,8 @@ fn fixture(name: &str) -> Fixture {
         budget_rounds: 3,
         budget_tokens: 150_000,
         budget_usd: None,
+        providers: json!({"claude-main": {"driver": "claude"}}),
+        assignments: json!({}),
     };
     let run_id = match store
         .transact("run.create", None, |tx, p| Ok(Outcome::Applied(commands::create_run(tx, p, &goal)?)))
@@ -48,6 +50,7 @@ fn fixture(name: &str) -> Fixture {
 fn slots(scope: &[&str]) -> Vec<SlotSpec> {
     vec![SlotSpec {
         slot: "researcher-a".into(),
+        provider: "claude-main".into(),
         role: "worker".into(),
         scope: scope.iter().map(|s| s.to_string()).collect(),
         intent: "read the source".into(),
@@ -58,7 +61,7 @@ fn plan(f: &mut Fixture, scope: &[&str]) -> Outcome<commands::RoundRef> {
     let root = f.home.threads_dir(&f.run_id);
     let run_id = f.run_id.clone();
     f.store
-        .transact("round.plan", None, |tx, p| commands::plan_round(tx, p, &run_id, &slots(scope), &root, "claude-main"))
+        .transact("round.plan", None, |tx, p| commands::plan_round(tx, p, &run_id, &slots(scope), &root))
         .expect("plan round")
 }
 
@@ -88,7 +91,7 @@ fn journal_kinds(store: &Store, run_id: &str) -> Vec<String> {
 #[test]
 fn schema_and_journal_are_created_on_open() {
     let f = fixture("schema");
-    assert_eq!(count(&f.store, "SELECT COUNT(*) FROM schema_migrations"), 1);
+    assert_eq!(count(&f.store, "SELECT COUNT(*) FROM schema_migrations"), 2, "0001_init and 0002_providers");
     assert_eq!(count(&f.store, "SELECT COUNT(*) FROM journal WHERE kind = 'run.created'"), 1);
     assert_eq!(count(&f.store, "SELECT COUNT(*) FROM receipts"), 0, "no request_id, so no receipt");
 }

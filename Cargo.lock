@@ -148,6 +148,7 @@ dependencies = [
  "anyhow",
  "clap",
  "provider-claude",
+ "provider-core",
  "runner",
  "rusqlite",
  "serde_json",

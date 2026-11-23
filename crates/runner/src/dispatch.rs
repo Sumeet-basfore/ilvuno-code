@@ -20,7 +20,6 @@ use std::path::{Path, PathBuf};
 const HANDOFF_CHAR_LIMIT: usize = 20_000;
 const MAX_TURNS_PER_DISPATCH: u32 = 2;
 const NUDGE: &str = "You have not reported yet. Run your `ilvuno report` command now, exactly once.";
-const PROVIDER_NAME: &str = "claude-main";
 
 pub struct ExecCtx<'a> {
     pub home: &'a Home,
@@ -28,10 +27,6 @@ pub struct ExecCtx<'a> {
     /// Directory prepended to the worker's PATH so `ilvuno report` resolves.
     pub ilvuno_bin_dir: Option<&'a Path>,
     pub max_usd: f64,
-}
-
-pub fn provider_name() -> &'static str {
-    PROVIDER_NAME
 }
 
 /// The dispatches of a round still waiting for an outcome, in plan order.
@@ -53,6 +48,7 @@ pub async fn execute<P: Provider>(
     dispatch_id: &str,
 ) -> Result<()> {
     let slot = slot_of(store.conn(), dispatch_id)?;
+    let model = cx.plan.provider_spec(cx.plan.provider_for_slot(&slot)).and_then(|s| s.model.clone());
     if status_of(store.conn(), dispatch_id)? == "running" {
         store.transact("dispatch.requeue", None, |tx, p| {
             execution::requeue_dispatch(tx, p, run_id, dispatch_id)?;
@@ -88,7 +84,7 @@ pub async fn execute<P: Provider>(
         cwd: thread_dir.clone(),
         env: child_env(cx.home, cx.ilvuno_bin_dir),
         max_budget_usd: cx.max_usd.min(MAX_USD_PER_CALL),
-        model: None,
+        model,
         session_id,
         resume: false,
     };

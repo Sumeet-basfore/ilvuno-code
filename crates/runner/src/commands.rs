@@ -19,6 +19,10 @@ pub struct NewGoal {
     pub budget_rounds: u32,
     pub budget_tokens: u64,
     pub budget_usd: Option<f64>,
+    /// JSON object: provider id → { driver, command, model }.
+    pub providers: Value,
+    /// JSON object: slot → provider id.
+    pub assignments: Value,
 }
 
 #[derive(Debug, Clone)]
@@ -36,6 +40,8 @@ pub struct RunRow {
 #[derive(Debug, Clone)]
 pub struct SlotSpec {
     pub slot: String,
+    /// Provider instance id this slot runs on (from the goal's assignments).
+    pub provider: String,
     pub role: String,
     pub scope: Vec<String>,
     pub intent: String,
@@ -76,8 +82,8 @@ pub fn create_run(tx: &Transaction<'_>, pending: &mut Pending, goal: &NewGoal) -
     let run_id = new_id();
     tx.execute(
         "INSERT INTO goals (id, created_at, title, goal_text, template, deliverable, done_spec,
-                            budget_rounds, budget_tokens, budget_usd)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                            budget_rounds, budget_tokens, budget_usd, providers, assignments)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             goal_id,
             crate::store::now_ms(),
@@ -89,6 +95,8 @@ pub fn create_run(tx: &Transaction<'_>, pending: &mut Pending, goal: &NewGoal) -
             goal.budget_rounds,
             goal.budget_tokens as i64,
             goal.budget_usd,
+            goal.providers.to_string(),
+            goal.assignments.to_string(),
         ],
     )?;
     tx.execute(
@@ -157,7 +165,6 @@ pub fn plan_round(
     run_id: &str,
     slots: &[SlotSpec],
     thread_root: &Path,
-    provider: &str,
 ) -> Result<Outcome<RoundRef>> {
     let run = load_run(tx, run_id)?;
     let previous = latest_round(tx, run_id)?;
@@ -214,7 +221,7 @@ pub fn plan_round(
         tx.execute(
             "INSERT INTO threads (id, run_id, role, provider, worktree_path, status, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, 'idle', ?6)",
-            params![thread_id, run_id, slot.role, provider, thread_dir.to_string_lossy(), crate::store::now_ms()],
+            params![thread_id, run_id, slot.role, slot.provider, thread_dir.to_string_lossy(), crate::store::now_ms()],
         )?;
         ledger::append(
             tx,

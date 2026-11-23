@@ -6,7 +6,10 @@ use rusqlite::{params, Connection, OptionalExtension, Transaction, TransactionBe
 use serde_json::Value;
 use std::path::Path;
 
-const MIGRATIONS: &[(&str, &str)] = &[("0001_init", include_str!("../migrations/0001_init.sql"))];
+const MIGRATIONS: &[(&str, &str)] = &[
+    ("0001_init", include_str!("../migrations/0001_init.sql")),
+    ("0002_providers", include_str!("../migrations/0002_providers.sql")),
+];
 
 pub fn now_ms() -> i64 {
     std::time::SystemTime::now()

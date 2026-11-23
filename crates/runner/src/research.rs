@@ -15,6 +15,7 @@ pub fn round_slots(plan: &GoalPlan, round_index: u32, notes: &[String]) -> Vec<S
         for group in &plan.file.groups {
             slots.push(SlotSpec {
                 slot: group.slot.clone(),
+                provider: plan.provider_for_slot(&group.slot).to_string(),
                 role: "worker".into(),
                 scope: vec![FINDINGS_FILE.into()],
                 intent: format!(
@@ -27,6 +28,7 @@ pub fn round_slots(plan: &GoalPlan, round_index: u32, notes: &[String]) -> Vec<S
     }
     slots.push(SlotSpec {
         slot: SYNTH_SLOT.into(),
+        provider: plan.provider_for_slot(SYNTH_SLOT).to_string(),
         role: "worker".into(),
         scope: vec![BRIEF_FILE.into()],
         intent: if notes.is_empty() {

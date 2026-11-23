@@ -11,7 +11,7 @@ use runner::report::run_report;
 use runner::run_status::{self, GateDecision};
 use runner::store::Outcome;
 use runner::{Home, RunStatus, Store};
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -33,15 +33,12 @@ impl Drop for Env {
     }
 }
 
-fn setup(name: &str) -> Env {
-    let dir = std::env::temp_dir().join(format!("ilvuno-e2e-{name}-{}", uuid::Uuid::new_v4()));
-    let home = Home::new(&dir);
-    let mut store = Store::open(&home.db_path()).expect("store");
-    let plan = GoalPlan::load(Path::new(GOAL)).expect("goal");
-    let raw = std::fs::read_to_string(GOAL).expect("raw");
-    let base = Path::new(GOAL).parent().unwrap().to_path_buf();
+fn create_run(store: &mut Store, goal_path: &Path) -> String {
+    let plan = GoalPlan::load(goal_path).expect("goal");
+    let raw = std::fs::read_to_string(goal_path).expect("raw");
+    let base = goal_path.parent().unwrap().to_path_buf();
     let new_goal = plan.new_goal();
-    let run_id = match store
+    match store
         .transact("run.create", None, |tx, p| {
             let id = commands::create_run(tx, p, &new_goal)?;
             runner::goal::snapshot(tx, &id, &raw, &base)?;
@@ -51,7 +48,20 @@ fn setup(name: &str) -> Env {
     {
         Outcome::Applied(id) => id,
         other => panic!("{other:?}"),
-    };
+    }
+}
+
+/// Every provider id the goal names maps to the same scripted provider (clones share one script).
+fn instances(provider: &FakeProvider, plan: &GoalPlan) -> BTreeMap<String, FakeProvider> {
+    plan.providers().iter().map(|(id, _)| (id.clone(), provider.clone())).collect()
+}
+
+fn setup(name: &str) -> Env {
+    let dir = std::env::temp_dir().join(format!("ilvuno-e2e-{name}-{}", uuid::Uuid::new_v4()));
+    let home = Home::new(&dir);
+    let mut store = Store::open(&home.db_path()).expect("store");
+    let plan = GoalPlan::load(Path::new(GOAL)).expect("goal");
+    let run_id = create_run(&mut store, Path::new(GOAL));
     let provider = FakeProvider::new();
     let briefs = Arc::new(Mutex::new(VecDeque::new()));
     provider.set_prompt_hook(agent(home.clone(), briefs.clone(), plan.file.required_sections.clone()));
@@ -135,9 +145,9 @@ fn synth_turn() -> Vec<Event> {
 async fn drive_run(env: &mut Env) -> RunEnd {
     let plan = GoalPlan::load(Path::new(GOAL)).expect("goal");
     let run_id = env.run_id.clone();
-    let provider = env.provider.clone();
+    let providers = instances(&env.provider, &plan);
     let home = env.home.clone();
-    let driver = Driver { provider: &provider, home: &home, ilvuno_bin_dir: None, max_usd: 0.2 };
+    let driver = Driver { providers: &providers, home: &home, ilvuno_bin_dir: None, max_usd: 0.2 };
     driver.drive(&mut env.store, &plan, &run_id).await.expect("drive")
 }
 
@@ -272,7 +282,7 @@ async fn resume_continues_from_last_committed_row_not_from_zero() {
     let root = env.home.threads_dir(&run_id);
     let round = match env
         .store
-        .transact("round.plan", None, |tx, p| commands::plan_round(tx, p, &run_id, &slots, &root, "claude-main"))
+        .transact("round.plan", None, |tx, p| commands::plan_round(tx, p, &run_id, &slots, &root))
         .expect("plan")
     {
         Outcome::Applied(r) => r,
@@ -304,4 +314,64 @@ async fn resume_continues_from_last_committed_row_not_from_zero() {
     let replayed = replay::replay(env.store.conn(), &env.run_id).expect("replay");
     assert!(replayed.transitions.iter().any(|t| t.contains("dispatch.requeued")));
     assert_eq!(replay::compare_with_projection(env.store.conn(), &env.run_id, &replayed).expect("cmp"), Vec::<String>::new());
+}
+
+#[tokio::test]
+async fn each_slot_runs_on_the_provider_its_assignment_names() {
+    let dir = std::env::temp_dir().join(format!("ilvuno-e2e-routing-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let source = std::fs::canonicalize(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../research/09-spike.md"))
+        .expect("source");
+    let goal = serde_json::json!({
+        "title": "routing", "goal_text": "route each slot", "template": "research",
+        "source": source.to_string_lossy(),
+        "groups": [{"slot": "researcher-a", "sections": [1, 2]}, {"slot": "researcher-b", "sections": [3, 4]}],
+        "required_sections": [1, 2, 3, 4],
+        "checks": ["section-citations-resolve", "required-sections-cited", "no-placeholders"],
+        "budget": {"rounds": 2, "tokens": 600000},
+        "providers": {"fake-a": {"driver": "claude"}, "fake-b": {"driver": "claude"}},
+        "assignments": {"researcher-a": "fake-a", "researcher-b": "fake-b", "synthesizer": "fake-b"}
+    });
+    let goal_path = dir.join("goal.json");
+    std::fs::write(&goal_path, goal.to_string()).expect("goal file");
+    let home = Home::new(dir.join("home"));
+    let mut store = Store::open(&home.db_path()).expect("store");
+    let run_id = create_run(&mut store, &goal_path);
+    let plan = GoalPlan::load(&goal_path).expect("goal");
+
+    let (fa, fb) = (FakeProvider::new(), FakeProvider::new());
+    let briefs = Arc::new(Mutex::new(VecDeque::from([true])));
+    for p in [&fa, &fb] {
+        p.set_prompt_hook(agent(home.clone(), briefs.clone(), plan.file.required_sections.clone()));
+    }
+    fa.push_turn(researcher_turn(false)); // researcher-a
+    fb.push_turn(researcher_turn(false)); // researcher-b
+    fb.push_turn(synth_turn()); // synthesizer
+    let providers = BTreeMap::from([("fake-a".to_string(), fa.clone()), ("fake-b".to_string(), fb.clone())]);
+    let driver = Driver { providers: &providers, home: &home, ilvuno_bin_dir: None, max_usd: 0.2 };
+    assert_eq!(driver.drive(&mut store, &plan, &run_id).await.expect("drive"), RunEnd::AtGate);
+
+    let a_prompts = fa.prompts();
+    assert_eq!(a_prompts.len(), 1, "fake-a runs one dispatch only");
+    assert!(a_prompts[0].contains("Read sections 1, 2 of"), "fake-a got researcher-a's task");
+    let b_prompts = fb.prompts();
+    assert_eq!(b_prompts.len(), 2, "fake-b runs researcher-b and the synthesizer");
+    assert!(b_prompts[0].contains("Read sections 3, 4 of"));
+    assert!(b_prompts[1].contains("Write `brief.html`"));
+
+    let mut stmt = store
+        .conn()
+        .prepare("SELECT d.slot, t.provider FROM dispatch d JOIN threads t ON t.id = d.thread_id ORDER BY d.rowid")
+        .expect("prepare");
+    let rows: Vec<(String, String)> =
+        stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?))).expect("query").collect::<rusqlite::Result<_>>().expect("rows");
+    assert_eq!(
+        rows,
+        vec![
+            ("researcher-a".to_string(), "fake-a".to_string()),
+            ("researcher-b".to_string(), "fake-b".to_string()),
+            ("synthesizer".to_string(), "fake-b".to_string()),
+        ]
+    );
+    let _ = std::fs::remove_dir_all(&dir);
 }
