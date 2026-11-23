@@ -68,6 +68,17 @@ tools/render-report.py
 - **Credentials never enter a child's environment** beyond what its own CLI needs. See `docs/security.md`.
 - **Truthful state.** `unknown` is a state we render, not an error we hide.
 
+## How to talk to the user
+
+English is the user's second language. Write so a child could follow.
+
+- Short sentences. One idea in each sentence.
+- Everyday words. If a technical word is needed, explain it in a few words the first time.
+- No idioms, no clever phrases. A simple comparison is fine.
+- Lists and small tables beat long paragraphs.
+- Start with what it means for the user. Then the details.
+- Same rule for reports and HTML pages: explain, do not impress. No jargon for its own sake.
+
 ## Hard-won facts — do not rediscover these
 
 1. Claude's `--session-id` must be a **UUID**; anything else exits before you can write to it.
