@@ -92,6 +92,13 @@
     runsError: '',
     currentId: null,
     detail: null,
+    activityRows: [],
+    activityRunId: null,
+    activityCursor: 0,
+    activityLoaded: false,
+    activityError: '',
+    activityExpanded: new Set(),
+    threadDiffs: new Map(),
     board: '',
     boardError: '',
     view: 'thread', // thread | board
@@ -196,6 +203,71 @@
     return data;
   }
 
+  const TURN_ROW_KINDS = [
+    'tool.call', 'permission.decided', 'dispatch.failed',
+    'dispatch.queued', 'dispatch.started', 'dispatch.reported',
+  ];
+  const TOOL_ROW_KINDS = ['tool.call', 'permission.decided', 'dispatch.failed'];
+
+  async function fetchActivity(id, after) {
+    const rows = [];
+    let cursor = after;
+    for (;;) {
+      const page = await getJson(`/runs/${encodeURIComponent(id)}/journal?after=${cursor}&kinds=${encodeURIComponent(TURN_ROW_KINDS.join(','))}&limit=1000`);
+      if (!Array.isArray(page)) break;
+      rows.push(...page);
+      if (page.length < 1000) break;
+      const next = Number(page[page.length - 1]?.seq);
+      if (!Number.isFinite(next) || next <= cursor) break;
+      cursor = next;
+    }
+    return rows;
+  }
+
+  function mergeActivityRows(id, rows) {
+    if (state.activityRunId !== id || !Array.isArray(rows)) return [];
+    const bySeq = new Map(state.activityRows.map((row) => [Number(row.seq), row]));
+    const added = [];
+    for (const row of rows) {
+      const seq = Number(row?.seq);
+      if (!Number.isFinite(seq) || bySeq.has(seq)) continue;
+      bySeq.set(seq, row);
+      added.push(row);
+      state.activityCursor = Math.max(state.activityCursor, seq);
+    }
+    if (added.length) state.activityRows = Array.from(bySeq.values()).sort((a, b) => Number(a.seq) - Number(b.seq));
+    return added;
+  }
+
+  async function catchUpActivity(id) {
+    if (state.activityRunId !== id) {
+      state.activityRunId = id;
+      state.activityRows = [];
+      state.activityCursor = 0;
+      state.activityLoaded = false;
+      state.activityError = '';
+      state.activityExpanded.clear();
+    }
+    try {
+      const rows = await fetchActivity(id, state.activityCursor);
+      if (state.activityRunId !== id) return;
+      const added = mergeActivityRows(id, rows);
+      state.activityError = '';
+      if (added.length) activityRowsChanged(id, added);
+    } catch (err) {
+      if (state.activityRunId === id) state.activityError = err.message;
+    }
+  }
+
+  function activityRowsChanged(id, rows) {
+    if (id !== state.currentId || state.view !== 'thread') return;
+    const thread = currentThread();
+    if (!thread) return;
+    const matchesOpenThread = rows.some((row) => row.thread === thread.name &&
+      thread.tasks.some((task) => Number(task.round) === Number(row.round)));
+    if (matchesOpenThread) renderView();
+  }
+
   async function healthCheck() {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
@@ -240,6 +312,14 @@
 
   async function loadRun(id, { refresh = false } = {}) {
     if (!id) return;
+    if (state.activityRunId !== id) {
+      state.activityRunId = id;
+      state.activityRows = [];
+      state.activityCursor = 0;
+      state.activityLoaded = false;
+      state.activityError = '';
+      state.activityExpanded.clear();
+    }
     const seq = ++state.loadSeq;
     let detail;
     let board;
@@ -269,10 +349,34 @@
       state.boardError = err.message;
     }
     if (seq !== state.loadSeq || state.currentId !== id) return;
+    if (!state.activityLoaded) {
+      try {
+        const rows = await fetchActivity(id, 0);
+        if (seq !== state.loadSeq || state.currentId !== id) return;
+        mergeActivityRows(id, rows);
+        state.activityLoaded = true;
+        state.activityError = '';
+      } catch (err) {
+        state.activityError = err.message;
+      }
+    }
+    if (seq !== state.loadSeq || state.currentId !== id) return;
     state.detail = detail;
     state.board = board?.markdown || '';
     pickThread();
     renderAll();
+    if (detail.run?.status === 'reviewed') {
+      const missing = (detail.threads || []).filter((thread) => thread.has_checkout && !state.threadDiffs.has(`${id}/${thread.name}`));
+      await Promise.all(missing.map(async (thread) => {
+        try {
+          const diff = await getJson(`/runs/${encodeURIComponent(id)}/threads/${encodeURIComponent(thread.name)}/diff`);
+          state.threadDiffs.set(`${id}/${thread.name}`, diff);
+        } catch (err) {
+          state.threadDiffs.set(`${id}/${thread.name}`, { error: err.message });
+        }
+      }));
+      if (seq === state.loadSeq && state.currentId === id) renderFacts();
+    }
   }
 
   function scheduleRefresh() {
@@ -349,12 +453,33 @@
       state.conn = 'open';
       renderChrome();
       scheduleRefresh();
+      catchUpActivity(id);
     };
     es.onerror = () => {
       state.conn = state.health === false ? 'offline' : 'reconnecting';
       renderChrome();
     };
-    es.addEventListener('journal', scheduleRefresh);
+    es.addEventListener('journal', (event) => {
+      let kind = 'unknown';
+      let row = null;
+      try {
+        row = JSON.parse(event.data || '{}');
+        if (typeof row.kind === 'string') kind = row.kind;
+      } catch (err) {
+        kind = 'unknown';
+      }
+      if (TURN_ROW_KINDS.includes(kind)) {
+        const hasActivity = Number.isFinite(Number(row?.seq)) && Number.isInteger(row?.round) &&
+          typeof row?.thread === 'string' && row?.payload && typeof row.payload === 'object';
+        if (hasActivity) {
+          const added = mergeActivityRows(id, [row]);
+          if (added.length) activityRowsChanged(id, added);
+        } else {
+          catchUpActivity(id);
+        }
+      }
+      if (kind !== 'tool.call' && kind !== 'permission.decided') scheduleRefresh();
+    });
   }
 
   function closeEvents() {
@@ -921,6 +1046,94 @@
       </div>`;
   }
 
+  function activityRowsForTask(task) {
+    const threadRows = state.activityRows.filter((row) => row.thread === task.thread && Number(row.round) === Number(task.round))
+      .sort((a, b) => Number(a.seq) - Number(b.seq));
+    const siblings = (state.detail?.tasks || []).map((row, i) => ({ ...row, i }))
+      .filter((row) => row.thread === task.thread && Number(row.round) === Number(task.round));
+    const taskIndex = siblings.findIndex((row) => row.i === Number(task.i));
+    if (taskIndex < 0) return [];
+    const queued = threadRows.filter((row) => row.kind === 'dispatch.queued');
+    const dispatchId = queued[taskIndex]?.payload?.dispatch_id;
+    if (typeof dispatchId !== 'string') return [];
+
+    const started = threadRows.find((row) => row.kind === 'dispatch.started' && row.payload?.dispatch_id === dispatchId);
+    if (!started) return threadRows.filter((row) => row.kind === 'dispatch.failed' && row.payload?.dispatch_id === dispatchId);
+    const ended = threadRows.find((row) => Number(row.seq) > Number(started.seq) &&
+      ['dispatch.reported', 'dispatch.failed'].includes(row.kind) && row.payload?.dispatch_id === dispatchId);
+    return threadRows.filter((row) => TOOL_ROW_KINDS.includes(row.kind) && Number(row.seq) > Number(started.seq) &&
+      (!ended || Number(row.seq) <= Number(ended.seq)));
+  }
+
+  function activityTarget(tool, input) {
+    let value = input;
+    if (typeof value === 'string') {
+      try { value = JSON.parse(value); } catch (err) { return ''; }
+    }
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
+    const keys = /^bash$/i.test(tool)
+      ? ['command']
+      : /^(read|write|edit|multiedit)$/i.test(tool)
+        ? ['file_path', 'path']
+        : ['file_path', 'path', 'command', 'query', 'pattern', 'glob', 'url'];
+    const target = keys.map((key) => value[key]).find((item) => typeof item === 'string' && item.trim());
+    return target ? target.trim().split(/\r?\n/, 1)[0].slice(0, 180) : '';
+  }
+
+  function activityLines(task) {
+    const rows = activityRowsForTask(task).slice().sort((a, b) => Number(a.seq) - Number(b.seq));
+    const calls = rows.filter((row) => row.kind === 'tool.call').map((row) => {
+      const payload = row.payload && typeof row.payload === 'object' ? row.payload : {};
+      const tool = typeof payload.tool === 'string' && payload.tool.trim() ? payload.tool.trim().slice(0, 80) : 'unknown';
+      return { seq: Number(row.seq) || 0, tool, target: activityTarget(tool, payload.input), permission: '', failure: '', call: true };
+    });
+    const permissions = rows.filter((row) => row.kind === 'permission.decided');
+    for (const row of permissions) {
+      const payload = row.payload && typeof row.payload === 'object' ? row.payload : {};
+      const tool = typeof payload.tool === 'string' && payload.tool.trim() ? payload.tool.trim().slice(0, 80) : 'unknown';
+      const behavior = payload.behavior === 'allow' || payload.behavior === 'deny' ? payload.behavior : 'unknown';
+      const seq = Number(row.seq) || 0;
+      const candidates = calls.filter((call) => call.tool === tool && !call.permission);
+      const match = candidates.find((call) => call.seq >= seq) || candidates.filter((call) => call.seq < seq).pop();
+      if (match) match.permission = behavior;
+      else calls.push({ seq, tool, target: '', permission: behavior, failure: '', call: false });
+    }
+    const failures = rows.filter((row) => row.kind === 'dispatch.failed');
+    if (calls.length && failures.length) {
+      const failed = failures[failures.length - 1]?.payload;
+      const reason = failed?.reason || failed?.summary;
+      if (typeof reason === 'string' && reason.trim()) {
+        calls.sort((a, b) => a.seq - b.seq);
+        calls[calls.length - 1].failure = reason.trim().split(/\r?\n/, 1)[0].slice(0, 180);
+      }
+    }
+    return calls.sort((a, b) => a.seq - b.seq);
+  }
+
+  function activityDetailsHtml(task) {
+    const lines = activityLines(task);
+    if (!lines.length) return '';
+    const hidden = Math.max(0, lines.length - 50);
+    const shown = lines.slice(-50);
+    const tools = lines.filter((line) => line.call).length;
+    const denied = lines.filter((line) => line.permission === 'deny').length;
+    const key = `${state.currentId}/${task.thread}/${task.i}`;
+    const open = state.activityExpanded.has(key);
+    return `
+      <details class="tool-activity" data-activity-key="${esc(key)}"${open ? ' open' : ''}>
+        <summary>What it ran · ${tools} ${tools === 1 ? 'tool' : 'tools'} · ${denied} denied</summary>
+        <ul class="tool-rows">${shown.map((line) => `
+          <li class="tool-row${line.failure ? ' failed' : ''}">
+            <div class="tool-row-main"><span class="tool-name">${esc(line.tool || 'unknown')}</span>
+              ${line.target ? `<code class="tool-target">${esc(line.target)}</code>` : ''}
+              ${line.permission ? `<span class="tool-permission ${line.permission}">${esc(line.permission === 'deny' ? 'Denied' : line.permission === 'allow' ? 'Allowed' : 'Unknown')}</span>` : ''}
+            </div>
+            ${line.failure ? `<span class="tool-failure">Failed: ${esc(line.failure)}</span>` : ''}
+          </li>`).join('')}</ul>
+        ${hidden ? `<p class="tool-older">${fmt(hidden)} older ${hidden === 1 ? 'row' : 'rows'} hidden</p>` : ''}
+      </details>`;
+  }
+
   function replyHtml(task) {
     const message = shrinkText(task.message);
     const report = shrinkText(task.result);
@@ -942,6 +1155,7 @@
           </div>` : ''}
         ${files.length ? `<div class="files">${files.map((a) => `
           <span class="fchip" title="${esc(a.path)}">${esc(String(a.path || '').split('/').pop())}${a.bytes != null ? ' · ' + fmt(a.bytes) + ' b' : ''}</span>`).join('')}</div>` : ''}
+        ${activityDetailsHtml(task)}
       </div>`;
   }
 
@@ -1176,10 +1390,35 @@
     const round = rounds[rounds.length - 1] || { index: 0, readiness: { checks: [] } };
     const checks = round.readiness?.checks || [];
     const draft = state.noteDrafts.get(state.currentId) || '';
+    const threads = state.detail.threads || [];
+    const checkouts = threads.filter((thread) => thread.has_checkout);
+    const fileCount = checkouts.reduce((sum, thread) => {
+      const count = /(?:^|\s)(\d+) files? changed/.exec(thread.stat || '')?.[1];
+      return sum + Number(count || 0);
+    }, 0);
+    const mergeLabel = checkouts.length
+      ? `Merge ${checkouts.length} ${checkouts.length === 1 ? 'thread' : 'threads'} · ${fileCount} ${fileCount === 1 ? 'file' : 'files'}`
+      : 'Accept · no files to merge';
+    const threadDiffs = threads.map((thread) => {
+      if (!thread.has_checkout) return '';
+      const diff = state.threadDiffs.get(`${state.currentId}/${thread.name}`);
+      const stat = thread.stat || 'No file changes';
+      const branch = thread.branch || 'branch unknown';
+      const patch = diff?.patch || '';
+      const patchContent = diff?.error
+        ? `Could not read this patch: ${diff.error}`
+        : `${patch || 'No file changes.'}${diff?.truncated ? '\n\nPatch cut off at 128 KiB.' : ''}`;
+      return `<article class="gate-thread">
+        <div class="gate-thread-head"><b>${esc(thread.name)}</b><span>${esc(branch)}</span></div>
+        <p class="gate-stat">${esc(stat)}</p>
+        <details class="gate-diff"><summary>View patch</summary><pre>${esc(patchContent)}</pre></details>
+      </article>`;
+    }).join('');
     return `
       <section class="gate-panel" aria-label="Gate">
         <div class="gate-phead"><span class="gate-k">Gate · round ${esc(round.index)}</span>${chip('open', 'warn')}</div>
-        <p class="gate-copy">${checks.length ? 'The checks passed.' : 'This round recorded no checks.'} Nothing has been merged. Accept to record the decision, or send it back with a note the team reads.</p>
+        <p class="gate-copy">${checks.length ? 'The checks passed.' : 'This round recorded no checks.'} ${checkouts.length ? 'Accept to merge these thread changes into the project.' : 'Accept to record the decision. This run has no Git checkouts.'}</p>
+        ${threadDiffs ? `<div class="gate-threads">${threadDiffs}</div>` : ''}
         <div class="gate-checks">${checks.length ? checks.map((c) => `
           <div class="gate-check">
             <svg class="${c.passed ? 'ic' : 'ic bad'}" aria-hidden="true"><use href="#i-${c.passed ? 'check' : 'x'}"></use></svg>
@@ -1190,7 +1429,7 @@
         <label class="field-label" for="gate-note">Note to the team <span>needed only to send back</span></label>
         <textarea class="gate-note" id="gate-note" rows="2" placeholder="What should change before this is accepted?">${esc(draft)}</textarea>
         <div class="gate-actions">
-          <button class="btn primary" data-act="accept-gate"${state.gateBusy ? ' disabled' : ''}>Accept and merge</button>
+          <button class="btn primary" data-act="accept-gate"${state.gateBusy ? ' disabled' : ''}>${esc(mergeLabel)}</button>
           <button class="btn" data-act="send-back"${state.gateBusy ? ' disabled' : ''}>Send back with note</button>
         </div>
         <p class="gate-inline" id="gateInline" role="status" hidden></p>
@@ -1215,6 +1454,10 @@
     const run = state.detail.run;
     if (run.status === 'reviewed') return gatePanel();
     if (run.status === 'accepted' || run.status === 'merged') return gateReceipt();
+    if (run.status === 'blocked' && String(run.blocked_reason || '').startsWith('merge conflict in:')) {
+      const files = String(run.blocked_reason).replace(/^merge conflict in:\s*/, '');
+      return `<div class="gate-conflict"><b>Merge stopped</b><p>The conflicting merge was aborted. The project was left as it was before that merge.</p><p>Files: ${esc(files)}</p></div>`;
+    }
     if (['blocked', 'budget_exhausted', 'no_progress', 'human_paused'].includes(run.status)) {
       return `<p class="facts-empty">The gate did not open: the run is ${esc(statusWord(run.status))}. Its reason is in the centre panel.</p>`;
     }
@@ -1356,6 +1599,11 @@
     const scroll = $('#scroll');
     if (!view || !scroll) return;
     const top = scroll.scrollTop;
+    $$('details[data-activity-key]', view).forEach((details) => {
+      const key = details.dataset.activityKey;
+      if (details.open) state.activityExpanded.add(key);
+      else state.activityExpanded.delete(key);
+    });
     const key = `${state.currentId}|${state.view}|${state.thread}`;
     const same = key === state.lastThreadKey;
 

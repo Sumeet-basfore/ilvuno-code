@@ -34,6 +34,8 @@ machine, a port reachable from elsewhere, or any client that is not the window.
 | GET | `/health` | Is the process up | `200 {"ok":true,"version":"0.0.1"}` | — |
 | GET | `/runs` | Run summaries, newest first | `200 [{id,status,title,project,rounds_used,tokens_used,started_at}]` | `query::list_runs` |
 | GET | `/runs/:id` | One run, as `run.json` in an export | `200` export shape | `export::run_json` |
+| GET | `/runs/:id/journal` | Bounded journal history; accepts `after`, `kinds` (CSV) and `limit` | `200 [{seq,at,kind,round,thread,payload}]` | `query::journal_page` |
+| GET | `/runs/:id/threads/:name/diff` | One thread's diffstat and bounded patch; folder-mode threads return `{"branch":null}` | `200 {branch,base,stat,patch,truncated}` | `runner::git` |
 | GET | `/runs/:id/board` | The board a thread reads | `200 {"markdown":"…"}` | `ledger::render_board` |
 | GET | `/runs/:id/events` | Live journal, server-sent events | `200 text/event-stream` | `query::journal_after` |
 | POST | `/runs` | Start a run from goal JSON, drive it in the background | `202 {"run_id","status":"working"}` | `cli::ops::create_run`, `drive_with` |
@@ -65,6 +67,18 @@ data: {"seq":6,"kind":"dispatch.queued","at":1795417142551}
   resumes from the row after it.
 - Without `Last-Event-ID`, the stream starts from the newest row at connect time.
 - An empty comment line (a single `:`) is sent every 15 seconds so the connection stays open.
+- Tool activity events (`tool.call`, `permission.decided`, `dispatch.failed`) also include `round`, `thread`
+  and the already-bounded `payload`.
+- Task boundary events (`dispatch.queued`, `dispatch.started`, `dispatch.reported`) include `round`,
+  `thread` and only `payload.dispatch_id`. The window uses these rows to place activity under the right
+  task. Other event kinds keep the small `{seq,kind,at}` shape.
+
+### Journal history
+
+`GET /runs/:id/journal` returns rows in sequence order. `after` is exclusive and defaults to `0`. `limit`
+defaults to `200` and is capped at `1000`. `kinds` is an optional comma-separated list of known journal
+kinds; an unknown kind is a `400`. `round` is the round number and `thread` is the thread name when the
+row has them. Tool input stored by the runner is already capped before this route reads it.
 
 ### Agents
 
@@ -130,6 +144,12 @@ Every error is JSON with the same two keys:
 | `not_found` | 404 | No run has that id, or no such route |
 | `conflict` | 409 | The runner refused the command (the `error` text is the runner's reason, word for word), or another run is already being driven by this process |
 | `internal` | 500 | Something broke inside. The detail goes to the `ilvunod` log; the response only says so |
+
+The thread diff patch is capped at 128 KiB. Its `stat` covers the full diff. Accepting a git-backed run
+checks that the project is clean, then merges each checked-out thread branch in task order. A conflict
+aborts that merge and blocks the run with the conflicting file names. Each thread worktree must also be
+clean; if it has uncommitted files, accept is refused and names them. Folder-mode runs only record the
+human decision.
 
 ## Limits in v1
 

@@ -90,7 +90,7 @@ Verified against `codex-acp 2.9.0`.
 actions internally — the client never sees a request, so the runner's policy is bypassed. Set
 `"mode": "workspace-write"` on the provider entry (passed to the adapter as `INITIAL_AGENT_MODE`).
 Verified: a write outside the session cwd raises a permission request. In that mode the agent writes
-freely inside its cwd, which is the thread's own folder, so the sandbox and our policy agree. `/tmp`
+freely inside its cwd, which is the thread's own folder or worktree, so the sandbox and our policy agree. `/tmp`
 is writable in that mode by default — do not treat `/tmp` as a boundary.
 
 Both map onto one runner event: `permission_request {tool, input, options}`. The runner's policy decides,
@@ -106,7 +106,7 @@ A thread gets the **worker** text, or the **orchestrator** text when it is the t
 The goal's `threads` entry supplies the thread's standing job; the task supplies what to do now and the
 scope. Both texts are the same text the code uses.
 
-**Worker preamble** (`worker-preamble/4`, adapted from orca's `worker-dispatch-preamble`, the design that
+**Worker preamble** (`worker-preamble/5`, adapted from orca's `worker-dispatch-preamble`, the design that
 survives uninstrumentable CLIs):
 
 ```text
@@ -119,7 +119,7 @@ Message policy for this run: <round|anytime|never>.
 
 Rules:
 - Before you touch a file, say so: `<bin> note --task <task_id> --kind intent --body "what you are about to do"`.
-- Write only inside your folder. Never switch branches. Never merge.
+- Write only inside your folder. Never switch branches. Never merge.<checkout>
 - When you need a decision you cannot make, ask and stop your turn:
   `<bin> note --task <task_id> --kind question --body "the question"`.
 - When you finish: report exactly once with `<bin> report --task <task_id> --status ok|failed
@@ -129,6 +129,9 @@ Rules:
 === TASK ===
 <task text>
 ```
+
+`<checkout>` is empty in folder mode. With a git worktree it becomes:
+`- This is a real git checkout on branch <branch>. Do not switch branches. Every change you want to keep must be left in the working tree.`
 
 **Orchestrator preamble** (`orchestrator-preamble/1`). The orchestrator plans and delegates through the
 same `ilvuno task` command the user uses. It has no authority over the gate.
@@ -163,8 +166,9 @@ The orchestrator may also run `ilvuno task --thread <name> ...`. Everything else
 and reads outside the permitted paths, is refused by the runner's policy. If the preamble asks for
 something the policy forbids, that is a bug in one of them.
 
-**Reads.** A thread may read its own folder, the run folder (which holds the board and every thread's
-files), and any absolute path listed in its task's scope. It may write only inside its own folder.
+**Reads.** A thread may read its own folder or worktree, the run folder (which holds the board and every
+thread's files), and any absolute path listed in its task's scope. It may write only inside its own folder
+or worktree.
 
 **Who writes a task.** The task text the thread receives is its standing job, the task prompt, and the
 scope. The runner adds the thread's standing job; it does not change the task's words. A task written by

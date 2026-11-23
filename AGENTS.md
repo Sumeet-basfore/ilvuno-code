@@ -31,16 +31,27 @@ Everything else in `research/` is evidence. Read it when a claim here needs defe
 Do not "fix" the broken toolchain by reinstalling without asking; the workaround is cheap and the download
 is not.
 
-## Build and test (target state — created with the scaffold)
+## Build and test
 
 ```bash
-RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace
-RUSTUP_TOOLCHAIN=1.100.0 cargo run -p ilvuno -- run --goal examples/board-experiment.json
-RUSTUP_TOOLCHAIN=1.100.0 cargo run -p api --bin ilvunod   # the app's local API on 127.0.0.1:4737 (docs/api.md)
+RUSTUP_TOOLCHAIN=1.100.0 cargo build                       # while you work: catch compile errors
+RUSTUP_TOOLCHAIN=1.100.0 cargo test -p runner --test invariants   # one file, when you need a signal
+RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace            # once, when the change is finished
+RUSTUP_TOOLCHAIN=1.100.0 cargo run -p api --bin ilvunod    # the local API on 127.0.0.1:4737 (docs/api.md)
 ```
 
-A change is not done until `cargo test --workspace` passes and `ilvuno run` still reaches a gate on the
-example goal.
+**Test once per change, not per edit.** The suite takes a minute, and running it after every small edit
+teaches nothing the next run would not.
+
+- While working: `cargo build` to catch compiler errors. Run the one test file that covers what you are
+  touching, and only when you have something to check.
+- When the change is finished: **one** `cargo test --workspace`. Fix what fails. Do not re-run it between
+  follow-up edits.
+- New behaviour still gets a test. One test that would fail without the change is worth more than ten runs
+  of the old suite.
+- Never run `ilvuno run --goal examples/board-experiment.json` unless the change touches the run loop, the
+  gate or a provider. It costs about 12 cents and half an hour.
+- A change is not done without that single pass. One pass is enough; zero is not. Say plainly if it fails.
 
 ## Layout (target)
 
@@ -64,8 +75,7 @@ The window lives in `crates/desktop/ui/` and is built from the v3 design
 
 ## Conventions
 
-- **No UI until the runner works.** The v0 acceptance in `docs/prd.md` §7 is the gate. A Tauri window built
-  before it would be built against imagined state.
+- **The window holds no engine code.** It reads the local API and nothing else; the runner works without it.
 - **Smallest change that fully works.** No abstraction, option, or "for later" layer nobody asked for. No
   new dependency for a few lines; the workspace starts with `tokio`, `serde`, `rusqlite`, `anyhow`,
   `agent-client-protocol`.

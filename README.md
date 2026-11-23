@@ -1,6 +1,6 @@
 # Ilvuno
 
-A desktop app where several AI agents work on one project, and the project remembers what each did.
+A desktop app where several coding agents work on one project, and the project remembers what each did.
 Rust engine, local API, and a Tauri window that reads the API. The app decides nothing about who does what — you
 write the goal, name the threads, and say what finished looks like.
 

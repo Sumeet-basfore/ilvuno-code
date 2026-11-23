@@ -56,17 +56,80 @@ pub fn root_of(path: &Path) -> Option<PathBuf> {
 
 /// True when there is nothing to lose: no staged, unstaged or untracked changes.
 pub fn is_clean(root: &Path) -> Result<bool> {
-    Ok(git_ok(root, &["status", "--porcelain"])?.is_empty())
+    Ok(dirty_paths(root)?.is_empty())
+}
+
+/// Paths that make the project tree unsafe to merge into.
+pub fn dirty_paths(root: &Path) -> Result<Vec<String>> {
+    Ok(git_ok(root, &["status", "--porcelain", "--untracked-files=all"])?
+        .lines()
+        .map(|line| line.get(3..).unwrap_or(line).to_string())
+        .collect())
+}
+
+/// Uncommitted agent work in a thread checkout. The adapter's stderr capture is runner output, not
+/// agent work, so it does not make the gate refuse an otherwise clean checkout.
+pub fn dirty_worktree_paths(worktree: &Path) -> Result<Vec<String>> {
+    let status = git_ok(worktree, &["status", "--porcelain", "--untracked-files=all"])?;
+    Ok(status
+        .lines()
+        .filter_map(|line| {
+            let code = line.get(..2).unwrap_or_default();
+            let path = line.get(3..).unwrap_or(line);
+            (!(path == "provider-stderr.log" && code == "??")).then(|| path.to_string())
+        })
+        .collect())
 }
 
 pub fn head(root: &Path) -> Result<String> {
     git_ok(root, &["rev-parse", "HEAD"])
 }
 
+/// The first eight letters and digits of a run id. The branch and the worktree folder share it.
+pub fn run8(run_id: &str) -> String {
+    run_id.chars().filter(|c| c.is_ascii_alphanumeric()).take(8).collect()
+}
+
 /// A branch name for one thread of one run: `run/<run8>/<thread>`.
 pub fn branch_name(run_id: &str, thread: &str) -> String {
-    let short: String = run_id.chars().filter(|c| c.is_ascii_alphanumeric()).take(8).collect();
-    format!("run/{short}/{}", thread.replace(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '_', "-"))
+    format!(
+        "run/{}/{}",
+        run8(run_id),
+        thread.replace(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '_', "-")
+    )
+}
+
+/// Whether a run's project can use per-thread worktrees. Decided once, at run creation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProjectGit {
+    Eligible { root: PathBuf, base: String },
+    NotEligible { reason: String },
+}
+
+/// A clean git repository at HEAD, on a git new enough for the flags we use. Anything else stays in
+/// folder mode; the reason is journaled so the fallback is visible, never silent.
+pub fn project_git(project: &Path) -> ProjectGit {
+    let Some(root) = root_of(project) else {
+        return ProjectGit::NotEligible { reason: format!("{} is not a git repository", project.display()) };
+    };
+    let version = match version() {
+        Ok(v) => v,
+        Err(e) => return ProjectGit::NotEligible { reason: format!("git --version failed: {e}") },
+    };
+    if !meets_floor(version) {
+        return ProjectGit::NotEligible {
+            reason: format!("git {}.{}.{} is older than the {}.{}.{} floor", version.0, version.1, version.2, FLOOR.0, FLOOR.1, FLOOR.2),
+        };
+    }
+    match is_clean(&root) {
+        Ok(true) => {}
+        Ok(false) => return ProjectGit::NotEligible { reason: format!("{} has uncommitted changes", root.display()) },
+        Err(e) => return ProjectGit::NotEligible { reason: format!("cannot read the git status of {}: {e}", root.display()) },
+    }
+    match head(&root) {
+        Ok(base) => ProjectGit::Eligible { root, base },
+        Err(e) => ProjectGit::NotEligible { reason: format!("{} has no commit to branch from: {e}", root.display()) },
+    }
 }
 
 /// Create the thread's worktree on a new branch at `base`. The folder must not exist yet.
@@ -87,7 +150,9 @@ pub fn add_worktree(root: &Path, path: &Path, branch: &str, base: &str) -> Resul
 /// Hooks are skipped: this is a snapshot of what the agent did, not a curated commit, and the human sees
 /// the diff at the gate. A hanging hook would otherwise freeze the runner.
 pub fn commit_all(worktree: &Path, message: &str) -> Result<Option<String>> {
-    git_ok(worktree, &["add", "-A"])?;
+    // Claude's adapter captures stderr in the thread cwd. It is runner output, not agent work, and
+    // must not appear in the branch diff shown at the gate.
+    git_ok(worktree, &["add", "-A", "--", ".", ":!provider-stderr.log"])?;
     let staged = git_ok(worktree, &["diff", "--cached", "--name-only"])?;
     if staged.is_empty() {
         return Ok(None);
@@ -111,6 +176,23 @@ pub fn diff_stat(worktree: &Path, base: &str) -> Result<String> {
 /// The full patch, for a gate that wants to show it.
 pub fn diff(worktree: &Path, base: &str) -> Result<String> {
     git_ok(worktree, &["diff", &format!("{base}...HEAD")])
+}
+
+/// A diff small enough to send to the desktop window. The stat remains separate and untruncated.
+pub fn diff_capped(worktree: &Path, base: &str, cap: usize) -> Result<(String, bool)> {
+    let patch = diff(worktree, base)?;
+    if patch.len() <= cap {
+        return Ok((patch, false));
+    }
+    let mut end = cap;
+    while !patch.is_char_boundary(end) {
+        end -= 1;
+    }
+    Ok((patch[..end].to_string(), true))
+}
+
+pub fn short_head(worktree: &Path) -> Result<String> {
+    git_ok(worktree, &["rev-parse", "--short", "HEAD"])
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -243,6 +325,58 @@ mod tests {
         let path = r.dir.join("..").join(format!("wt-{}", uuid::Uuid::new_v4()));
         add_worktree(&r.dir, &path, &branch_name("x", "t"), &base).expect("worktree");
         assert_eq!(commit_all(&path, "nothing").expect("commit"), None);
+        remove_worktree(&r.dir, &path).expect("remove");
+    }
+
+    #[test]
+    fn provider_stderr_capture_is_not_committed_as_thread_work() {
+        let r = repo("stderr-capture");
+        let base = head(&r.dir).expect("head");
+        let path = r.dir.join("..").join(format!("wt-{}", uuid::Uuid::new_v4()));
+        let branch = branch_name("stderr", "writer");
+        add_worktree(&r.dir, &path, &branch, &base).expect("worktree");
+        std::fs::write(path.join("notes.md"), "notes\n").expect("agent work");
+        std::fs::write(path.join("provider-stderr.log"), "adapter output\n").expect("adapter log");
+        commit_all(&path, "writer: notes").expect("commit").expect("sha");
+
+        let stat = diff_stat(&path, &base).expect("stat");
+        assert!(stat.contains("notes.md"), "{stat}");
+        assert!(!stat.contains("provider-stderr.log"), "{stat}");
+        remove_worktree(&r.dir, &path).expect("remove");
+    }
+
+    #[test]
+    fn provider_stderr_does_not_make_a_thread_worktree_dirty() {
+        let r = repo("stderr-dirty");
+        let base = head(&r.dir).expect("head");
+        let path = r.dir.join("..").join(format!("wt-{}", uuid::Uuid::new_v4()));
+        add_worktree(&r.dir, &path, &branch_name("stderr", "writer"), &base).expect("worktree");
+        std::fs::write(path.join("provider-stderr.log"), "adapter output\n").expect("adapter log");
+        assert!(dirty_worktree_paths(&path).expect("dirty paths").is_empty());
+
+        git_ok(&path, &["add", "provider-stderr.log"]).expect("stage adapter log");
+        assert_eq!(dirty_worktree_paths(&path).expect("dirty paths"), ["provider-stderr.log"]);
+        git_ok(&path, &["reset", "--", "provider-stderr.log"]).expect("unstage adapter log");
+
+        std::fs::write(path.join("notes.md"), "agent work\n").expect("agent work");
+        assert_eq!(dirty_worktree_paths(&path).expect("dirty paths"), ["notes.md"]);
+        remove_worktree(&r.dir, &path).expect("remove");
+    }
+
+    #[test]
+    fn a_capped_patch_stays_within_the_byte_limit_and_keeps_the_full_stat() {
+        let r = repo("diff-cap");
+        let base = head(&r.dir).expect("head");
+        let path = r.dir.join("..").join(format!("wt-{}", uuid::Uuid::new_v4()));
+        let branch = branch_name("cap", "writer");
+        add_worktree(&r.dir, &path, &branch, &base).expect("worktree");
+        std::fs::write(path.join("large.md"), "line of text\n".repeat(20_000)).expect("large file");
+        commit_all(&path, "large patch").expect("commit").expect("sha");
+
+        let (patch, truncated) = diff_capped(&path, &base, 1024).expect("capped patch");
+        assert!(truncated);
+        assert!(patch.len() <= 1024);
+        assert!(diff_stat(&path, &base).expect("full stat").contains("large.md"));
         remove_worktree(&r.dir, &path).expect("remove");
     }
 

@@ -41,6 +41,8 @@ Use `PRAGMA journal_mode=WAL`, `foreign_keys=ON`, `synchronous=NORMAL`.
 | `tokens_used` | INTEGER | summed from provider usage events |
 | `blocked_reason` | TEXT | nullable |
 | `accepted_by`, `merged_by` | TEXT | `human` \| `agent:<thread>` |
+| `git_root` | TEXT | nullable; the repository root when the run uses worktrees |
+| `git_base` | TEXT | nullable; the commit each thread's branch starts from |
 
 ### `threads`
 
@@ -53,8 +55,8 @@ Use `PRAGMA journal_mode=WAL`, `foreign_keys=ON`, `synchronous=NORMAL`.
 | `role` | TEXT | `orchestrator` \| `worker` (what the policy allows the thread) |
 | `provider` | TEXT | agent id (a key of `goals.providers`), e.g. `claude-main`, `codex-main` |
 | `native_session_id` | TEXT | provider's own id; nullable until created |
-| `branch` | TEXT | `run/<run>/<slug>`; null for roles without a branch |
-| `worktree_path` | TEXT | null for roles without a worktree |
+| `branch` | TEXT | `run/<run8>/<thread>` when the run uses worktrees; null in folder mode |
+| `worktree_path` | TEXT | the thread's checkout: `<home>/worktrees/<run8>/<thread>` once created, otherwise its folder under the run |
 | `status` | TEXT | `idle` \| `working` \| `waiting` \| `parked` \| `dead` |
 | `created_at`, `last_active_at` | INTEGER | |
 
@@ -149,7 +151,7 @@ Append-only event log. Source of truth for replay; projections are caches.
 | `run_id` | TEXT | indexed |
 | `round_id`, `thread_id` | TEXT | nullable |
 | `at` | INTEGER | unix ms |
-| `kind` | TEXT | `run.created`, `round.planned`, `dispatch.queued`, `dispatch.reported`, `ledger.appended`, `gate.opened`, `gate.decided`, `merge.requested`, `merge.done`, `run.blocked`, `thread.spawned`, `thread.parked` … |
+| `kind` | TEXT | `run.created`, `round.planned`, `dispatch.queued`, `dispatch.reported`, `ledger.appended`, `gate.opened`, `gate.decided`, `merge.landed`, `merge.conflict`, `merge.refused`, `run.blocked`, `thread.spawned`, `thread.parked` … |
 | `payload` | TEXT | JSON; the exact data the transition carried |
 
 Two rules:
@@ -207,6 +209,9 @@ The first five are what `GET /settings` and `PUT /settings` serve; see `docs/api
 4. No write to a worktree other than the thread's own.
 5. `same request_id` twice ⇒ one dispatch, one receipt.
 
+The runner commits only inside a thread's worktree, on its own branch. It never commits, checks out or
+merges in the project's own working tree.
+
 ---
 
 ## Export bundle
@@ -227,7 +232,7 @@ artifacts/      the files the run produced
 |---|---|
 | `run` | id, status, rounds_used, tokens_used, started_at, ended_at, blocked_reason, **project** (the goal file's folder) |
 | `goal` | text, done, checks, message_policy, budget |
-| `threads[]` | name, agent, role, prompt, status, native_session |
+| `threads[]` | name, agent, role, prompt, status, native_session, branch, has_checkout, commit, stat |
 | `rounds[]` | index, status, verdict, readiness (checks + failing), tokens, cost_usd |
 | `tasks[]` | prompt, status, created_by, scope, thread, result, **message**, round |
 | `ledger[]` | id, kind, body, scope, round, thread |

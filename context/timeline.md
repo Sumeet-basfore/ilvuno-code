@@ -53,3 +53,22 @@ honest record.
 The morning was the engine and the user's corrections. The afternoon was the window, rejected twice. The
 evening was verification — and every one of the serious defects (resume, the stale build, the hidden menu,
 "working" with nothing running) was found by looking at the real thing, not by reading the code.
+
+## Stage 2 · worktrees
+
+| Time | Phase | What landed |
+|---|---|---|
+| 23:09 | **Stage 2-A/B** | A clean git project gives every thread its own worktree and branch, with a commit after each task; folder mode is the fallback and journals why (`ff669cc`). |
+
+## Stage 2 · gate diff and merge
+
+| Time | Phase | What landed |
+|---|---|---|
+| 23:32 | **Stage 2-C** | The API returns a bounded diff per thread; the gate shows each branch, stat and patch. Accept checks for a clean project, merges checked-out branches in task order, and records each landing. Conflicts abort and block with file names. The scripted suite and a real throwaway-project run passed (`e430433`). |
+
+## Stage 3 · tool activity (2026-11-24)
+
+| Phase | What landed |
+|---|---|
+| **M5** | The API reads filtered journal history. The SSE stream sends bounded tool rows and dispatch IDs. The conversation shows a closed-by-default activity fold under each task, with keyboard access, safe targets, permissions and failures. Tests passed and the real window screenshots were read (`6648207`). Report: [`03-tool-activity`](prompts/reports/2026-11-24-03-tool-activity.md). |
+| **PR review** | Review found that gate acceptance could miss uncommitted thread-worktree files. Acceptance now refuses dirty worktrees and reports their paths (`54c0004`); the workspace suite passed with 160 tests and 3 ignored. The README now says “coding agents” (`db7594b`). |

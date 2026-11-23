@@ -34,6 +34,13 @@ impl FakeProvider {
         }
     }
 
+    /// Put one scripted turn before the queued turns. Tests use this to add events to the next run.
+    pub fn push_turn_front(&self, events: Vec<Event>) {
+        if let Ok(mut s) = self.shared.script.lock() {
+            s.push_front(events);
+        }
+    }
+
     /// Called synchronously with each prompt text, before its events are yielded. Tests use this to
     /// play the part of the agent (e.g. invoke `ilvuno report`).
     pub fn set_prompt_hook(&self, hook: PromptHook) {

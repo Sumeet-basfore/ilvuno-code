@@ -215,6 +215,21 @@ svg.ic.sm{width:12px;height:12px}
 .files{display:flex;flex-wrap:wrap;gap:4px}
 .fchip{display:inline-block;line-height:16px;max-width:100%;height:18px;padding:0 5px;border:1px solid var(--line);border-radius:3px;font-family:var(--mono);font-size:9.5px;color:var(--ink-3);background:var(--pane);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fchip.run{color:var(--ink-2);border-style:dashed;background:transparent}
+.tool-activity{max-width:72ch;margin-top:1px;border-top:1px solid var(--line);min-width:0}
+.tool-activity summary{width:max-content;max-width:100%;padding:5px 0 0;color:var(--ink-3);font-family:var(--mono);font-size:9.5px;line-height:1.4;cursor:pointer;overflow-wrap:anywhere}
+.tool-activity summary:hover{color:var(--ink-2)}
+.tool-rows{display:flex;flex-direction:column;gap:6px;margin:7px 0 0;padding:0;list-style:none;min-width:0}
+.tool-row{display:flex;flex-direction:column;gap:2px;min-width:0;font-size:11.5px;line-height:1.4}
+.tool-row-main{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;min-width:0}
+.tool-name{font-weight:600;color:var(--ink-2)}
+.tool-target{max-width:100%;padding:1px 4px;border-radius:3px;background:var(--raised);font-family:var(--mono);font-size:10px;color:var(--ink-3);overflow-wrap:anywhere;white-space:pre-wrap}
+.tool-permission{font-family:var(--mono);font-size:9px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.tool-permission.allow{color:var(--green)}
+.tool-permission.deny{color:var(--red)}
+.tool-permission.unknown{color:var(--ink-3)}
+.tool-row.failed .tool-name,.tool-failure{color:var(--red)}
+.tool-failure{font-size:11px;overflow-wrap:anywhere}
+.tool-older{margin:6px 0 0;font-family:var(--mono);font-size:9.5px;color:var(--ink-3)}
 .led-scope{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
 .turn-none{font-size:12px;color:var(--ink-3)}
 
@@ -331,6 +346,17 @@ svg.ic.sm{width:12px;height:12px}
 .gate-check .ic.bad{color:var(--red)}
 .gate-check .chip{margin-left:auto;height:17px;font-size:9px}
 .gate-check span:first-of-type{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gate-threads{display:flex;flex-direction:column;gap:6px;margin:0 0 10px;min-width:0}
+.gate-thread{min-width:0;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--pane)}
+.gate-thread-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0;font-size:11px}
+.gate-thread-head b{flex:none;color:var(--ink)}
+.gate-thread-head span{min-width:0;overflow-wrap:anywhere;text-align:right;font-family:var(--mono);font-size:9px;color:var(--ink-3)}
+.gate-stat{margin:3px 0;font-family:var(--mono);font-size:9.5px;line-height:1.4;color:var(--ink-2);overflow-wrap:anywhere}
+.gate-diff summary{width:fit-content;cursor:pointer;font-size:10px;color:var(--accent)}
+.gate-diff pre{max-height:240px;overflow:auto;margin:6px 0 0;padding:7px;border-radius:4px;background:var(--raised);font:9px/1.45 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere}
+.gate-conflict{padding:9px 10px;border:1px solid var(--red);border-radius:7px;background:var(--pane);font-size:11px;line-height:1.45;color:var(--ink-2);overflow-wrap:anywhere}
+.gate-conflict b{color:var(--red)}
+.gate-conflict p{margin:4px 0 0}
 .field-label{display:block;margin:0 0 4px;font-family:var(--mono);font-size:9.5px;line-height:1;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
 .field-label span{color:var(--ink-3);letter-spacing:.02em;text-transform:none;margin-left:4px}
 .gate-note{width:100%;min-height:46px;resize:vertical;background:var(--raised);border:1px solid var(--control-line);border-radius:6px;padding:6px 8px;font-size:12px;line-height:1.45;color:var(--ink)}

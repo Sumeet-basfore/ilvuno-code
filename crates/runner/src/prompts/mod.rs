@@ -2,7 +2,7 @@
 //! because agents lose them. The journal records the version on each task start. The texts below are the
 //! same text the contract document shows; a test fails if they diverge.
 
-pub const WORKER_PREAMBLE_VERSION: &str = "worker-preamble/4";
+pub const WORKER_PREAMBLE_VERSION: &str = "worker-preamble/5";
 pub const ORCHESTRATOR_PREAMBLE_VERSION: &str = "orchestrator-preamble/1";
 
 /// Placeholders in `<angle brackets>` are filled by the renderers. `<3 sentences>`, `<paths>` and
@@ -16,7 +16,7 @@ Message policy for this run: <round|anytime|never>.
 
 Rules:
 - Before you touch a file, say so: `<bin> note --task <task_id> --kind intent --body "what you are about to do"`.
-- Write only inside your folder. Never switch branches. Never merge.
+- Write only inside your folder. Never switch branches. Never merge.<checkout>
 - When you need a decision you cannot make, ask and stop your turn:
   `<bin> note --task <task_id> --kind question --body "the question"`.
 - When you finish: report exactly once with `<bin> report --task <task_id> --status ok|failed
@@ -57,6 +57,8 @@ pub struct WorkerPrompt<'a> {
     pub run: &'a str,
     pub message_policy: &'a str,
     pub bin: &'a str,
+    /// `Some("run/<run8>/<thread>")` when the thread works in a git worktree. Empty otherwise.
+    pub branch: Option<&'a str>,
     pub task: &'a str,
 }
 
@@ -73,6 +75,15 @@ pub struct OrchestratorPrompt<'a> {
 }
 
 pub fn render_worker(p: &WorkerPrompt<'_>) -> String {
+    // Folder mode leaves the placeholder empty, so its prompt is byte-for-byte what it was.
+    let checkout = p
+        .branch
+        .map(|branch| {
+            format!(
+                "\n- This is a real git checkout on branch `{branch}`. Do not switch branches. Every change you want to keep must be left in the working tree."
+            )
+        })
+        .unwrap_or_default();
     WORKER_PREAMBLE
         .replace("<thread>", p.thread)
         .replace("<coordinator>", p.coordinator)
@@ -82,6 +93,7 @@ pub fn render_worker(p: &WorkerPrompt<'_>) -> String {
         .replace("<run>", p.run)
         .replace("<round|anytime|never>", p.message_policy)
         .replace("<bin>", p.bin)
+        .replace("<checkout>", &checkout)
         .replace("<task text>", p.task)
 }
 
@@ -112,6 +124,7 @@ mod tests {
             run: "/runs/r",
             message_policy: "round",
             bin: "/opt/ilvuno",
+            branch: None,
             task: "DO THE THING",
         })
     }
@@ -141,6 +154,7 @@ mod tests {
             run: "/r",
             message_policy: "round",
             bin: "ilvuno",
+            branch: None,
             task: "quote <thread> and <bin> literally",
         });
         assert!(text.ends_with("quote <thread> and <bin> literally"));
@@ -167,15 +181,38 @@ mod tests {
     }
 
     #[test]
+    fn a_git_checkout_is_named_in_the_worker_prompt() {
+        let text = render_worker(&WorkerPrompt {
+            thread: "reader-1",
+            coordinator: "the user",
+            task_id: "t-1",
+            round_index: 0,
+            folder: "/home/worktrees/0123abcd/reader-1",
+            run: "/runs/r",
+            message_policy: "round",
+            bin: "ilvuno",
+            branch: Some("run/0123abcd/reader-1"),
+            task: "x",
+        });
+        assert!(text.contains("real git checkout on branch `run/0123abcd/reader-1`"));
+        assert!(text.contains("left in the working tree"));
+    }
+
+    #[test]
+    fn folder_mode_does_not_mention_a_checkout() {
+        assert!(!worker_text().contains("real git checkout"));
+    }
+
+    #[test]
     fn both_versions_are_distinct_and_named() {
-        assert_eq!(WORKER_PREAMBLE_VERSION, "worker-preamble/4");
+        assert_eq!(WORKER_PREAMBLE_VERSION, "worker-preamble/5");
         assert_eq!(ORCHESTRATOR_PREAMBLE_VERSION, "orchestrator-preamble/1");
     }
 
     #[test]
     fn provider_contract_shows_both_prompt_texts_verbatim() {
         let doc = include_str!("../../../../docs/provider-contract.md");
-        assert!(doc.contains(WORKER_PREAMBLE), "docs/provider-contract.md must show worker-preamble/4 verbatim");
+        assert!(doc.contains(WORKER_PREAMBLE), "docs/provider-contract.md must show worker-preamble/5 verbatim");
         assert!(doc.contains(ORCHESTRATOR_PREAMBLE), "docs/provider-contract.md must show orchestrator-preamble/1 verbatim");
     }
 }

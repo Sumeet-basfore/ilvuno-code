@@ -24,6 +24,12 @@ struct JournalEvent {
     seq: i64,
     kind: String,
     at: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    round: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thread: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    payload: Option<serde_json::Value>,
 }
 
 pub async fn stream<P>(
@@ -91,7 +97,23 @@ async fn poll_journal(mut store: Store, run_id: String, mut after: i64, tx: mpsc
         };
         for row in rows {
             after = row.seq;
-            let payload = JournalEvent { seq: row.seq, kind: row.kind, at: row.at };
+            let is_activity = matches!(
+                row.kind.as_str(),
+                "tool.call"
+                    | "permission.decided"
+                    | "dispatch.failed"
+                    | "dispatch.queued"
+                    | "dispatch.started"
+                    | "dispatch.reported"
+            );
+            let payload = JournalEvent {
+                seq: row.seq,
+                kind: row.kind,
+                at: row.at,
+                round: if is_activity { row.round } else { None },
+                thread: if is_activity { row.thread } else { None },
+                payload: row.payload,
+            };
             let data = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
             let event = Event::default().event("journal").id(row.seq.to_string()).data(data);
             if tx.send(Ok(event)).await.is_err() {

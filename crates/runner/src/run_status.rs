@@ -175,11 +175,154 @@ pub fn record_verdict(
 /// The human gate as the CLI and the API run it: decide, then refresh the board so its status is not stale.
 /// A refusal changes nothing and is returned as `Refused`.
 pub fn decide_gate_and_render(home: &Home, store: &mut Store, run_id: &str, decision: &GateDecision) -> Result<Outcome<()>> {
-    let outcome = store.transact("gate.decide", None, |tx, p| gate_decide(tx, p, run_id, decision))?;
-    if let Outcome::Applied(_) = outcome {
-        ledger::render_board(store.conn(), run_id, &home.board_path(run_id))?;
+    let mut targets = Vec::new();
+    let mut project = None;
+    if *decision == GateDecision::Accept {
+        let status = load_run(store.conn(), run_id)?.status;
+        if status == RunStatus::Merged {
+            return Ok(Outcome::Applied(()));
+        }
+        if matches!(status, RunStatus::Reviewed | RunStatus::Accepted) {
+            let root: Option<String> = store.conn().query_row(
+                "SELECT git_root FROM runs WHERE id = ?1", params![run_id], |r| r.get(0),
+            )?;
+            if let Some(root) = root {
+                let root = std::path::PathBuf::from(root);
+                targets = merge_targets(store.conn(), run_id)?;
+                if !targets.is_empty() {
+                    for target in &targets {
+                        let dirty = crate::git::dirty_worktree_paths(&target.worktree_path)?;
+                        if !dirty.is_empty() {
+                            let reason = format!("thread {} has uncommitted worktree changes: {}", target.name, dirty.join(", "));
+                            return store.transact("gate.accept", None, |_tx, p| {
+                                p.push(
+                                    run_id,
+                                    None,
+                                    Some(&target.thread_id),
+                                    "merge.refused",
+                                    json!({ "reason": reason, "files": dirty }),
+                                );
+                                Ok(Outcome::Refused(reason))
+                            });
+                        }
+                    }
+                    let dirty = crate::git::dirty_paths(&root)?;
+                    if !dirty.is_empty() {
+                        let reason = format!("the project has uncommitted changes: {}", dirty.join(", "));
+                        return store.transact("gate.accept", None, |_tx, p| {
+                            p.push(run_id, None, None, "merge.refused", json!({ "reason": reason, "files": dirty }));
+                            Ok(Outcome::Refused(reason))
+                        });
+                    }
+                    project = Some(root);
+                }
+            }
+        }
     }
-    Ok(outcome)
+
+    let outcome = if *decision == GateDecision::Accept && load_run(store.conn(), run_id)?.status == RunStatus::Accepted {
+        Outcome::Applied(())
+    } else {
+        store.transact("gate.decide", None, |tx, p| gate_decide(tx, p, run_id, decision))?
+    };
+    if !matches!(outcome, Outcome::Applied(())) {
+        return Ok(outcome);
+    }
+
+    // Each external git merge and its journal row share one SQLite transaction. Repeating accept
+    // resumes any branch without a landed row; git reports an already-landed branch as up to date.
+    if let Some(root) = project {
+        for target in &targets {
+            let message = format!("Ilvuno run {run_id}: merge {}", target.name);
+            let merge = store.transact("merge.thread", None, |tx, p| {
+                let recorded: bool = tx.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM journal WHERE run_id = ?1 AND thread_id = ?2 AND kind = 'merge.landed')",
+                    params![run_id, target.thread_id], |r| r.get(0),
+                )?;
+                if recorded {
+                    return Ok(Outcome::Applied(None));
+                }
+                let dirty_worktree = crate::git::dirty_worktree_paths(&target.worktree_path)?;
+                if !dirty_worktree.is_empty() {
+                    let reason = format!("thread {} has uncommitted worktree changes: {}", target.name, dirty_worktree.join(", "));
+                    p.push(
+                        run_id,
+                        None,
+                        Some(&target.thread_id),
+                        "merge.refused",
+                        json!({ "reason": reason, "files": dirty_worktree }),
+                    );
+                    return Ok(Outcome::Refused(reason));
+                }
+                let dirty = crate::git::dirty_paths(&root)?;
+                if !dirty.is_empty() {
+                    let reason = format!("the project has uncommitted changes: {}", dirty.join(", "));
+                    p.push(run_id, None, Some(&target.thread_id), "merge.refused", json!({ "reason": reason, "files": dirty }));
+                    return Ok(Outcome::Refused(reason));
+                }
+                let merge = crate::git::merge(&root, &target.branch, &message)?;
+                match &merge {
+                    crate::git::MergeOutcome::Merged(sha) => p.push(
+                        run_id, None, Some(&target.thread_id), "merge.landed",
+                        json!({ "branch": target.branch, "sha": sha, "by": "user" }),
+                    ),
+                    crate::git::MergeOutcome::UpToDate => p.push(
+                        run_id, None, Some(&target.thread_id), "merge.landed",
+                        json!({ "branch": target.branch, "sha": crate::git::head(&root)?.chars().take(8).collect::<String>(), "by": "user", "up_to_date": true }),
+                    ),
+                    crate::git::MergeOutcome::Conflict(files) => {
+                        let reason = format!("merge conflict in: {}", files.join(", "));
+                        set_run_status(tx, p, run_id, RunStatus::Blocked, Some(&reason))?;
+                        p.push(run_id, None, Some(&target.thread_id), "merge.conflict", json!({ "branch": target.branch, "files": files }));
+                    }
+                }
+                Ok(Outcome::Applied(Some(merge)))
+            })?;
+            let merge = match merge {
+                Outcome::Applied(merge) => merge,
+                Outcome::Refused(reason) => return Ok(Outcome::Refused(reason)),
+                Outcome::Duplicate(_) => unreachable!("merge has no request id"),
+            };
+            let Some(merge) = merge else { continue };
+            if matches!(merge, crate::git::MergeOutcome::Conflict(_)) {
+                ledger::render_board(store.conn(), run_id, &home.board_path(run_id))?;
+                return Ok(Outcome::Applied(()));
+            }
+        }
+        if !targets.is_empty() && load_run(store.conn(), run_id)?.status == RunStatus::Accepted {
+            store.transact("run.merged", None, |tx, p| {
+                set_run_status(tx, p, run_id, RunStatus::Merged, Some("accepted changes merged"))?;
+                Ok(Outcome::Applied(()))
+            })?;
+        }
+    }
+
+    ledger::render_board(store.conn(), run_id, &home.board_path(run_id))?;
+    Ok(Outcome::Applied(()))
+}
+
+struct MergeTarget {
+    thread_id: String,
+    name: String,
+    branch: String,
+    worktree_path: std::path::PathBuf,
+}
+
+/// Threads in the order their first task was dispatched, excluding planned branches with no checkout.
+fn merge_targets(conn: &rusqlite::Connection, run_id: &str) -> Result<Vec<MergeTarget>> {
+    let mut stmt = conn.prepare(
+        "SELECT t.id, t.name, t.branch, t.worktree_path FROM threads t
+         WHERE t.run_id = ?1 AND t.branch IS NOT NULL
+         ORDER BY COALESCE((SELECT MIN(d.rowid) FROM dispatch d WHERE d.thread_id = t.id), 9223372036854775807), t.rowid",
+    )?;
+    let mapped = stmt.query_map(params![run_id], |r| Ok((
+        r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?, r.get::<_, String>(3)?,
+    )))?;
+    let rows = mapped.collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows.into_iter().filter_map(|(thread_id, name, branch, worktree)| {
+        let worktree_path = std::path::PathBuf::from(worktree);
+        worktree_path.join(".git").exists().then_some(MergeTarget { thread_id, name, branch, worktree_path })
+    }).collect())
 }
 
 /// Human gate. Accept moves the run to `accepted`; send-back records a human block and resumes work.
@@ -190,6 +333,9 @@ pub fn gate_decide(
     decision: &GateDecision,
 ) -> Result<Outcome<()>> {
     let run = load_run(tx, run_id)?;
+    if *decision == GateDecision::Accept && run.status == RunStatus::Accepted {
+        return Ok(Outcome::Applied(()));
+    }
     if run.status != RunStatus::Reviewed {
         let reason = format!("run is {}, not at the gate", run.status.as_str());
         return Ok(Outcome::Refused(reason));

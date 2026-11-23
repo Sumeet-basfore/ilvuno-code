@@ -20,6 +20,7 @@ Evidence, not adjectives. A row without a commit, a test or a file is a row to d
 | Choose a thread's agent, journaled with from/to | `run_status::set_thread_agent` (`d36828b`) |
 | Replay and export (run.json, board.md, journal.jsonl, artifacts) | `crates/runner/src/replay.rs`, `export.rs` |
 | Git core: worktree per thread, commit per turn, diff, merge, conflict abort | `crates/runner/src/git.rs`, 5 tests (`37e6296`) |
+| A thread works in a worktree of a clean git project, on `run/<run8>/<thread>`; one commit per task; folder mode is the fallback | `crates/api/tests/worktrees.rs` (4 tests), a real run on a throwaway repo |
 
 ### Providers
 
@@ -64,7 +65,6 @@ design mocks).
 
 | Missing | Blocks | Stage |
 |---|---|---|
-| **Threads working in real checkouts** (worktree wiring, commit per turn) | everything about changing code | 2-B |
 | **The gate showing a diff, accept merging** | landing anything | 2-C |
 | **Tool activity in the conversation** | seeing what the agent ran — the data is already journaled | 3 / M5 |
 | Budget bar, permission log, reopen-after-kill honesty | roadmap stage 3 | 3 |
@@ -80,9 +80,38 @@ an agent's shell touching `main` · inventing money figures.
 ## How to see it working
 
 ```bash
-RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace     # 141 tests
+RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace     # 147 tests
 tools/demo.sh                                       # one real run, ~12 cents of Claude
 tools/window.sh                                     # the runner and the window
 ```
 
 Screenshots of every screen and every state: `crates/desktop/shots/` and `crates/desktop/shots/states/`.
+
+## Stage 2-C update · gate diff and merge (2026-11-23)
+
+| Feature | Proof |
+|---|---|
+| Per-thread diff endpoint with a 128 KiB patch cap and full diffstat | `crates/api/src/runs.rs`, `crates/runner/src/git.rs`; API tests in `crates/api/tests/worktrees.rs` |
+| Run detail includes each thread's branch, short commit and diffstat | `crates/runner/src/export.rs`; live API response for throwaway run `ae186839-1120-4401-a1fc-77225af4bb11` |
+| Accept refuses a dirty project, merges branches in task order, aborts conflicts and is idempotent | `crates/runner/src/run_status.rs`; five scripted API cases in `worktrees.rs` |
+| Gate lists branch, diffstat, folded patch and the files/threads to merge | `crates/desktop/ui/app.js`, `style.css`; screenshot read at `/tmp/ilvuno-stage2-live.HZtImU/gate.png` |
+| Adapter stderr is excluded from thread commits so it does not pollute the gate diff | `crates/runner/src/git.rs`; `provider_stderr_capture_is_not_committed_as_thread_work` |
+| Real accepted run landed `hello.txt` only after the gate; merge subject includes the run id | Throwaway repo run `ae186839-1120-4401-a1fc-77225af4bb11`; 62,623 tokens |
+
+## Stage 3 · tool activity update (2026-11-24)
+
+M5 is no longer blocked. The API returns bounded, filtered journal pages. The window shows tool names,
+short targets, permission decisions and recorded task failures under the matching task. It reads existing
+history and SSE rows; it does not change a run or write journal rows. Commit `6648207` adds three API
+tests for paging, scripted tool and permission rows, and the stored input cap, plus an SSE boundary test.
+
+The real run showed **7 tools and 2 denied permissions**. The window screenshot is
+[`tool-activity.png`](../crates/desktop/shots/tool-activity.png); the open fold is
+[`tool-activity-open.png`](../crates/desktop/shots/tool-activity-open.png). The workspace had **158
+passing tests and 3 ignored live-provider tests**.
+
+## PR review follow-up · 2026-11-24
+
+Gate acceptance now refuses a thread worktree with uncommitted files and names those paths. Only an
+untracked `provider-stderr.log` is ignored; a staged or tracked copy is still dirty. The API and git
+coverage passed as part of the workspace suite: **160 tests passed and 3 ignored** (`54c0004`).

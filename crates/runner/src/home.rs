@@ -35,4 +35,13 @@ impl Home {
     pub fn board_path(&self, run_id: &str) -> PathBuf {
         self.run_dir(run_id).join("board.md")
     }
+
+    /// Stage 2 checkouts: `worktrees/<run8>/<thread>`, outside the project so `git status` stays quiet.
+    pub fn worktrees_dir(&self, run_id: &str) -> PathBuf {
+        self.root.join("worktrees").join(crate::git::run8(run_id))
+    }
+
+    pub fn worktree_dir(&self, run_id: &str, thread: &str) -> PathBuf {
+        self.worktrees_dir(run_id).join(thread)
+    }
 }

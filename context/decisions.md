@@ -35,6 +35,7 @@ Status: **settled** · **reversed** · **open** (needs the user)
 | **D18** | The runner's **snapshot commits skip hooks** (`--no-verify`) | a hanging pre-commit hook would freeze the runner; the human reviews the diff at the gate | hooks proving fast and wanted on every turn |
 | **D19** | **Generated pages are not committed**: `research/*.html`, `docs/*.html`, `proto/`, `mock/` | GitHub renders Markdown; the HTML only added diff noise. 210 files/13 MB → 162/7.2 MB | — |
 | **D20** | The licence is **Apache-2.0**, the text the old repository approved (sha256 `cfc7749b…`) | patent grant; the owner already chose it once | the owner choosing differently |
+| **D21** | **A thread works in a git worktree of a clean project** — branch `run/<run8>/<thread>`, checkout under `ILVUNO_HOME/worktrees/…`, a commit after each task. Not a repo, a dirty tree, old git or a worktree that cannot be made: folder mode, journaled once. The project's own working tree is never committed to, checked out or merged | an agent must change the project's code; a scratch folder cannot. The project's HEAD stays still until the gate | a workflow that needs the project tree live, or a repo that cannot use worktrees |
 
 ## Reversed or corrected
 
@@ -65,3 +66,20 @@ Status: **settled** · **reversed** · **open** (needs the user)
 | **O1** | Show what the agent actually ran (M5) — in v1 or later? | the conversation's most-wanted missing panel; the data is already there |
 | **O2** | Stage 2 approved through phase C (gate shows diff, accept merges)? | the north star |
 | **O3** | Rewrite git history to drop the removed blobs, then force-push? | repository size only |
+
+## Stage 2-C · merge rules settled (2026-11-23)
+
+| # | Decision | Why | What would reverse it |
+|---|---|---|---|
+| **D22** | Accept merges each checked-out thread branch into the project's current branch, in first-task order. The project must be clean before the first merge. Each merge and its journal event share a transaction. A conflict aborts that merge and blocks the run with the file names. Repeated accept is safe. Folder mode records acceptance without merging. | The gate must show the work and make acceptance change the project. A dirty tree or unresolved conflict must never be hidden. | A merge that cannot be aborted cleanly, or a test that shows the project can be left half-merged. |
+
+O2 is resolved: stage 2 continues through phase C. The gate diff and merge path landed in `e430433`.
+
+## Stage 3 · tool activity settled (2026-11-24)
+
+| # | Decision | Why | What would reverse it |
+|---|---|---|---|
+| **D23** | O1 is resolved: show tool activity in v1 using existing journal rows. Use dispatch boundary rows to place activity under the right task. Show only the tool name, a short target, permission state and the first line of a recorded dispatch failure. | The user approved M5. The journal and SSE already have the needed records, so the window can stay read-only and the provider contract stays unchanged. | If the runner stops recording a reliable dispatch boundary, revisit how a tool row is tied to a task before showing it. |
+
+O1 is resolved. The implementation is `6648207`; run and screenshot evidence is in
+[`context/prompts/reports/2026-11-24-03-tool-activity.md`](prompts/reports/2026-11-24-03-tool-activity.md).

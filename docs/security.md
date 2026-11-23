@@ -31,8 +31,9 @@ The dangerous arrow is **#2 → #3 → filesystem/shell**. A hostile repository 
    OS secret service. The runner never injects `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` or an auth token
    into a child process beyond what that CLI needs to run at all. The runner's own secrets live in the
    keyring, referenced by name.
-2. **One worktree per worker, and no branch switching.** A worker cannot see or commit to `main`. This
-   bounds the *blast radius of a mistake*, not of a malicious agent.
+2. **One checkout per worker, and no branch switching.** A worker works on its own folder, or its own
+   worktree at the run's base commit, and cannot commit to `main`. This bounds the *blast radius of a
+   mistake*, not of a malicious agent.
 3. **No merge without an accepted round.** The merge is executed by the runner, not by an agent's shell.
    An agent may request it; the request alone does nothing.
 4. **Scope checks at dispatch and at report.** A diff outside the declared scope is shown in the readiness

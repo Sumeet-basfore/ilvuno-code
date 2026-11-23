@@ -26,7 +26,8 @@
 ## Technical risks, in the order they are likely to bite
 
 1. **An agent with a real checkout can destroy its branch.** Recoverable — nothing merges until the gate
-   accepts — but the diff must be readable *before* phase B turns this on for real.
+   accepts — but the diff must be readable *before* accepting. Phase B is now live (worktrees and per-task
+   commits); phase C (the gate's diff) is still missing.
 2. **A hanging hook or a custom merge driver.** Hooks are skipped on our snapshot commits (`--no-verify`).
    A custom merge driver runs inside `git merge`; it must be detected and refused before phase C merges.
 3. **A conflict mid-merge.** `git.rs` aborts and names the files, and refuses a dirty project before it
@@ -66,3 +67,25 @@
   design would need rethinking.
 - A provider that only works over PTY → D2 reverses, and the cost of D2 returns.
 - A second person using it → packaging, multi-project and permissions move ahead of git polish.
+
+## Stage 2-C update (2026-11-23)
+
+The gate diff and merge path is now implemented. The dirty-tree refusal, conflict abort, file-name report,
+repeat-accept behavior and folder-mode behavior have scripted coverage. The old risk that agents could
+write a branch whose diff could not be reviewed before acceptance is resolved for the current Linux build.
+Two runs on one project are still not serialized; that remains a separate risk before concurrent runs are
+used against the same project.
+
+## Stage 3 update (2026-11-24)
+
+O1 is resolved. The window reads tool calls, permission decisions and dispatch boundaries from the journal.
+The tool input was already capped at 2,000 characters; the window shows only selected names and targets.
+The fold shows the newest 50 rows per task. Individual tool result text is not stored in the journal, so
+the window cannot show tool output or a tool-level error. It can show the first line of a recorded
+`dispatch.failed` reason or summary. No new provider call was needed for the real-window screenshots.
+
+PR review found a separate stage 2-C risk: the gate diff showed committed changes, while acceptance could
+merge that commit and close the run even if a thread worktree also held uncommitted files. Commit `54c0004`
+closes this gap. Acceptance checks every worktree before merging and again inside the merge path; dirty
+files are named and the run stays at the gate. The API and git tests cover this. The full workspace suite
+now has 160 passing tests and 3 ignored live-provider tests.

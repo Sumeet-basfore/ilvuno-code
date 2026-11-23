@@ -2,6 +2,7 @@
 //! dispatch. Each takes an open transaction, writes projections and pushes journal rows. Invariant checks
 //! run before the first write, so a refusal never leaves a half-written round.
 
+use crate::git::{self, ProjectGit};
 use crate::goal::ORCHESTRATOR;
 use crate::home::Home;
 use crate::ledger;
@@ -35,6 +36,38 @@ pub struct NewThread {
     pub name: String,
     pub agent: String,
     pub prompt: String,
+}
+
+/// Record the git decision a run was created with. Eligible runs get the root, the base commit and one
+/// branch per thread; an ineligible one gets a single journal row and no columns. Called inside the
+/// run.create transaction.
+pub fn record_run_git(
+    tx: &Transaction<'_>,
+    pending: &mut Pending,
+    run_id: &str,
+    threads: &[NewThread],
+    project: &ProjectGit,
+) -> Result<()> {
+    match project {
+        ProjectGit::Eligible { root, base } => {
+            tx.execute(
+                "UPDATE runs SET git_root = ?2, git_base = ?3 WHERE id = ?1",
+                params![run_id, root.to_string_lossy(), base],
+            )?;
+            for thread in threads {
+                let branch = git::branch_name(run_id, &thread.name);
+                tx.execute(
+                    "UPDATE threads SET branch = ?3 WHERE run_id = ?1 AND name = ?2",
+                    params![run_id, thread.name, branch],
+                )?;
+            }
+            pending.push(run_id, None, None, "run.git", json!({ "root": root.to_string_lossy(), "base": base }));
+        }
+        ProjectGit::NotEligible { reason } => {
+            pending.push(run_id, None, None, "git.fallback", json!({ "reason": reason }));
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone)]

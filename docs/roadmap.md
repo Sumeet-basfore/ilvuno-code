@@ -15,10 +15,10 @@ Below half, the loop is decoration.
 Done: engine (threads, tasks, rounds, gate, budget), board, replay, export, two agent types
 (Claude native, ACP/Codex), local API with live events, four board layouts, the window (threads on the
 left, conversation in the middle, the run's work on the right), starting a run from a goal file, stopping
-and resuming it, choosing a thread's agent, honest states, tests.
+and resuming it, choosing a thread's agent, honest states, tests. A clean git project now gives each
+thread its own worktree and branch, with a commit after every task; folder mode is the fallback.
 
-Not done: git — a thread is still a folder under the run, not a branch of the project, so agents cannot
-change the project's code yet. No packaging.
+Not done: packaging. The gate shows each thread's diff and accepts by merging its branch into the project's current branch.
 
 ---
 
@@ -28,7 +28,7 @@ change the project's code yet. No packaging.
 |---|---|---|---|---|
 | 0 | ~~**Window reads**~~ **done** | a Tauri app showing a real run | open app → run list → run page (mix) with live data; accept a gate from the app — **verified on 2026-11-23** | done |
 | 1 | ~~**Window starts**~~ **done** | create and drive a run without the CLI | start a goal from the app (paste or pick a file), watch rounds appear, stop it, resume it, change a thread's agent — **verified on 2026-11-23** | done |
-| 2 | **Git** | threads work in real branches | each thread has its own branch and worktree; the runner commits, diffs and merges; `main` untouched until accept | 2–3 w |
+| 2 | ~~**Git**~~ **done** | threads work in real branches | each thread has its own branch and worktree; the runner commits, shows diffs and merges only after accept; `main` untouched until accept | done |
 | 3 | **Truth in the UI** | safety and cost are visible | each thread shows its safety level; permission log; budget bar; kill the app mid-run and reopen to an honest state | 1–2 w |
 | 4 | **Dogfood** | Ilvuno builds Ilvuno | one small change in this repo is produced by a run, reviewed by another agent, merged by the runner, and the commit names the run | 1 w |
 | 5 | **Installable** | someone else can use it | a signed Linux build with auto-update, crash log, and a first-run guide | 1–2 w |
@@ -59,13 +59,16 @@ spawn. Detect, then let the user correct.
 **Kill rule:** if starting a run needs a paragraph of instructions, the form is wrong.
 
 ### 2 · Git
-The biggest gap. Today a thread is a folder under the run; code needs a branch of the real repo.
+Phase A/B/C is done: a thread on a clean git project works in `ILVUNO_HOME/worktrees/<run8>/<thread>` on
+`run/<run8>/<thread>`, and the runner commits after each task. The gate shows its diff and merges only
+after a person accepts. A non-repo, a dirty tree or old git falls back to folder mode and journals why.
 
-- One branch and one worktree per thread: `run/<run>/<thread>`.
+- One branch and one worktree per thread: `run/<run8>/<thread>`.
 - Workers commit; the runner never pushes.
-- Diff per thread, shown in the run page.
-- Merge is a runner action, only after `accepted`, journaled with who decided and who executed.
-- Conflicts stop the round. No auto-resolver.
+- Diff per thread, shown in the gate with a 128 KiB patch cap.
+- Accept checks for a clean project, then merges each thread branch in task order. The decision and merge
+  are journaled separately.
+- Conflicts abort that merge and block the run with the file names. No auto-resolver.
 
 **Trap:** worktrees under a temp home instead of next to the repo break the user's editor and their
 `git status`. Choose the location once, document it.

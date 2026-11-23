@@ -4,7 +4,9 @@ mod common;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use common::{harness, post, start_run, wait_idle, GOAL_WORKERS};
+use common::{harness, post, start_run, wait_idle, wait_status, GOAL_WITH_ORCHESTRATOR, GOAL_WORKERS};
+use provider_core::Event;
+use serde_json::json;
 use std::time::Duration;
 use tower::ServiceExt;
 
@@ -57,7 +59,12 @@ async fn a_new_journal_row_is_sent_as_a_journal_event() {
         assert!(frame.lines().any(|l| l.starts_with("id: ")), "frame has an id line: {frame:?}");
         let data = data_of(frame);
         let keys: Vec<&str> = data.as_object().unwrap().keys().map(String::as_str).collect();
-        assert_eq!(keys.len(), 3, "exactly seq, kind and at: {data}");
+        if data["kind"] == "dispatch.queued" {
+            assert_eq!(keys.len(), 6, "dispatch boundary carries turn labels and its id: {data}");
+            assert_eq!(data["payload"].as_object().unwrap().len(), 1, "only the dispatch id is sent: {data}");
+        } else {
+            assert_eq!(keys.len(), 3, "ordinary rows keep seq, kind and at: {data}");
+        }
         assert!(data["seq"].is_i64() && data["at"].is_i64() && data["kind"].is_string(), "{data}");
         let id_line: i64 = frame.lines().find_map(|l| l.strip_prefix("id: ")).unwrap().parse().unwrap();
         assert_eq!(id_line, data["seq"].as_i64().unwrap(), "the id line is the seq");
@@ -89,4 +96,77 @@ async fn last_event_id_replays_everything_after_it() {
     let seqs: Vec<i64> = frames.iter().map(|f| data_of(f)["seq"].as_i64().unwrap()).collect();
     assert_eq!(seqs[0], first, "replay starts right after Last-Event-ID");
     assert_eq!(seqs, all.iter().map(|r| r.seq).collect::<Vec<_>>());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn activity_events_include_their_turn_and_bounded_payload() {
+    let h = harness();
+    let events = vec![
+        Event::ToolCall {
+            id: "tool-1".into(),
+            name: "Bash".into(),
+            input: json!({"command": "echo notes"}),
+            kind: "tool".into(),
+            status: "requested".into(),
+        },
+        Event::PermissionRequest {
+            request_id: "permission-1".into(),
+            tool: "Write".into(),
+            input: json!({"file_path": "/etc/ilvuno-test-file", "content": "x"}),
+            options: vec!["allow".into(), "deny".into()],
+        },
+        Event::TextDelta { text: "done".into() },
+        Event::Usage {
+            tokens_in: 10,
+            tokens_out: 5,
+            cache_read_tokens: 0,
+            context_used: None,
+            cost_usd: None,
+        },
+        Event::TurnFinished { stop_reason: Some("end_turn".into()), interrupted: false, error: None },
+    ];
+    h.fake.push_turn_front(events);
+
+    let id = start_run(&h.app, GOAL_WITH_ORCHESTRATOR).await;
+    wait_status(&h.app, &id, "reviewed").await;
+    wait_idle(&h.state).await;
+    let store = runner::Store::open(&h.home.db_path()).expect("store");
+    let all = runner::query::journal_after(store.conn(), &id, 0).expect("journal");
+
+    let request = Request::builder()
+        .uri(format!("/runs/{id}/events"))
+        .header("last-event-id", "0")
+        .body(Body::empty())
+        .unwrap();
+    let response = h.app.clone().oneshot(request).await.expect("events response");
+    let frames = read_frames(response.into_body(), all.len()).await;
+    let rows: Vec<serde_json::Value> = frames.iter().map(|frame| data_of(frame)).collect();
+    let call = rows.iter().find(|row| row["kind"] == "tool.call").expect("tool call event");
+    assert_eq!(call["thread"], "orchestrator");
+    assert_eq!(call["round"], 0);
+    assert_eq!(call["payload"]["tool"], "Bash");
+    assert_eq!(call["payload"]["input"]["command"], "echo notes");
+
+    let permission = rows.iter().find(|row| row["kind"] == "permission.decided").expect("permission event");
+    assert_eq!(permission["thread"], "orchestrator");
+    assert_eq!(permission["round"], 0);
+    assert_eq!(permission["payload"]["tool"], "Write");
+    assert_eq!(permission["payload"]["behavior"], "deny");
+
+    for row in rows.iter().filter(|row| {
+        !matches!(
+            row["kind"].as_str(),
+            Some("tool.call" | "permission.decided" | "dispatch.failed" | "dispatch.queued" | "dispatch.started" | "dispatch.reported")
+        )
+    }) {
+        assert!(row.get("payload").is_none(), "non-activity events do not carry payload: {row}");
+    }
+
+    for row in rows.iter().filter(|row| {
+        matches!(row["kind"].as_str(), Some("dispatch.queued" | "dispatch.started" | "dispatch.reported"))
+    }) {
+        assert!(row["thread"] == "orchestrator" || row["thread"] == "reader-1", "boundary has a thread label: {row}");
+        assert_eq!(row["payload"].as_object().unwrap().len(), 1, "boundary payload only carries dispatch_id: {row}");
+        assert!(row["payload"]["dispatch_id"].is_string(), "boundary dispatch id: {row}");
+    }
 }
