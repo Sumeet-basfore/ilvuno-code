@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/provider-core", "crates/provider-claude", "crates/runner", "crates/cli"]
+members = ["crates/provider-core", "crates/provider-claude", "crates/provider-acp", "crates/runner", "crates/cli"]
 
 [workspace.package]
 version = "0.0.1"
@@ -9,6 +9,7 @@ license = "UNLICENSED"
 publish = false
 
 [workspace.dependencies]
+agent-client-protocol = { version = "5", features = ["process"] }
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 rusqlite = { version = "0.33", features = ["bundled"] }
@@ -18,4 +19,5 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io
 uuid = { version = "1", features = ["v4"] }
 provider-core = { path = "crates/provider-core" }
 provider-claude = { path = "crates/provider-claude" }
+provider-acp = { path = "crates/provider-acp" }
 runner = { path = "crates/runner" }
