@@ -54,3 +54,8 @@ opened to a blank window.
 
 The AppImage About tab displayed `0.0.1`, matching the extracted `.deb` CLI output. Screenshot:
 [`linux-about`](../../../crates/desktop/shots/2026-11-24-linux-about.png).
+
+## PR update · 2026-11-24
+
+PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) is open from `feat/linux-packaging` to
+`main`. The package verification and screenshots are included. Review is pending.

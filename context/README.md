@@ -98,3 +98,8 @@ report.
 
 The AppImage About tab shows `0.0.1`, matching the extracted `.deb` CLI output. Screenshot:
 [`linux-about`](../crates/desktop/shots/2026-11-24-linux-about.png).
+
+## Current state update · 2026-11-24 · packaging PR
+
+PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) is open from `feat/linux-packaging` to
+`main`. It includes the package checks, screenshots and corrected display finding. Review is pending.
