@@ -1,5 +1,13 @@
 {
+  "mainBinaryName": "ilvuno-window",
   "bundle": {
+    "publisher": "Sumeet Basfore",
+    "homepage": "https://github.com/Sumeet-basfore/ilvuno-code",
+    "license": "Apache-2.0",
+    "licenseFile": "../../LICENSE",
+    "category": "DeveloperTool",
+    "shortDescription": "Coding agents on one project, in rounds",
+    "longDescription": "Ilvuno runs several coding agents on one project, in rounds, until a goal is met.\nYou write the goal and say what finished looks like. The agents work in threads, write\nwhat they found to a shared board, and nothing lands until you accept it at the gate.\nThis package holds the window, the ilvuno command, and ilvunod, the local runner.",
     "resources": {
       "../../target/release/ilvunod": "ilvunod"
     },
@@ -12,6 +20,11 @@
       "appimage": {
         "files": {
           "usr/bin/ilvuno": "../../target/release/ilvuno"
+        }
+      },
+      "rpm": {
+        "files": {
+          "/usr/bin/ilvuno": "../../target/release/ilvuno"
         }
       }
     }

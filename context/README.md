@@ -151,3 +151,27 @@ missed clicks while this pass was being made. `cargo test --workspace` passed.
 Not done, and known: `shots/gate.png`, `shots/stopped.png`, `shots/agent-picker.png` and `shots/states/*`
 still show the earlier type, because each needs a run in that state (reviewed, stopped, paused, budget) and
 those screens were not shot again. They are evidence of earlier milestones, not of today's window.
+
+## Current state update · 2026-11-24 · three packages, not two
+
+The builder made `.deb` and `.AppImage`. The owner asked for `.rpm` as well, and `rpmbuild` is already on
+this machine, so `tools/package-linux.sh` now writes all three from one command into
+`target/release/bundle/`.
+
+Four things were wrong in the packages and are fixed:
+
+- The workspace said `license = "UNLICENSED"` while the repo ships Apache-2.0, so the rpm metadata read
+  `License: UNLICENSED`. It says Apache-2.0 now.
+- The window installed itself as `/usr/bin/desktop`, with icons named `desktop.png`, because the Cargo
+  binary is called `desktop`. `mainBinaryName` in `tauri.packaging.conf.json` names it `ilvuno-window`.
+  That setting is in the packaging config only, so the dev build is still `target/debug/desktop` and the
+  scripts did not change.
+- Both packages described themselves as `(none)`, with no maintainer and no home page. They now carry a
+  description from `crates/desktop/Cargo.toml`, the publisher, the repository URL and the long description.
+- The script's closing list looked for the bundles in the wrong folder after `cd crates/desktop`.
+
+What was checked, and how: the AppImage was started on the X11 display, its bundled
+`/tmp/.mount_*/usr/lib/Ilvuno/ilvunod` answered `/health`, and its window drew the real accepted run. Both
+the `.deb` and the `.rpm` payloads were unpacked to `/tmp` and their `ilvuno 0.0.1` ran; each package's
+`ilvunod` answered `/health` on its own port. Not checked: an actual `dpkg -i` (this host is Arch, no dpkg)
+and a real `rpm -i` (needs root, and `rpm --root` needs a chroot). The rpm is unsigned.

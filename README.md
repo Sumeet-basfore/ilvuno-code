@@ -41,8 +41,11 @@ The stages and what each has to prove are in [`docs/roadmap.md`](docs/roadmap.md
 
 ## Install on Linux
 
-- **`.deb`**: open it in your software installer, then start **Ilvuno** from the applications menu.
-- **AppImage**: `chmod +x Ilvuno_0.0.1_amd64.AppImage && ./Ilvuno_0.0.1_amd64.AppImage`
+- **`.deb`** (Debian, Ubuntu): open it in your software installer, then start **Ilvuno** from the menu.
+- **`.rpm`** (Fedora, openSUSE): `sudo dnf install ./Ilvuno-0.0.1-1.x86_64.rpm`
+- **AppImage** (any Linux): `chmod +x Ilvuno_0.0.1_amd64.AppImage && ./Ilvuno_0.0.1_amd64.AppImage`
+
+Build them yourself with `tools/package-linux.sh`. It writes all three to `target/release/bundle/`.
 
 Both need one coding-agent command already installed and signed in (`claude`, `codex`, …). Step by step,
 plus where your data goes: [`docs/install.md`](docs/install.md).
