@@ -109,3 +109,9 @@ PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) is open from `feat
 The Rust, UI and comment reviews found no actionable issues. PR #5 is mergeable. Its only check is an
 optional CodeRabbit job that skipped automated review for this repository. The `.deb` has not been
 installed through a Debian package manager on this machine.
+
+## Current state update · 2026-11-24 · packaging merged
+
+PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) merged into `main` as `6af44e8`. The
+AppImage and extracted `.deb` checks passed on the actual X11 display. A full `.deb` install through a
+Debian package manager remains unverified.

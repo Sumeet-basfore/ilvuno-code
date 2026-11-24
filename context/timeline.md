@@ -123,3 +123,8 @@ PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) is open from `feat
 
 The Rust, UI and comment reviews of PR #5 found no actionable issues. The PR is mergeable. CodeRabbit
 skipped its optional review, and no required checks are configured.
+
+## Stage 5 · packaging merged (2026-11-24)
+
+PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) merged into `main` as `6af44e8`. The
+packaging implementation, verification report and screenshots are now in `main`.

@@ -66,3 +66,9 @@ PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) is open from `feat
 - PR #5 is mergeable. Its only check is optional CodeRabbit, which skipped automated review for this
   repository. No required checks are configured.
 - The full `.deb` installation through a Debian package manager remains unverified.
+
+## Merge follow-up · 2026-11-24
+
+PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) merged into `main` as `6af44e8`.
+The context records the X11 package checks and screenshots. The full `.deb` package-manager install is
+still unverified.
