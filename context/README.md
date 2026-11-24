@@ -66,3 +66,9 @@ workspace suite passed with **160 tests passed and 3 ignored**.
 Prompt 06 is waiting. The prompt 04 dogfood run is reviewed and passing, but still needs human acceptance
 and landing. The packaging attempt stopped before build changes; see
 [`2026-11-24-06-packaging`](prompts/reports/2026-11-24-06-packaging.md).
+
+## Current state update · 2026-11-24 · first dogfood run
+
+Run `64239160-0caa-456a-b3cf-3011a0f64bb1` was accepted by a person and landed by the runner as
+`d03a026`. It adds one `branch_name` test. The full workspace suite passed after the landing: **161 passed,
+3 ignored, 0 failed**. Prompt 04 is complete; packaging is now underway on `feat/linux-packaging`.

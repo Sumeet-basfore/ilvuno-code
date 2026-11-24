@@ -129,3 +129,7 @@ dirty project and aborts a conflict rather than leaving one behind.
 | Real runs | a 35-minute two-reader experiment (362k tokens); a stopped run; a blocked run; a budget-exhausted run |
 | Not there | git wiring, tool activity in the conversation, packaging, installs |
 | North star | not yet — the next stage is what makes it possible |
+
+The first dogfood run later added one `branch_name` test to this repository. A person read the diff and
+review report and accepted run `64239160-0caa-456a-b3cf-3011a0f64bb1`; the runner landed it in commit
+`d03a026` after writer commit `82486ce`.

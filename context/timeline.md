@@ -78,3 +78,9 @@ evening was verification — and every one of the serious defects (resume, the s
 | Phase | What happened |
 |---|---|
 | **Prompt 06 held** | Packaging was not started because prompt 04 is still at the human gate. The reviewed dogfood run has not been accepted or landed. See [`06-packaging`](prompts/reports/2026-11-24-06-packaging.md). |
+
+## Stage 4 · first dogfood change landed (2026-11-24)
+
+| Phase | What landed |
+|---|---|
+| **First dogfood run** | Human accepted run `64239160-0caa-456a-b3cf-3011a0f64bb1`. The runner merged writer commit `82486ce` to local `main` as `d03a026`; it adds one test for `branch_name` with spaces, slashes and Unicode. The post-accept workspace suite passed: 161 passed, 3 ignored, 0 failed. Report: [`04-first-dogfood-change`](prompts/reports/2026-11-24-04-first-dogfood-change.md). |
