@@ -14,11 +14,11 @@ opened to a blank window.
 
 ## Branch table
 
-| Branch | Head and commits ahead of `main` | Recorded test result | PR | Human decision or next step |
+| Branch | Relevant commits and branch age at inspection | Recorded test result | PR | Human decision or next step |
 |---|---|---|---|---|
-| `feat/linux-packaging` | `d4895f6`, 1 ahead and 0 behind | Desktop release build passed. Tauri produced both packages. The AppImage API returned the real run, but its window capture was blank. The workspace test command's exit result was not recovered. | None | Fix and verify the blank AppImage window before opening a PR. |
-| `feat/truth-in-the-ui` | `7617f3f`, 2 ahead and 8 behind | Its report records 163 passed, 3 ignored, 0 failed, plus real restart recovery and screenshots. | None | Bring it up to date with `main` before opening a PR. |
-| `audit/verify-and-harden` | `7952862`, 4 ahead and 22 behind | Its report records 141 passed, 3 ignored, 0 failed, plus screenshot and contrast checks. | None | Resolve the report's `Cargo.toml` license metadata mismatch before opening a PR. |
+| `feat/linux-packaging` | `d4895f6` adds the packaging code. | Desktop release build passed. Tauri produced both packages. The AppImage API returned the real run, but its window capture was blank. The workspace test command's exit result was not recovered. | None | Fix and verify the blank AppImage window before opening a PR. |
+| `feat/truth-in-the-ui` | `d3e1f68`, `7617f3f`; 2 ahead and 8 behind `main`. | Its report records 163 passed, 3 ignored, 0 failed, plus real restart recovery and screenshots. | None | Bring it up to date with `main` before opening a PR. |
+| `audit/verify-and-harden` | `499c4b6`, `ab708a6`, `cc17054`, `7952862`; 4 ahead and 22 behind `main`. | Its report records 141 passed, 3 ignored, 0 failed, plus screenshot and contrast checks. | None | Resolve the report's `Cargo.toml` license metadata mismatch before opening a PR. |
 
 ## Verified
 
