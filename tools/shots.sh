@@ -32,16 +32,23 @@ if ! xdpyinfo -display "$DISP" >/dev/null 2>&1; then
   sleep 1.2
 fi
 
-shot() { DISPLAY="$DISP" xdotool mousemove 720 640; sleep 0.3; DISPLAY="$DISP" import -window root "$OUT/$1"; echo "   $OUT/$1"; }
-click() { DISPLAY="$DISP" xdotool mousemove "$1" "$2" click 1; sleep "${3:-0.7}"; }
+seen=/tmp/ilvuno-shots-hashes
+: > "$seen"
+shot() { DISPLAY="$DISP" xdotool mousemove 720 640; sleep 0.3; DISPLAY="$DISP" import -window root "$OUT/$1"; echo "   $OUT/$1"
+  # Three shots came out byte-identical once: a click missed and nothing said so. A repeat is a bug.
+  now=$(md5sum "$OUT/$1" | cut -d' ' -f1)
+  if grep -qx "$now" "$seen"; then echo "   !! byte-identical to an earlier shot: a click missed" >&2; fi
+  echo "$now" >> "$seen"; }
+click() { DISPLAY="$DISP" xdotool mousemove "$1" "$2"; sleep 0.15; DISPLAY="$DISP" xdotool click 1; sleep "${3:-0.7}"; }
 key() { DISPLAY="$DISP" xdotool key "$1"; sleep "${2:-0.7}"; }
 
 ILVUNO_WINDOW_SIZE="${W}x${H}" DISPLAY="$DISP" ./target/debug/desktop >/tmp/desktop.log 2>&1 &
 sleep "${ILVUNO_SETTLE:-6}"
 
-step "thread view, newest turn"
+step "thread view: the newest turn"
 shot threads.png
-click 700 400
+step "the other thread"
+click 120 200 1.4
 shot conversation.png
 
 step "command palette"
@@ -62,12 +69,12 @@ key Escape
 sleep 0.6
 
 step "board, as a full view"
-click 1400 69 1.2
+click 1385 242 1.2
 shot board.png
 
-step "a task in the drawer"
-click 337 68 1.2
-click 600 285 1.2
+step "a task in the drawer: back to the conversation, then click the quoted task"
+click 345 68 1.2
+click 600 168 1.2
 shot drawer.png
 key Escape
 
