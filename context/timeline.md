@@ -100,3 +100,16 @@ evening was verification — and every one of the serious defects (resume, the s
 |---|---|
 | **Packaging commit** | Commit `d4895f6` records the `.deb` and AppImage setup, bundled runner, first-run guide and prompt 06 evidence on `feat/linux-packaging`. |
 | **Stop condition** | The previously captured AppImage window was blank while its bundled API returned the real run. Prompt 07 says to stop here. No branch was pushed during this task and no PR was opened. See [`07-land-and-package`](prompts/reports/2026-11-24-07-land-and-package.md). |
+
+## Stage 5 · package display follow-up (2026-11-24)
+
+| Phase | What happened |
+|---|---|
+| **AppImage** | The old blank capture came from Xvfb, which logged that DRI3 was unavailable. Running the AppImage on the real X11 display showed the window and run `64239160-0caa-456a-b3cf-3011a0f64bb1`. Screenshot: [`linux-appimage`](../crates/desktop/shots/2026-11-24-linux-appimage.png). |
+| **`.deb`** | Extracted the package payload into a fresh `/tmp` root. The packaged CLI returned `ilvuno 0.0.1`; the desktop entry's `Exec=desktop` command opened the window and read the same run. Screenshot: [`linux-deb`](../crates/desktop/shots/2026-11-24-linux-deb.png). |
+| **Tests** | `RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace` exited 0. Its output was truncated by the tool, so no aggregate test count is recorded. |
+
+## Stage 5 · About version check (2026-11-24)
+
+The AppImage About tab displayed `0.0.1`, matching the extracted `.deb` CLI. Screenshot:
+[`linux-about`](../crates/desktop/shots/2026-11-24-linux-about.png).

@@ -124,3 +124,14 @@ The AppImage also contains `ilvuno` and `ilvunod`. Launching the AppImage from o
 started the API and returned the real accepted run, but the captured app window was blank. Packaging is
 therefore **not complete**. The `.deb` layout was inspected from its archive; this system has no `dpkg-deb`,
 so its desktop entry was not executed.
+
+## Stage 5 · package display follow-up (2026-11-24)
+
+The earlier blank AppImage screenshot came from Xvfb without DRI3. On the actual X11 display, both the
+AppImage and the extracted `.deb` opened the window and showed the accepted run. The `.deb` CLI returned
+`ilvuno 0.0.1`. The workspace suite exited 0. The packages have not yet been published in a PR.
+
+## Stage 5 · About version follow-up (2026-11-24)
+
+The AppImage About tab displays `0.0.1`, matching the extracted `.deb` CLI output. Screenshot:
+[`linux-about`](../crates/desktop/shots/2026-11-24-linux-about.png).

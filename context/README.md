@@ -86,3 +86,15 @@ The packaging work is committed locally as `d4895f6` on `feat/linux-packaging`. 
 showed a blank window, so prompt 07 stopped before branch pushes and PR creation. There are no open PRs.
 The branch status and recorded test results are in
 [`2026-11-24-07-land-and-package`](prompts/reports/2026-11-24-07-land-and-package.md).
+
+## Current state update · 2026-11-24 · package display check
+
+The blank screenshot came from an Xvfb display without DRI3. The AppImage shows the real accepted run on
+the actual X11 display. The `.deb` payload was extracted to a fresh `/tmp` root; its CLI and desktop
+executable both work there. The workspace suite exited 0. Screenshots and details are in the prompt 07
+report.
+
+## Current state update · 2026-11-24 · About version
+
+The AppImage About tab shows `0.0.1`, matching the extracted `.deb` CLI output. Screenshot:
+[`linux-about`](../crates/desktop/shots/2026-11-24-linux-about.png).

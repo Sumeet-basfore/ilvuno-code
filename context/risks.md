@@ -97,3 +97,9 @@ started its local API, while the 1440×900 window capture was blank. The launch 
 settings warning and a Mesa DRI3 warning. Do not call packaging complete until a real AppImage window shows
 the run list. The `.deb` layout was inspected, but `dpkg-deb` is absent on this CachyOS machine, so its
 desktop entry still needs a launch check on a system with Debian package tools.
+
+## Stage 5 · package display follow-up (2026-11-24)
+
+The blank AppImage capture was caused by Xvfb without DRI3. The AppImage opened on the actual X11 display,
+and the extracted `.deb` executable opened the same run. A full `.deb` install on a Debian system remains
+untested because this machine has no `dpkg-deb`.

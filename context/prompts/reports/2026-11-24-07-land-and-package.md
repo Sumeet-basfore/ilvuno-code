@@ -36,3 +36,21 @@ opened to a blank window.
   rerun it, so this report does not claim it passed.
 - No PRs were opened, and the other branches were not changed. The prompt's stop rule prevented those steps.
 - The obsolete `docs/06-packaging-prerequisite` branch remains at `ed494ad` on the local and remote refs.
+
+## Verification follow-up · 2026-11-24
+
+- The earlier blank capture came from Xvfb, which logged that DRI3 was unavailable. On the real X11
+  display, the AppImage opened and showed run `64239160-0caa-456a-b3cf-3011a0f64bb1`.
+- I extracted the `.deb` payload into a fresh `/tmp` root. Its CLI printed `ilvuno 0.0.1`. I validated its
+  desktop file and ran its `Exec=desktop` command with the extracted `usr/bin` on `PATH`. It opened the
+  window and read the same run.
+- I ran the documented `chmod +x` and AppImage launch commands from `/tmp`.
+- `RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace` exited 0. The tool truncated the output, so I cannot
+  report an aggregate test count.
+- Read both screenshots: [`AppImage`](../../../crates/desktop/shots/2026-11-24-linux-appimage.png) and
+  [`.deb`](../../../crates/desktop/shots/2026-11-24-linux-deb.png).
+
+## About version follow-up · 2026-11-24
+
+The AppImage About tab displayed `0.0.1`, matching the extracted `.deb` CLI output. Screenshot:
+[`linux-about`](../../../crates/desktop/shots/2026-11-24-linux-about.png).
