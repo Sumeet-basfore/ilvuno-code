@@ -60,3 +60,9 @@ PR [#4](https://github.com/Sumeet-basfore/ilvuno-code/pull/4) includes stage 2 a
 was on `main`. Review found that accepting a gate could omit uncommitted files in a thread worktree.
 Commit `54c0004` now refuses acceptance and names dirty files; the API and git tests cover this. The full
 workspace suite passed with **160 tests passed and 3 ignored**.
+
+## Packaging status · 2026-11-24
+
+Prompt 06 is waiting. The prompt 04 dogfood run is reviewed and passing, but still needs human acceptance
+and landing. The packaging attempt stopped before build changes; see
+[`2026-11-24-06-packaging`](prompts/reports/2026-11-24-06-packaging.md).
