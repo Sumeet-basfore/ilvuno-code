@@ -35,7 +35,13 @@ of `fable 5.2 / opus 5.5 / gemini 4 neon`, all governed by `/setup-pstack`, whic
 
 **This project does not use those models.** `AGENTS.md` and `context/prompts/README.md` say that any
 sub-agent runs on `gpt-6-luna` with `reasoningEffort: "xhigh"`, and nothing else. If you use `poteto-mode` or
-`swarm`, the project rule wins and `/setup-pstack` must not be run to change it.
+`swarm`, the project rule wins.
+
+`/setup-pstack` has since been run, and its rule now names `gpt-6-luna` for every role, in
+`~/.cursor/rules/pstack-models.mdc` and `~/.claude/rules/pstack-models.md`. That is the same rule, not a
+second opinion: editing either file to name another model would break the project's constraint. Reasoning
+effort stays `xhigh`, and pstack's rule format cannot express it — effort is pinned in `AGENTS.md` and
+`context/prompts/README.md`.
 
 Which skills are safe to use as written: `unslop` (prose), `technical-writing`, `teach`, `why`, `recall`,
 `reflect`, `sharpen`, `reframe`, the `principle-*` family, `tdd`, `typescript-best-practices`, `statechart`.
