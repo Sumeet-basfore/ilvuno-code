@@ -146,3 +146,9 @@ verification. Review is pending.
 
 The Rust, UI and comment reviews found no actionable issues. PR #5 is mergeable. Its only check is an
 optional CodeRabbit job that skipped automated review for this repository.
+
+## Stage 5 · packaging merged (2026-11-24)
+
+PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) merged into `main` as `6af44e8`. The
+AppImage and extracted `.deb` opened the real accepted run. A full `.deb` installation through a Debian
+package manager remains unverified.
