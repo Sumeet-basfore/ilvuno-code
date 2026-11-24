@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Ilvuno",
-  "version": "0.0.1",
   "identifier": "dev.ilvuno.desktop",
   "build": {
     "frontendDist": "./ui"
@@ -22,9 +21,12 @@
     }
   },
   "bundle": {
-    "active": false,
+    "active": true,
+    "targets": ["deb", "appimage"],
     "icon": [
-      "icons/32x32.png"
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png"
     ]
   }
 }

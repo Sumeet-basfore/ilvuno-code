@@ -84,3 +84,42 @@ evening was verification — and every one of the serious defects (resume, the s
 | Phase | What landed |
 |---|---|
 | **First dogfood run** | Human accepted run `64239160-0caa-456a-b3cf-3011a0f64bb1`. The runner merged writer commit `82486ce` to local `main` as `d03a026`; it adds one test for `branch_name` with spaces, slashes and Unicode. The post-accept workspace suite passed: 161 passed, 3 ignored, 0 failed. Report: [`04-first-dogfood-change`](prompts/reports/2026-11-24-04-first-dogfood-change.md). |
+
+## Stage 5 · packaging attempt (2026-11-24)
+
+| Phase | What happened |
+|---|---|
+| **Prompt 06 resumed** | The human accepted the prompt 04 run and the runner landed it as `d03a026`. Work resumed on `feat/linux-packaging`. |
+| **Linux build** | Enabled `.deb` and AppImage bundling, added gem icons, a first-run guide and a packaging script. The window starts bundled `ilvunod` when the local health route is not healthy. Decision D24 records this choice. |
+| **Package build** | `RUSTUP_TOOLCHAIN=1.100.0 cargo build --release -p desktop` passed. Tauri CLI 2.12.6 produced `Ilvuno_0.0.1_amd64.deb` and `Ilvuno_0.0.1_amd64.AppImage`. The `.deb` metadata and file layout were inspected. |
+| **AppImage check stopped** | The AppImage was copied to `/tmp` and launched there. Its bundled runner returned the real run `64239160-0caa-456a-b3cf-3011a0f64bb1`; the 1440×900 window capture was blank. Prompt 06 requires stopping here. `dpkg-deb` is not installed on this CachyOS machine, so the `.deb` desktop entry was not launched. Report: [`06-packaging`](prompts/reports/2026-11-24-06-packaging.md). |
+
+## Stage 5 · prompt 07 land-and-package (2026-11-24)
+
+| Phase | What happened |
+|---|---|
+| **Packaging commit** | Commit `d4895f6` records the `.deb` and AppImage setup, bundled runner, first-run guide and prompt 06 evidence on `feat/linux-packaging`. |
+| **Stop condition** | The previously captured AppImage window was blank while its bundled API returned the real run. Prompt 07 says to stop here. No branch was pushed during this task and no PR was opened. See [`07-land-and-package`](prompts/reports/2026-11-24-07-land-and-package.md). |
+
+## Stage 5 · package display follow-up (2026-11-24)
+
+| Phase | What happened |
+|---|---|
+| **AppImage** | The old blank capture came from Xvfb, which logged that DRI3 was unavailable. Running the AppImage on the real X11 display showed the window and run `64239160-0caa-456a-b3cf-3011a0f64bb1`. Screenshot: [`linux-appimage`](../crates/desktop/shots/2026-11-24-linux-appimage.png). |
+| **`.deb`** | Extracted the package payload into a fresh `/tmp` root. The packaged CLI returned `ilvuno 0.0.1`; the desktop entry's `Exec=desktop` command opened the window and read the same run. Screenshot: [`linux-deb`](../crates/desktop/shots/2026-11-24-linux-deb.png). |
+| **Tests** | `RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace` exited 0. Its output was truncated by the tool, so no aggregate test count is recorded. |
+
+## Stage 5 · About version check (2026-11-24)
+
+The AppImage About tab displayed `0.0.1`, matching the extracted `.deb` CLI. Screenshot:
+[`linux-about`](../crates/desktop/shots/2026-11-24-linux-about.png).
+
+## Stage 5 · packaging PR (2026-11-24)
+
+PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) is open from `feat/linux-packaging` to
+`main`. It contains the packaging code and the later display verification. The review and merge are pending.
+
+## Stage 5 · packaging review (2026-11-24)
+
+The Rust, UI and comment reviews of PR #5 found no actionable issues. The PR is mergeable. CodeRabbit
+skipped its optional review, and no required checks are configured.

@@ -83,3 +83,11 @@ O2 is resolved: stage 2 continues through phase C. The gate diff and merge path 
 
 O1 is resolved. The implementation is `6648207`; run and screenshot evidence is in
 [`context/prompts/reports/2026-11-24-03-tool-activity.md`](prompts/reports/2026-11-24-03-tool-activity.md).
+
+## Stage 5 · Linux packaging decision (2026-11-24)
+
+| # | Decision | Why | What would reverse it |
+|---|---|---|---|
+| **D24** | The packaged window starts its bundled `ilvunod` when `/health` on `127.0.0.1:4737` is not healthy. It uses Tauri's resource directory and a direct executable path. The runner stays alive after the window closes. The child gets only `HOME`, `PATH`, `USER`, locale, terminal/temp settings and `ILVUNO_HOME` from the parent. | This lets a person open the app without starting a service by hand, and closing the window cannot kill an active run. A systemd user unit adds setup work; a manual start defeats the first-run goal. | If the AppImage launch shows that this process model is unreliable, or a user needs a documented stop control before v1. |
+
+The runner startup code and package layout are implemented, but prompt 06 is not complete. The AppImage started `ilvunod` and returned the real accepted run, while the captured window was blank. See the packaging continuation report before treating this decision as shipped.

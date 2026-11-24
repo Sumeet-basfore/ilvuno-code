@@ -87,6 +87,7 @@
   const state = {
     health: null, // null = not asked yet, true = /health answered, false = it did not
     version: null,
+    appVersion: null,
     conn: 'connecting', // open | reconnecting | offline | connecting
     runs: [],
     runsError: '',
@@ -133,6 +134,17 @@
     reloadTimer: 0,
     loadSeq: 0,
   };
+
+  async function loadAppVersion() {
+    const invoke = window.__TAURI__?.core?.invoke;
+    if (typeof invoke !== 'function') return;
+    try {
+      state.appVersion = await invoke('app_version');
+      if (state.settingsRoute === 'about') renderSettings();
+    } catch (err) {
+      state.appVersion = null;
+    }
+  }
 
   // ---- theme (painted from the local cache before the API answers) -----------------------------
 
@@ -1917,12 +1929,12 @@
       return `
         <p class="set-sub">A local runner for coding agents. One project, a small team of threads, and a record of every handoff.</p>
         <div class="set-sec">
-          <div class="kv"><span>Version</span><span class="v">${esc(state.version || '—')}</span></div>
+          <div class="kv"><span>Version</span><span class="v">${esc(state.appVersion || '—')}</span></div>
           <div class="kv"><span>Runs on this machine</span><span class="v">${state.runs.length}</span></div>
           <div class="kv"><span>Local API</span><span class="v">127.0.0.1:4737</span></div>
-          <div class="kv"><span>Data folder</span><span class="v">set by ILVUNO_HOME for ilvunod</span></div>
+          <div class="kv"><span>Data folder</span><span class="v">ILVUNO_HOME or ~/.local/share/ilvuno</span></div>
         </div>
-        <div class="note">The window reads the local API and holds no engine code. Starting and stopping the runner is up to you; this window cannot do it.</div>
+        <div class="note">The window starts its bundled runner when the local API is not running. The runner stays active after the window closes.</div>
         <div class="note">Ilvuno does not sandbox agents; each CLI is bounded by its own permissions.</div>`;
     }
     const project = projectPath();
@@ -2718,6 +2730,7 @@
   // ---- init ------------------------------------------------------------------------------------
 
   renderAll();
+  loadAppVersion();
   loadSettings();
   poll({ initial: true });
   setInterval(() => poll(), LIST_EVERY_MS);

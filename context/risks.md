@@ -89,3 +89,17 @@ merge that commit and close the run even if a thread worktree also held uncommit
 closes this gap. Acceptance checks every worktree before merging and again inside the merge path; dirty
 files are named and the run stays at the gate. The API and git tests cover this. The full workspace suite
 now has 160 passing tests and 3 ignored live-provider tests.
+
+## Stage 5 · packaging check (2026-11-24)
+
+Tauri created both Linux package files, but the AppImage is blocked: launching it from outside the repo
+started its local API, while the 1440×900 window capture was blank. The launch log only showed a GTK
+settings warning and a Mesa DRI3 warning. Do not call packaging complete until a real AppImage window shows
+the run list. The `.deb` layout was inspected, but `dpkg-deb` is absent on this CachyOS machine, so its
+desktop entry still needs a launch check on a system with Debian package tools.
+
+## Stage 5 · package display follow-up (2026-11-24)
+
+The blank AppImage capture was caused by Xvfb without DRI3. The AppImage opened on the actual X11 display,
+and the extracted `.deb` executable opened the same run. A full `.deb` install on a Debian system remains
+untested because this machine has no `dpkg-deb`.

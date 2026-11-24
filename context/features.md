@@ -115,3 +115,34 @@ passing tests and 3 ignored live-provider tests**.
 Gate acceptance now refuses a thread worktree with uncommitted files and names those paths. Only an
 untracked `provider-stderr.log` is ignored; a staged or tracked copy is still dirty. The API and git
 coverage passed as part of the workspace suite: **160 tests passed and 3 ignored** (`54c0004`).
+
+## Stage 5 · packaging status (2026-11-24)
+
+Tauri produced a `.deb` and an AppImage. The `.deb` metadata includes `libwebkit2gtk-4.1-0` and `libgtk-3-0`;
+its file list includes the desktop app, the `ilvuno` CLI and `ilvunod` under the Tauri resource directory.
+The AppImage also contains `ilvuno` and `ilvunod`. Launching the AppImage from outside the repository
+started the API and returned the real accepted run, but the captured app window was blank. Packaging is
+therefore **not complete**. The `.deb` layout was inspected from its archive; this system has no `dpkg-deb`,
+so its desktop entry was not executed.
+
+## Stage 5 · package display follow-up (2026-11-24)
+
+The earlier blank AppImage screenshot came from Xvfb without DRI3. On the actual X11 display, both the
+AppImage and the extracted `.deb` opened the window and showed the accepted run. The `.deb` CLI returned
+`ilvuno 0.0.1`. The workspace suite exited 0. The packages have not yet been published in a PR.
+
+## Stage 5 · About version follow-up (2026-11-24)
+
+The AppImage About tab displays `0.0.1`, matching the extracted `.deb` CLI output. Screenshot:
+[`linux-about`](../crates/desktop/shots/2026-11-24-linux-about.png).
+
+## Stage 5 · packaging PR (2026-11-24)
+
+The earlier note that the packages were not in a PR records the status before review began. PR
+[#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) now contains the Linux packaging changes and
+verification. Review is pending.
+
+## Stage 5 · packaging review (2026-11-24)
+
+The Rust, UI and comment reviews found no actionable issues. PR #5 is mergeable. Its only check is an
+optional CodeRabbit job that skipped automated review for this repository.

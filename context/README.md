@@ -72,3 +72,40 @@ and landing. The packaging attempt stopped before build changes; see
 Run `64239160-0caa-456a-b3cf-3011a0f64bb1` was accepted by a person and landed by the runner as
 `d03a026`. It adds one `branch_name` test. The full workspace suite passed after the landing: **161 passed,
 3 ignored, 0 failed**. Prompt 04 is complete; packaging is now underway on `feat/linux-packaging`.
+
+## Current state update · 2026-11-24 · packaging check
+
+The `.deb` and AppImage build artifacts were produced on `feat/linux-packaging`. The AppImage, launched
+from `/tmp`, started its bundled API and returned the real accepted run. Its 1440×900 screenshot was blank.
+Prompt 06 says to stop on this defect. The package is not ready to ship; the next step is to fix and verify
+the blank AppImage window. Details are in [`2026-11-24-06-packaging`](prompts/reports/2026-11-24-06-packaging.md).
+
+## Current state update · 2026-11-24 · prompt 07
+
+The packaging work is committed locally as `d4895f6` on `feat/linux-packaging`. The earlier AppImage check
+showed a blank window, so prompt 07 stopped before branch pushes and PR creation. There are no open PRs.
+The branch status and recorded test results are in
+[`2026-11-24-07-land-and-package`](prompts/reports/2026-11-24-07-land-and-package.md).
+
+## Current state update · 2026-11-24 · package display check
+
+The blank screenshot came from an Xvfb display without DRI3. The AppImage shows the real accepted run on
+the actual X11 display. The `.deb` payload was extracted to a fresh `/tmp` root; its CLI and desktop
+executable both work there. The workspace suite exited 0. Screenshots and details are in the prompt 07
+report.
+
+## Current state update · 2026-11-24 · About version
+
+The AppImage About tab shows `0.0.1`, matching the extracted `.deb` CLI output. Screenshot:
+[`linux-about`](../crates/desktop/shots/2026-11-24-linux-about.png).
+
+## Current state update · 2026-11-24 · packaging PR
+
+PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) is open from `feat/linux-packaging` to
+`main`. It includes the package checks, screenshots and corrected display finding. Review is pending.
+
+## Current state update · 2026-11-24 · packaging review
+
+The Rust, UI and comment reviews found no actionable issues. PR #5 is mergeable. Its only check is an
+optional CodeRabbit job that skipped automated review for this repository. The `.deb` has not been
+installed through a Debian package manager on this machine.

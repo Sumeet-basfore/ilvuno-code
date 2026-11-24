@@ -40,6 +40,7 @@ Written down because it is the most expensive kind of error to repeat.
 | "Dogfooding is next" | Impossible: agents write in `run/threads/<name>/`, not in the project. | Reading `dispatch.rs` (R5). |
 | Coordinates read off a scaled screenshot | Three clicks landed on the wrong control, twice blamed the app. | Measuring the element's rectangle from an unscaled capture. |
 | The first count of tool activity was 14 calls and 3 denials | The real run has 7 tool calls and 2 denied permissions. | Recounting the filtered journal rows before reading the screenshots. |
+| A direct Tauri CLI check was run without `RUSTUP_TOOLCHAIN=1.100.0` | It called the broken `stable` toolchain and panicked; the pinned packaging script and pinned retry built the AppImage. | Re-running with the required toolchain environment. |
 
 ## Where we agreed, and why it stuck
 
@@ -51,3 +52,9 @@ Written down because it is the most expensive kind of error to repeat.
 - **One subscription must work.** No feature may require two providers.
 - **Verify, don't assert.** Every serious defect of the day was found by running the thing: a live stop, a
   real screenshot, a measured contrast ratio, a DOM dump.
+
+## Stage 5 · package display correction (2026-11-24)
+
+The agent treated a blank screenshot as an AppImage defect. The screenshot came from Xvfb, which logged
+that DRI3 was unavailable. The AppImage and extracted `.deb` both showed the real run on the actual X11
+display. The package check must use the real display when WebKitGTK cannot render in Xvfb.

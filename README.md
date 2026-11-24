@@ -91,5 +91,6 @@ RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace
 | `docs/provider-contract.md` | how agents connect; the two prompt texts |
 | `docs/api.md` | the local door |
 | `docs/security.md` | trust boundaries and what we refuse to promise |
+| [`docs/install.md`](docs/install.md) | install and start Ilvuno on Linux |
 | `research/07-decision.md` | decisions and what reverses them |
 | `research/11-product-thesis.md` | the argument, and the three disagreements |
