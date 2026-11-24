@@ -3,6 +3,24 @@
 A desktop app that runs a small team of coding-agent CLIs inside one project, in recorded rounds, until
 a goal is met. Rust runner, Tauri shell, SQLite. Linux first.
 
+## Before the prompt: poteto mode
+
+Every prompt from the owner assumes this. Read `.agents/skills/poteto-mode/SKILL.md` **before** you start the
+task, then do the task in that style. It is not decoration. It says to restate the goal and the smallest
+change before touching anything, it names the skills that apply (unslop for prose, technical-writing for
+docs), and it forbids calling work done without proof.
+
+Absolute path: `/home/sumeet/personal-repo/projects/ilvuno-second/.agents/skills/poteto-mode/SKILL.md`.
+
+Two of its habits are overridden by this project:
+
+- **Models.** A subagent runs on `gpt-6-luna` at `reasoningEffort: "xhigh"` and on no other model. If you
+  cannot set exactly that, do the work yourself.
+- **A subagent's first line.** Not pstack's `worker.md`: it is
+  `Read context/prompts/README.md and follow the house rules in it.`
+
+If `.agents/skills/` is missing on your branch, say so in one line and follow the rest of this file.
+
 Read in this order before touching code:
 
 0. `context/README.md` — the project's memory: the story, the timeline, every decision, where we disagreed,

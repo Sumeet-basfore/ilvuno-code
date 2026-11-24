@@ -12,6 +12,7 @@ report it leaves.
 | 4 | [`04-first-dogfood-change.md`](04-first-dogfood-change.md) | Ilvuno changes Ilvuno, once, for real | after 01 + 02 |
 | 5 | [`05-truth-in-the-ui.md`](05-truth-in-the-ui.md) | budget bar, permission log, an honest reopen after a kill | after 02 |
 | 6 | [`06-packaging.md`](06-packaging.md) | an installable Linux build | last |
+| 7 | [`07-land-and-package.md`](07-land-and-package.md) | commit in-flight work, prove the package, open a PR per branch | after 06 stops |
 
 Run them **in order**. 01 and 02 together are stage 2, and 04 cannot begin before both.
 
