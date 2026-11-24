@@ -83,7 +83,7 @@
     </div>
 
     <form class="composer" id="composer" autocomplete="off" hidden>
-      <div class="composer-box">
+      <div class="composer-box" id="composerBox">
         <label class="sr-only" for="composerText">Message this agent</label>
         <textarea class="composer-text" id="composerText" rows="1"
                   placeholder="Message this agent…" aria-describedby="composerNote"></textarea>
@@ -92,6 +92,7 @@
           <svg class="ic" aria-hidden="true"><use href="#i-send"></use></svg>
         </button>
       </div>
+      <div class="composer-closed" id="composerClosed" hidden></div>
       <p class="composer-note" id="composerNote"></p>
       <p class="composer-error" id="composerError" role="alert" hidden></p>
     </form>
@@ -182,7 +183,7 @@
         </div>
       </div>
       <div class="nr-field">
-        <label class="nr-label" for="nr-goal">Goal JSON <span>paste a goal file</span></label>
+        <label class="nr-label" for="nr-goal">Goal JSON</label>
         <textarea class="nr-textarea nr-goal-json" id="nr-goal" spellcheck="false" placeholder='{ "goal": "…", "done": "…", "threads": [] }'></textarea>
       </div>
       <p class="nr-hint">The runner reads this as a goal. Relative paths resolve from the run folder; add <code>"base": "/abs/folder"</code> to resolve them from a project.</p>

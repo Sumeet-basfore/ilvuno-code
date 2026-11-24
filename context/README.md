@@ -115,3 +115,39 @@ installed through a Debian package manager on this machine.
 PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) merged into `main` as `6af44e8`. The
 AppImage and extracted `.deb` checks passed on the actual X11 display. A full `.deb` install through a
 Debian package manager remains unverified.
+
+## Current state update · 2026-11-24 · the window's type and colour pass
+
+The owner asked for one pass over every screen of the window, with no new features: make it clearer, and
+stop it looking like every other agent tool. The pass used heydamir's `unslop` skill, which is installed at
+`~/.agents/skills/unslop`; the project's own `.agents/skills/unslop` is a different skill (pstack's prose
+one) and stayed as it was.
+
+What changed, and why it was owed:
+
+- Fourteen type sizes became six. Fifty-five rules were set below 10px, so the smallest label sat at 8.5px.
+  The floor is 11px now, body is 13, and anything a person reads for a while is 14.
+- The caps went. Twenty-eight rules set `text-transform:uppercase` with wide tracking, so `DONE`, `BOARD`,
+  `RUN`, `ASK FIRST` and `FINDING` all shouted at once. Everything is sentence case. The small monospace
+  in the margin carries the tone instead.
+- One accent, and green means one thing. The tag colours are gone: a kind is a word with a 6px dot in the
+  margin, and `INTENT` keeps the accent because it is the mark a person made. Green is back to "this
+  worked", so it no longer sits on a `finding`, which is only a note.
+- Numbers stopped mixing formats: `1 of 2 rounds`, `197k of 300k tokens`, sizes in kB, and the run id is
+  eight characters in both places that show it. `compact()` no longer prints `5,440` next to `600k`.
+- A run that cannot take a message no longer offers a dead input box. The bar says why and carries the one
+  move that works: Resume, or New run. Two screenshots of a merged run had shown an input nobody could use.
+- The board's entries no longer repeat their round inside a round group, the rail stops repeating the whole
+  board while the board is the centre view, and the reading measure is 64 characters on both.
+- Settings: the agent rows showed `permissions` four times and `opencode opencode v2.3.2`. The chip is gone
+  and the version keeps only its number. The Defaults note spoke in `PUT /settings`; it speaks in plain
+  words now. Opening New run put the cursor in the JSON box, so a typed path became JSON; it lands in the
+  file path now.
+
+Evidence: `crates/desktop/shots/` was retaken from the window against run `64239160` by `tools/shots.sh`,
+which now warns when two shots come out byte-identical. That check caught three broken shot steps and seven
+missed clicks while this pass was being made. `cargo test --workspace` passed.
+
+Not done, and known: `shots/gate.png`, `shots/stopped.png`, `shots/agent-picker.png` and `shots/states/*`
+still show the earlier type, because each needs a run in that state (reviewed, stopped, paused, budget) and
+those screens were not shot again. They are evidence of earlier milestones, not of today's window.
