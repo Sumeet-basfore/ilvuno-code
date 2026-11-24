@@ -18,7 +18,12 @@ left, conversation in the middle, the run's work on the right), starting a run f
 and resuming it, choosing a thread's agent, honest states, tests. A clean git project now gives each
 thread its own worktree and branch, with a commit after every task; folder mode is the fallback.
 
-Not done: packaging. The gate shows each thread's diff and accepts by merging its branch into the project's current branch.
+Not done: packaging, checks that can see a thread's change, and the one metric. Also unmerged: the
+truthful-restart work and the audit's fixes, both finished on their own branches.
+
+Renumbered on 2026-11-24. Stages 0-5 keep their numbers. The work that used to be only "beta" is now four
+stages, because the first self-built change (stage 4) exposed what beta would otherwise discover: a check
+cannot see what an agent changed, and nobody measures whether the loop works.
 
 ---
 
@@ -29,10 +34,14 @@ Not done: packaging. The gate shows each thread's diff and accepts by merging it
 | 0 | ~~**Window reads**~~ **done** | a Tauri app showing a real run | open app → run list → run page (mix) with live data; accept a gate from the app — **verified on 2026-11-23** | done |
 | 1 | ~~**Window starts**~~ **done** | create and drive a run without the CLI | start a goal from the app (paste or pick a file), watch rounds appear, stop it, resume it, change a thread's agent — **verified on 2026-11-23** | done |
 | 2 | ~~**Git**~~ **done** | threads work in real branches | each thread has its own branch and worktree; the runner commits, shows diffs and merges only after accept; `main` untouched until accept | done |
-| 3 | **Truth in the UI** | safety and cost are visible | each thread shows its safety level; permission log; budget bar; kill the app mid-run and reopen to an honest state | 1–2 w |
-| 4 | **Dogfood** | Ilvuno builds Ilvuno | one small change in this repo is produced by a run, reviewed by another agent, merged by the runner, and the commit names the run | 1 w |
-| 5 | **Installable** | someone else can use it | a signed Linux build with auto-update, crash log, and a first-run guide | 1–2 w |
-| 6 | **Beta** | five to ten real users | the one metric measured, and two of the three known sharp edges fixed | 2–4 w |
+| 3 | **Truth in the UI** *(in progress)* | safety and cost are visible | each thread shows its safety level; permission log; budget bar; kill the app mid-run and reopen to an honest state — written on `feat/truth-in-the-ui`, not merged | 1–2 w |
+| 4 | ~~**Dogfood**~~ **done once** | Ilvuno builds Ilvuno | run `64239160` wrote a test, a second thread reviewed it, the runner merged it; commit `d03a026` names the run | done |
+| 5 | **Installable** *(in progress)* | someone else can use it | a `.deb` and an `.AppImage` that start the window, and an install guide whose commands were all run | 1–2 w |
+| 6 | **Checks that see the work** | a check tests what the agent changed | a check fails on a broken thread worktree and passes after the fix; today checks only read `artifacts/` and the goal folder | 2–3 d |
+| 7 | **Measure the loop** | the metric is a command | `ilvuno report` prints runs, accepted runs, and how many were accepted with no human message between agent turns | 1 d |
+| 8 | **A second agent CLI** | "agents are choices" is proven, not claimed | one live run on Pi or Cursor through ACP, not just `codex-acp` | 1 d |
+| 9 | **Two runs, one project** | nothing collides | a second run on a project with an open run is refused; a crashed run can discard its worktree | 1 d |
+| 10 | **Beta** | five to ten real users | the metric measured, and the two sharpest edges fixed | 2–4 w |
 
 Total to beta: roughly 2.5–4 months of solo work with agents. The range is honest; the variance is
 mostly stage 2.
@@ -98,7 +107,35 @@ worse than working by hand, write down why before changing anything.
 A Linux build a stranger can install. Auto-update, a crash log we can read, and a first-run screen that
 detects their agents. macOS and Windows after, not during.
 
-### 6 · Beta
+### 6 · Checks that see the work
+Today a check reads `artifacts/` and the goal folder. A thread works in a worktree. So a check named "the
+tests pass" tests the unchanged project, which is worse than no check.
+
+Run a check inside the thread's worktree, or against the merged tree at round close. Keep `file_exists` and
+`text_absent` for artifact runs. Add one check type, not a plugin system.
+
+**Kill rule:** if a check cannot be made to fail on a deliberately broken branch, the design is wrong.
+
+### 7 · Measure the loop
+One command, computed from the journal alone: per run, did the human send any message between agent turns?
+Print the count and the percentage. Write the decision rule before running it. Below half, the loop is
+decoration and the next work is the loop, not the window.
+
+**Kill rule:** if the number needs a new table or a service, do not add one. The journal already has it.
+
+### 8 · A second agent CLI
+`codex-acp` is the only ACP agent that has run. Run Pi, Cursor or opencode through the same adapter. If a
+CLI needs its own adapter rather than configuration, stop and revisit the provider decision.
+
+**Kill rule:** a second adapter is not a second agent. If it needs new code, say so and stop.
+
+### 9 · Two runs, one project
+Two runs would both merge into the checked-out branch. Refuse a second open run on a project, and give a
+run whose runner died a way to discard its worktree. A file lock is enough.
+
+**Kill rule:** if the lock needs a daemon, it is too big.
+
+### 10 · Beta
 Five to ten users, the metric measured weekly. The known sharp edges to fix, in order: no cost numbers
 for ACP agents, threads that can read each other's working files, and the board's noise on long runs.
 
