@@ -135,3 +135,9 @@ AppImage and the extracted `.deb` opened the window and showed the accepted run.
 
 The AppImage About tab displays `0.0.1`, matching the extracted `.deb` CLI output. Screenshot:
 [`linux-about`](../crates/desktop/shots/2026-11-24-linux-about.png).
+
+## Stage 5 · packaging PR (2026-11-24)
+
+The earlier note that the packages were not in a PR records the status before review began. PR
+[#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) now contains the Linux packaging changes and
+verification. Review is pending.
