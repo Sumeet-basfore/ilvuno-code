@@ -118,3 +118,8 @@ The AppImage About tab displayed `0.0.1`, matching the extracted `.deb` CLI. Scr
 
 PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) is open from `feat/linux-packaging` to
 `main`. It contains the packaging code and the later display verification. The review and merge are pending.
+
+## Stage 5 · packaging review (2026-11-24)
+
+The Rust, UI and comment reviews of PR #5 found no actionable issues. The PR is mergeable. CodeRabbit
+skipped its optional review, and no required checks are configured.

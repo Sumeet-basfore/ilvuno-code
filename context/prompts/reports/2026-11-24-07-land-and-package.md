@@ -59,3 +59,10 @@ The AppImage About tab displayed `0.0.1`, matching the extracted `.deb` CLI outp
 
 PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) is open from `feat/linux-packaging` to
 `main`. The package verification and screenshots are included. Review is pending.
+
+## Review follow-up · 2026-11-24
+
+- The Rust, UI and comment audits found no actionable issues.
+- PR #5 is mergeable. Its only check is optional CodeRabbit, which skipped automated review for this
+  repository. No required checks are configured.
+- The full `.deb` installation through a Debian package manager remains unverified.

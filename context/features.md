@@ -141,3 +141,8 @@ The AppImage About tab displays `0.0.1`, matching the extracted `.deb` CLI outpu
 The earlier note that the packages were not in a PR records the status before review began. PR
 [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) now contains the Linux packaging changes and
 verification. Review is pending.
+
+## Stage 5 · packaging review (2026-11-24)
+
+The Rust, UI and comment reviews found no actionable issues. PR #5 is mergeable. Its only check is an
+optional CodeRabbit job that skipped automated review for this repository.
