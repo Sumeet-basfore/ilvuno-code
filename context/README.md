@@ -175,3 +175,26 @@ What was checked, and how: the AppImage was started on the X11 display, its bund
 the `.deb` and the `.rpm` payloads were unpacked to `/tmp` and their `ilvuno 0.0.1` ran; each package's
 `ilvunod` answered `/health` on its own port. Not checked: an actual `dpkg -i` (this host is Arch, no dpkg)
 and a real `rpm -i` (needs root, and `rpm --root` needs a chroot). The rpm is unsigned.
+
+## Current state update · 2026-11-24 · v0.0.1 released
+
+The owner asked for the packages to go on GitHub, then asked for it to be done for them. Three pull
+requests landed first, in order, each retargeted by hand as its base merged: #7 the README, #8 the UI
+pass, #9 the packages. `main` is `e52a327`.
+
+`tools/release.sh v0.0.1` built the three packages from that commit, wrote `target/release/v0.0.1/` with
+a `SHA256SUMS`, tagged, and published https://github.com/Sumeet-basfore/ilvuno-code/releases/tag/v0.0.1
+as the Latest release. Assets: the `.deb` (11.7 MB), the `.rpm` (11.7 MB), the `.AppImage` (116.9 MB), and
+`SHA256SUMS`.
+
+Checked after publishing, from a fresh download of the release itself: all three files match `SHA256SUMS`,
+and the downloaded AppImage starts, mounts its bundled `ilvunod` from `/tmp/.mount_*/usr/lib/Ilvuno/`, and
+answers `/health`. The tag points at `e52a327`, which is `origin/main`.
+
+Two things held up the release that a person should know about. The working tree had an uncommitted
+`## Factory` block in `AGENTS.md` that nobody in this session wrote, so it was stashed and restored
+afterwards, still uncommitted. `.agents/skills/skills/` was a stray 724 MB copy of a skills store inside
+the repo, untracked; it now sits at `/tmp/ilvuno-stray-skills` and can be deleted.
+
+Known: the rpm is unsigned, so `dnf` warns about the key. The `.deb` has never been installed by a real
+package manager, because this host is Arch.
