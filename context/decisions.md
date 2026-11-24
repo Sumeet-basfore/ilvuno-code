@@ -83,3 +83,14 @@ O2 is resolved: stage 2 continues through phase C. The gate diff and merge path 
 
 O1 is resolved. The implementation is `6648207`; run and screenshot evidence is in
 [`context/prompts/reports/2026-11-24-03-tool-activity.md`](prompts/reports/2026-11-24-03-tool-activity.md).
+
+## Stage 3 · truthful run state (2026-11-24)
+
+| # | Decision | Why | What would reverse it |
+|---|---|---|---|
+| **D24** | Set `ended_at` when a run enters a stopped state, including `human_paused`; clear it when the run resumes as `working`. | The displayed run duration must stop while the run is stopped and continue from the new start after resume. | A test showing a stopped run's duration still advances, or a resumed run keeps its old end time. |
+| **D25** | At API startup, reconcile only `working` runs with no active drive claim to `human_paused`, with reason `runner stopped; the turn was lost`. Journal this in one transaction and make repeated reconciliation a no-op. | Startup can safely recover a lost turn without pausing an active driver or adding a new run state. | A drive-claim race or an idempotence test showing more than one transition. |
+| **D26** | When the next task is refused at the token cap, write `task.refused` and transition to `budget_exhausted` together; do not queue or attempt that task. | A person must see why work stopped instead of seeing a silent or misleading run. | Evidence that refusal can be recorded without stopping the run or that the task was already attempted. |
+
+Prompt 05 is implemented in `d3e1f68`. Run and screenshot evidence is in
+[`context/prompts/reports/2026-11-24-05-truth-in-the-ui.md`](prompts/reports/2026-11-24-05-truth-in-the-ui.md).

@@ -60,3 +60,11 @@ PR [#4](https://github.com/Sumeet-basfore/ilvuno-code/pull/4) includes stage 2 a
 was on `main`. Review found that accepting a gate could omit uncommitted files in a thread worktree.
 Commit `54c0004` now refuses acceptance and names dirty files; the API and git tests cover this. The full
 workspace suite passed with **160 tests passed and 3 ignored**.
+
+## Current state update · 2026-11-24 · truthful run state
+
+Prompt 05 is implemented in `d3e1f68`. Paused runs now have an end time, startup recovery marks abandoned
+working runs as paused once, budget refusal is recorded, and the run panel shows per-round tokens. The
+workspace suite passed with **163 tests passed and 3 ignored**. A real kill-and-restart showed the lost-turn
+reason in the window; real-window screenshots were read. Prompt 04 remains reviewed and passing at the
+human gate. It has not been accepted or merged.
