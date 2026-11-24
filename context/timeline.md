@@ -93,3 +93,10 @@ evening was verification — and every one of the serious defects (resume, the s
 | **Linux build** | Enabled `.deb` and AppImage bundling, added gem icons, a first-run guide and a packaging script. The window starts bundled `ilvunod` when the local health route is not healthy. Decision D24 records this choice. |
 | **Package build** | `RUSTUP_TOOLCHAIN=1.100.0 cargo build --release -p desktop` passed. Tauri CLI 2.12.6 produced `Ilvuno_0.0.1_amd64.deb` and `Ilvuno_0.0.1_amd64.AppImage`. The `.deb` metadata and file layout were inspected. |
 | **AppImage check stopped** | The AppImage was copied to `/tmp` and launched there. Its bundled runner returned the real run `64239160-0caa-456a-b3cf-3011a0f64bb1`; the 1440×900 window capture was blank. Prompt 06 requires stopping here. `dpkg-deb` is not installed on this CachyOS machine, so the `.deb` desktop entry was not launched. Report: [`06-packaging`](prompts/reports/2026-11-24-06-packaging.md). |
+
+## Stage 5 · prompt 07 land-and-package (2026-11-24)
+
+| Phase | What happened |
+|---|---|
+| **Packaging commit** | Commit `d4895f6` records the `.deb` and AppImage setup, bundled runner, first-run guide and prompt 06 evidence on `feat/linux-packaging`. |
+| **Stop condition** | The previously captured AppImage window was blank while its bundled API returned the real run. Prompt 07 says to stop here. No branch was pushed during this task and no PR was opened. See [`07-land-and-package`](prompts/reports/2026-11-24-07-land-and-package.md). |
