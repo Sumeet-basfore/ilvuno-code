@@ -51,6 +51,19 @@ impl<P> AppState<P> {
         *current = Some(holder.to_string());
         Ok(DriveClaim { slot: self.slot.clone() })
     }
+
+    /// Run startup work only while the slot is empty, keeping the lock for the full action. This closes
+    /// the gap between checking the claim and changing run state.
+    pub fn with_drive_unclaimed<T>(
+        &self,
+        action: impl FnOnce() -> anyhow::Result<T>,
+    ) -> anyhow::Result<Option<T>> {
+        let holder = lock(&self.slot.holder);
+        if holder.is_some() {
+            return Ok(None);
+        }
+        action().map(Some)
+    }
 }
 
 #[derive(Default)]

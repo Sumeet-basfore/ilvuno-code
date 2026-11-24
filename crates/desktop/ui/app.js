@@ -362,6 +362,7 @@
     }
     if (seq !== state.loadSeq || state.currentId !== id) return;
     state.detail = detail;
+    syncRunSummary(detail);
     state.board = board?.markdown || '';
     pickThread();
     renderAll();
@@ -377,6 +378,23 @@
       }));
       if (seq === state.loadSeq && state.currentId === id) renderFacts();
     }
+  }
+
+  function syncRunSummary(detail) {
+    const run = detail?.run;
+    if (!run?.id) return;
+    const index = state.runs.findIndex((item) => item.id === run.id);
+    if (index < 0) return;
+    state.runs[index] = {
+      ...state.runs[index],
+      status: run.status,
+      rounds_used: run.rounds_used,
+      tokens_used: run.tokens_used,
+      started_at: run.started_at,
+      ended_at: run.ended_at,
+      blocked_reason: run.blocked_reason,
+      project: run.project,
+    };
   }
 
   function scheduleRefresh() {
@@ -411,10 +429,11 @@
         connectEvents(state.currentId);
         await loadRun(state.currentId);
       } else {
-        renderAll();
         if (state.currentId && (!state.es || state.es.readyState !== EventSource.OPEN)) {
-          loadRun(state.currentId, { refresh: true });
           connectEvents(state.currentId);
+          await loadRun(state.currentId, { refresh: true });
+        } else {
+          renderAll();
         }
       }
     } finally {
@@ -659,6 +678,10 @@
     return '';
   }
 
+  function canResumeRun(status) {
+    return ['blocked', 'no_progress', 'human_paused'].includes(status);
+  }
+
   function statusChip(status) {
     return chip(statusWord(status), statusClass(status));
   }
@@ -722,6 +745,18 @@
     return thread?.tasks?.length ? thread.tasks[thread.tasks.length - 1] : null;
   }
 
+  function lostTurnTask(task) {
+    const run = state.detail?.run;
+    return task?.status === 'running' && run?.status === 'human_paused' &&
+      run.blocked_reason === 'runner stopped; the turn was lost';
+  }
+
+  function taskStatusView(task) {
+    if (lostTurnTask(task)) return { status: 'human_paused', label: 'turn lost' };
+    const status = task?.status || 'unknown';
+    return { status, label: statusWord(status) };
+  }
+
   function currentThread() {
     if (!state.detail || state.view !== 'thread') return null;
     const threads = runThreads();
@@ -740,11 +775,12 @@
     return last;
   }
 
-  // Needs you: a failed task, or a question it wrote that nobody answered. Working: a task queued or
-  // running. Done: everything else, and it stays visible until the run is gone (orca's rule).
+  // Interrupted work and queued work after a run stops need a person. Other queued or running tasks are working.
   function threadGroup(thread) {
     const failed = thread.tasks.some((t) => t.status === 'failed');
-    if (failed || openQuestion(thread.name)) return 'needs';
+    const stopped = state.detail?.run?.status !== 'working';
+    const waitingOnRun = stopped && thread.tasks.some((t) => t.status === 'queued');
+    if (failed || openQuestion(thread.name) || waitingOnRun || thread.tasks.some(lostTurnTask)) return 'needs';
     if (thread.tasks.some((t) => t.status === 'queued' || t.status === 'running')) return 'working';
     return 'done';
   }
@@ -1138,19 +1174,20 @@
     const message = shrinkText(task.message);
     const report = shrinkText(task.result);
     const files = task.kind === 'message' ? [] : artifactsFor(task);
-    const status = task.status ? `<span class="chip ${statusClass(task.status)}">${esc(statusWord(task.status))}</span>` : '';
+    const taskView = taskStatusView(task);
+    const status = task.status ? `<span class="chip ${statusClass(taskView.status)}">${esc(taskView.label)}</span>` : '';
     return `
       <div class="reply">
         <div class="reply-k">
-          <span class="dot ${statusClass(task.status) === 'bad' ? 'bad' : ''}"></span>
+          <span class="dot ${statusClass(taskView.status) === 'bad' ? 'bad' : ''}"></span>
           <span class="who">${esc(task.thread)}</span>
           <span class="sep">·</span><span>${esc(task.kind === 'message' ? 'message' : 'round ' + (task.round ?? '—'))}</span>
           ${status}
         </div>
         ${message ? `<div class="say md">${md(message)}</div>` : '<p class="say turn-none">This turn has no message yet.</p>'}
         ${report ? `
-          <div class="rep${statusClass(task.status) === 'bad' ? ' bad' : ''}">
-            <div class="rep-k">${ic(statusClass(task.status) === 'bad' ? 'x' : 'check')}${esc(statusWord(task.status || 'reported'))}</div>
+          <div class="rep${statusClass(taskView.status) === 'bad' ? ' bad' : ''}">
+            <div class="rep-k">${ic(statusClass(taskView.status) === 'bad' ? 'x' : 'check')}${esc(taskView.label || 'reported')}</div>
             <div class="rep-body md">${md(report)}</div>
           </div>` : ''}
         ${files.length ? `<div class="files">${files.map((a) => `
@@ -1233,7 +1270,8 @@
     }
     const task = lastTask(thread);
     const open = openQuestion(thread.name);
-    const status = open ? chip('needs you', 'warn') : task ? chip(statusWord(task.status || 'unknown'), statusClass(task.status)) : chip('no task', 'num');
+    const taskView = taskStatusView(task);
+    const status = open ? chip('needs you', 'warn') : task ? chip(taskView.label, statusClass(taskView.status)) : chip('no task', 'num');
     return `
       <div class="th-head">
         <div class="th-line">
@@ -1570,6 +1608,9 @@
     const tokens = Number(run.tokens_used || 0);
     const cap = Number(budget.tokens || 0);
     const pct = cap ? Math.min(100, Math.round((tokens / cap) * 100)) : 0;
+    const perRound = (state.detail?.rounds || []).map((round, index) => `
+      <div class="round-token-row"><span>Round ${esc(Number(round.index ?? index))}</span>
+        <span><b>${round.tokens == null ? '—' : esc(compact(round.tokens))}</b> tokens</span></div>`).join('');
     return `
       <section class="fsec" aria-labelledby="sec-run">
         <div class="fsec-head"><h2 id="sec-run">Run</h2><span class="n">${esc(runIsWaiting() ? 'waiting' : statusWord(run.status))}</span></div>
@@ -1579,6 +1620,7 @@
         <div class="frow"><span>Rounds</span><span class="v"><b>${roundsUsed()}</b>${budget.rounds ? ' / ' + esc(budget.rounds) : ''}</span></div>
         <div class="frow"><span>Tokens</span><span class="v"><b>${compact(tokens)}</b>${cap ? ' / ' + compact(cap) : ''}</span></div>
         ${cap ? `<div class="bar${pct >= 90 ? ' hot' : ''}" role="img" aria-label="${pct}% of this run's token budget used"><i style="width:${pct}%"></i></div>` : ''}
+        ${perRound ? `<div class="round-token-list" aria-label="Tokens by round">${perRound}</div>` : ''}
       </section>`;
   }
 
@@ -1653,8 +1695,7 @@
     if (!thread) return 'No thread is selected.';
     if (!run) return 'No run is selected.';
     if (run.status !== 'working') {
-      // A stopped run is not finished: Resume picks it up, and saying "start a new run" would hide that.
-      const resumable = ['blocked', 'budget_exhausted', 'no_progress', 'human_paused'].includes(run.status);
+      const resumable = canResumeRun(run.status);
       return `This run is ${statusWord(run.status)}. ${resumable ? 'Resume it to continue.' : 'Start a new run to continue.'}`;
     }
     return '';
@@ -2034,7 +2075,7 @@
   function paletteActions() {
     const status = state.detail?.run?.status;
     const atGate = status === 'reviewed';
-    const canResume = ['blocked', 'budget_exhausted', 'no_progress', 'human_paused'].includes(status);
+    const canResume = canResumeRun(status);
     const out = [{ act: 'new-run', label: 'New run', icon: 'plus', keys: 'new run start', on: true }];
     if (state.view !== 'board') out.push({ act: 'board', label: 'Show the board', icon: 'board', keys: 'board entries ledger view all', on: !!state.detail });
     if (state.view === 'board') out.push({ act: 'back-thread', label: 'Back to the conversation', icon: 'message', keys: 'conversation thread back', on: !!currentThread() || !!state.thread });
@@ -2042,7 +2083,7 @@
       out.push({ act: 'accept-gate', label: 'Accept and merge', icon: 'check', keys: 'accept merge gate done', on: true });
       out.push({ act: 'send-back', label: 'Send back with a note', icon: 'x', keys: 'send back reject gate note', on: true });
     }
-    if (canResume) out.push({ act: 'resume', label: 'Resume run', icon: 'chevron-right', keys: 'resume continue blocked budget', on: true });
+    if (canResume) out.push({ act: 'resume', label: 'Resume run', icon: 'chevron-right', keys: 'resume continue blocked paused', on: true });
     out.push({ act: 'settings', label: 'Settings', icon: 'settings', keys: 'settings preferences agents', on: true });
     out.push({ act: 'toggle-theme', label: `Toggle theme (${resolveTheme(state.settings?.theme || 'dark') === 'dark' ? 'to light' : 'to dark'})`, icon: 'moon', keys: 'theme dark light toggle', on: true });
     return out;

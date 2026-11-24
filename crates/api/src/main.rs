@@ -1,9 +1,9 @@
 //! `ilvunod`: serves the runner's local door on 127.0.0.1. `ILVUNO_PORT` picks the port (default 4737).
 
 use anyhow::{bail, Context, Result};
-use api::state::{AppState, ProviderBuilder};
+use api::state::ProviderBuilder;
 use cli::{ops, providers};
-use runner::{Home, Store};
+use runner::Home;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 
@@ -20,11 +20,12 @@ async fn main() -> Result<()> {
     // Absolute, so every run folder the API hands out is the same wherever ilvunod was started.
     let root = std::fs::canonicalize(home.root())?;
     let home = Home::new(root);
-    // Opening once migrates the database now, so a broken home fails at start, not on the first request.
-    Store::open(&home.db_path())?;
-
     let build: ProviderBuilder<providers::AnyProvider> = Arc::new(providers::build);
-    let app = api::router(AppState::new(home, build));
+    // This opens and migrates the database, then records any lost turns before the listener exists.
+    let (app, recovered) = api::startup_router(home, build)?;
+    if recovered > 0 {
+        println!("paused {recovered} run(s) left working by a stopped runner");
+    }
     let listener = match TcpListener::bind(("127.0.0.1", port)).await {
         Ok(listener) => listener,
         Err(err) => bail!("cannot listen on 127.0.0.1:{port}: {err}"),

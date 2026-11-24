@@ -80,6 +80,17 @@ pub fn create_task(tx: &Transaction<'_>, pending: &mut Pending, task: &NewTask<'
     let Some(thread_id) = thread_id_by_name(tx, task.run_id, task.thread)? else {
         return Ok(refuse(pending, task.run_id, format!("unknown thread {}", task.thread)));
     };
+    if run.tokens_used >= run.budget_tokens {
+        let reason = format!("token budget exhausted: {} of {} tokens used", run.tokens_used, run.budget_tokens);
+        crate::run_status::set_run_status(
+            tx,
+            pending,
+            task.run_id,
+            RunStatus::BudgetExhausted,
+            Some(&reason),
+        )?;
+        return Ok(refuse(pending, task.run_id, reason));
+    }
     let round = match open_round(tx, task.run_id)? {
         Some(round) => {
             let count: i64 = tx.query_row("SELECT COUNT(*) FROM dispatch WHERE round_id = ?1", params![round.id], |r| r.get(0))?;
@@ -93,7 +104,17 @@ pub fn create_task(tx: &Transaction<'_>, pending: &mut Pending, task: &NewTask<'
             let previous = latest_round(tx, task.run_id)?.map(|r| r.verdict);
             let budget = check_round_start(previous, run.rounds_used, run.budget_rounds, run.tokens_used, run.budget_tokens);
             if let Err(refusal) = budget {
-                return Ok(refuse(pending, task.run_id, refusal.0));
+                let reason = refusal.0;
+                if reason.starts_with("token budget exhausted:") {
+                    crate::run_status::set_run_status(
+                        tx,
+                        pending,
+                        task.run_id,
+                        RunStatus::BudgetExhausted,
+                        Some(&reason),
+                    )?;
+                }
+                return Ok(refuse(pending, task.run_id, reason));
             }
             open_new_round(tx, pending, task.run_id, run.rounds_used)?
         }

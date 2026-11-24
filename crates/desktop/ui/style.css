@@ -318,6 +318,11 @@ svg.ic.sm{width:12px;height:12px}
 .bar{height:3px;margin:7px 0 1px;border-radius:2px;background:var(--line);overflow:hidden}
 .bar i{display:block;height:100%;background:var(--accent)}
 .bar.hot i{background:var(--red)}
+.round-token-list{margin-top:8px;padding-top:5px;border-top:1px solid var(--line)}
+.round-token-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;min-width:0;padding:3px 0;font-family:var(--mono);font-size:10px;line-height:1.4;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.round-token-row span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.round-token-row span:last-child{text-align:right}
+.round-token-row b{font-weight:400;color:var(--ink)}
 .chk-round{margin:7px 0 2px;font-family:var(--mono);font-size:9px;line-height:1.2;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
 .chk-round:first-child{margin-top:0}
 .chk{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px;padding:3px 0}

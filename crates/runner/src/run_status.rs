@@ -26,9 +26,14 @@ pub fn set_run_status(
     reason: Option<&str>,
 ) -> Result<()> {
     let from = load_run(tx, run_id)?.status;
-    let ended = if to.is_terminal() { Some(crate::store::now_ms()) } else { None };
+    let ended = if to.is_terminal() || matches!(to, RunStatus::Reviewed | RunStatus::HumanPaused) {
+        Some(crate::store::now_ms())
+    } else {
+        None
+    };
     tx.execute(
-        "UPDATE runs SET status = ?2, ended_at = COALESCE(?3, ended_at),
+        "UPDATE runs SET status = ?2,
+                         ended_at = CASE WHEN ?2 = 'working' THEN NULL ELSE COALESCE(ended_at, ?3) END,
                          blocked_reason = CASE WHEN ?4 IS NOT NULL AND ?2 IN ('blocked', 'no_progress', 'budget_exhausted', 'human_paused')
                                           THEN ?4 ELSE blocked_reason END
          WHERE id = ?1",
@@ -42,6 +47,31 @@ pub fn set_run_status(
         json!({ "from": from.as_str(), "to": to.as_str(), "reason": reason }),
     );
     Ok(())
+}
+
+/// At process startup, pause every run left `working`. The API checks its drive claim while holding the
+/// slot lock before calling this, so a run is never marked stopped while this process is driving it.
+pub fn reconcile_interrupted_runs(store: &mut Store) -> Result<Outcome<usize>> {
+    store.transact("run.reconcile", None, |tx, pending| {
+        let run_ids = {
+            let mut stmt = tx.prepare(
+                "SELECT id FROM runs WHERE status = 'working' ORDER BY started_at, rowid",
+            )?;
+            let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+            let ids = rows.collect::<rusqlite::Result<Vec<_>>>()?;
+            ids
+        };
+        for run_id in &run_ids {
+            set_run_status(
+                tx,
+                pending,
+                run_id,
+                RunStatus::HumanPaused,
+                Some("runner stopped; the turn was lost"),
+            )?;
+        }
+        Ok(Outcome::Applied(run_ids.len()))
+    })
 }
 
 pub fn record_usage(

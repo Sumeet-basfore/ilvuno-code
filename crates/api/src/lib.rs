@@ -8,6 +8,7 @@ pub mod cors;
 pub mod drive;
 pub mod error;
 pub mod events;
+pub mod recovery;
 pub mod runs;
 pub mod settings;
 pub mod state;
@@ -18,8 +19,9 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use error::ApiError;
 use provider_core::Provider;
+use runner::Home;
 use serde_json::{json, Value};
-use state::AppState;
+use state::{AppState, ProviderBuilder};
 
 pub fn router<P>(state: AppState<P>) -> Router
 where
@@ -44,6 +46,16 @@ where
         .method_not_allowed_fallback(wrong_method)
         .with_state(state)
         .layer(axum::middleware::from_fn(cors::cors))
+}
+
+/// Build the production router only after startup recovery has run. The returned count goes to the daemon log.
+pub fn startup_router<P>(home: Home, build: ProviderBuilder<P>) -> anyhow::Result<(Router, usize)>
+where
+    P: Provider + Send + Sync + 'static,
+{
+    let state = AppState::new(home, build);
+    let recovered = recovery::reconcile_startup_runs(&state)?;
+    Ok((router(state), recovered))
 }
 
 async fn health() -> Json<Value> {

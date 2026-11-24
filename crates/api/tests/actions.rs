@@ -85,6 +85,7 @@ async fn a_scripted_run_reaches_the_gate_and_is_accepted_through_the_api() {
     let run = get(&h.app, &format!("/runs/{id}")).await.json;
     assert_eq!(run["rounds"].as_array().map(Vec::len), Some(1));
     assert_eq!(run["rounds"][0]["verdict"], "pass");
+    assert!(run["run"]["ended_at"].as_i64().is_some(), "the run clock stops at the human gate");
     let kinds: Vec<&str> = run["tasks"].as_array().unwrap().iter().map(|t| t["created_by"].as_str().unwrap()).collect();
     assert_eq!(kinds, vec!["user", "orchestrator"], "the kickoff is the user's task; the plan is the orchestrator's");
 
@@ -107,6 +108,7 @@ async fn stopping_a_run_pauses_it_and_keeps_the_reason() {
 
     let run = get(&h.app, &format!("/runs/{id}")).await.json;
     assert_eq!(run["run"]["status"], "human_paused");
+    assert!(run["run"]["ended_at"].as_i64().is_some(), "pause must stop the run clock: {}", run["run"]);
     let reason = run["run"]["blocked_reason"].as_str().unwrap_or_default();
     assert!(reason.contains("stopped by you"), "reason was {reason:?}");
     assert!(reason.contains("wrong direction"), "reason was {reason:?}");
@@ -160,6 +162,8 @@ async fn a_stopped_run_can_be_resumed() {
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
     assert_ne!(status, "human_paused", "resume left the run paused");
+    let run = get(&h.app, &format!("/runs/{id}")).await.json;
+    assert!(run["run"]["ended_at"].is_null(), "resume must restart the run clock: {}", run["run"]);
 }
 
 /// A goal that names two agents, so a thread can move from one to the other.
