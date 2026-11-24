@@ -48,7 +48,7 @@ sleep "${ILVUNO_SETTLE:-6}"
 step "thread view: the newest turn"
 shot threads.png
 step "the other thread"
-click 120 200 1.4
+click 120 238 1.4
 shot conversation.png
 
 step "command palette"

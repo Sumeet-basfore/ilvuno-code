@@ -65,10 +65,26 @@
     return out;
   }
   const fmt = (n) => new Intl.NumberFormat('en-US').format(Number(n) || 0);
+  // One format for a count that gets large: 5.4k, 197k. A byte count is a size, so it gets its own.
   const compact = (n) => {
     const v = Number(n) || 0;
-    if (v < 10000) return fmt(v);
+    if (v < 1000) return fmt(v);
+    if (v < 100000) return (v / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
     return Math.round(v / 1000) + 'k';
+  };
+  // Cut prose at a word, so a cut line ends on a word and says it was cut.
+  const clip = (s, n) => {
+    const t = String(s || '').replace(/\s+/g, ' ').trim();
+    if (t.length <= n) return t;
+    const cut = t.slice(0, n);
+    const i = cut.lastIndexOf(' ');
+    return (i > n * 0.6 ? cut.slice(0, i) : cut) + '…';
+  };
+  const bytes = (n) => {
+    const v = Number(n) || 0;
+    if (v < 1000) return `${fmt(v)} B`;
+    if (v < 1e6) return (v / 1000).toFixed(1).replace(/\.0$/, '') + ' kB';
+    return (v / 1e6).toFixed(1).replace(/\.0$/, '') + ' MB';
   };
   const ic = (name, cls = 'ic') => `<svg class="${cls}" width="16" height="16" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
   const chip = (text, cls = '') => `<span class="chip ${cls}">${esc(text)}</span>`;
@@ -676,6 +692,15 @@
     return chip(statusWord(status), statusClass(status));
   }
 
+  // A CLI prints its own version string: "2.1.331 (Claude Code)", "codex-cli 0.172.0", "opencode v2.3.2".
+  // The number is the part that matters, so take it and drop the rest.
+  function agentVersion(a) {
+    const raw = String(a.version || '').trim();
+    const number = raw.match(/\d+(?:\.\d+)+/);
+    if (number) return number[0];
+    return raw.replace(new RegExp(String(a.name || ''), 'ig'), '').trim() || raw || 'version unknown';
+  }
+
   // A thread's agent is a provider id from the goal (`claude-main`, `codex-main`). We match it against
   // the CLIs the API found, so the safety badge is the CLI's own answer where we can get one.
   function safetyOf(agent) {
@@ -878,7 +903,8 @@
       } else if (name === 'drawer') {
         modal.focus({ preventScroll: true });
       } else if (name === 'newrun') {
-        $('#nr-goal')?.focus({ preventScroll: true });
+        // A goal usually starts as a file on this machine, so the path is where a person types first.
+        ($('#nr-path')?.value.trim() ? $('#nr-goal') : $('#nr-path'))?.focus({ preventScroll: true });
       } else {
         ($('.set-tab.on') || focusables(modal)[0] || modal).focus({ preventScroll: true });
       }
@@ -929,7 +955,7 @@
   function threadRow(thread) {
     const on = thread.name === state.thread && state.view === 'thread';
     const task = lastTask(thread);
-    const text = task ? String(task.prompt || '').replace(/\s+/g, ' ').trim().slice(0, 40) : 'No task yet';
+    const text = task ? clip(task.prompt, 58) : 'No task yet';
     return `
       <button class="trow${on ? ' on' : ''}" data-act="thread" data-name="${esc(thread.name)}"${on ? ' aria-current="true"' : ''}>
         <span class="dot ${threadDot(thread)}"></span>
@@ -1005,7 +1031,7 @@
     const atGate = run.status === 'reviewed';
     return [
       statusChip(runIsWaiting() ? 'waiting' : run.status),
-      chip(`${roundsUsed()}/${budget.rounds ?? '—'} rounds · ${compact(run.tokens_used)}/${budget.tokens ? compact(budget.tokens) : '—'} tokens`, 'num'),
+      chip(`${roundsUsed()} of ${budget.rounds ?? '—'} rounds · ${compact(run.tokens_used)} of ${budget.tokens ? compact(budget.tokens) : '—'} tokens`, 'num'),
       atGate ? `<button class="meta-btn" data-act="focus-gate">${ic('check', 'ic sm')}Gate open</button>` : '',
       // One click, no dialog: nothing is merged, and Resume sits in the stop banner afterwards.
       run.status === 'working'
@@ -1057,7 +1083,7 @@
           </div>
         </div>`;
     }
-    const scope = (task.scope || []).length ? ` · ${task.scope.length === 1 && task.scope[0] === 'run' ? 'whole run' : task.scope.length + ' files'}` : '';
+    const scope = (task.scope || []).length ? ` · ${task.scope.length === 1 && task.scope[0] === 'run' ? 'whole run' : `${task.scope.length} ${task.scope.length === 1 ? 'file' : 'files'}`}` : '';
     return `
       <div class="ask">
         <button class="ask-card" data-act="task" data-i="${task.i}" aria-label="Open task ${task.i + 1} on ${esc(task.thread)}">
@@ -1175,7 +1201,7 @@
             <div class="rep-body md">${md(report)}</div>
           </div>` : ''}
         ${files.length ? `<div class="files">${files.map((a) => `
-          <span class="fchip" title="${esc(a.path)}">${esc(String(a.path || '').split('/').pop())}${a.bytes != null ? ' · ' + fmt(a.bytes) + ' b' : ''}</span>`).join('')}</div>` : ''}
+          <span class="fchip" title="${esc(a.path)}">${esc(String(a.path || '').split('/').pop())}${a.bytes != null ? ' · ' + bytes(a.bytes) : ''}</span>`).join('')}</div>` : ''}
         ${activityDetailsHtml(task)}
       </div>`;
   }
@@ -1258,7 +1284,7 @@
     return `
       <div class="th-head">
         <div class="th-line">
-          <h1 class="th-name">${esc(thread.name)}<span class="th-role">${esc(thread.role)}</span></h1>
+          <h1 class="th-name">${esc(thread.name)}</h1>
           ${agentPicker(thread)}
           ${safetyChip(thread.agent)}
           ${status}
@@ -1278,7 +1304,7 @@
 
   // ---- centre: board view ----------------------------------------------------------------------
 
-  function ledgerHtml(e, { clamp = true, prefix = 'b' } = {}) {
+  function ledgerHtml(e, { clamp = true, prefix = 'b', showRound = true } = {}) {
     const kind = ['intent', 'finding', 'question', 'decision', 'constraint', 'answer'].includes(e.kind) ? e.kind : '';
     const id = prefix + 'led-' + e.id;
     const expanded = state.expanded.has(String(id));
@@ -1288,7 +1314,7 @@
         <div>
           <div class="led-meta">
             <span class="who">by ${esc(e.author || e.thread || 'runner')}</span>
-            <span class="sep"> · </span><span>round ${esc(e.round ?? '—')}</span>
+            ${showRound ? `<span class="sep"> · </span><span>round ${esc(e.round ?? '—')}</span>` : ''}
           </div>
           <p class="led-body${clamp && !expanded ? ' clamp' : ''}" id="${id}">${esc(shrinkText(e.body))}</p>
           ${clamp ? `<button class="led-more" data-act="more" data-target="${id}" aria-expanded="${expanded}" aria-controls="${id}">${expanded ? 'less' : 'more'}</button>` : ''}
@@ -1333,7 +1359,7 @@
           <span class="rgroup-c">${g.entries.length} ${g.entries.length === 1 ? 'entry' : 'entries'}</span>
           ${g.verdict ? chip(String(g.verdict).replace(/_/g, ' '), statusClass(g.verdict)) : ''}
         </div>
-        ${g.entries.map((e) => ledgerHtml(e, { clamp: false })).join('')}
+        ${g.entries.map((e) => ledgerHtml(e, { clamp: false, showRound: false })).join('')}
       </section>`).join('');
   }
 
@@ -1385,12 +1411,13 @@
   function checksHtml() {
     const rounds = state.detail?.rounds || [];
     if (!rounds.length) return '<p class="facts-empty">No rounds recorded.</p>';
-    return rounds.map((r) => {
+    const rows = rounds.map((r) => {
       const checks = r.readiness?.checks || [];
       // A round with a failed task never runs its checks, so `failing` is the only reason it has.
       const failing = (r.readiness?.failing || [])
         .filter((f) => String(f).startsWith('task-failed:'))
         .map((f) => String(f).replace(/^task-failed:/, 'task failed: '));
+      if (!checks.length && !failing.length) return '';
       return `
         <div class="chk-round">Round ${esc(r.index)}${r.verdict ? ' · ' + esc(statusWord(r.verdict)) : ''}</div>
         ${checks.map((c) => `
@@ -1401,9 +1428,10 @@
         ${failing.map((f) => `
           <div class="chk">
             <span class="name" title="${esc(f)}">${esc(f)}</span>${chip('fail', 'bad')}
-          </div>`).join('')}
-        ${checks.length || failing.length ? '' : '<p class="facts-empty" style="padding:6px 0">No checks in this round.</p>'}`;
+          </div>`).join('')}`;
     }).join('');
+    // The goal named no checks, so there is nothing to list and nothing to explain per round.
+    return rows || '<p class="facts-empty">This goal named no checks.</p>';
   }
 
   function gatePanel() {
@@ -1467,7 +1495,7 @@
     return `
       <div class="gate-bar">
         <span class="gate-ic">${ic('check')}</span>
-        <div class="gate-t"><b>Gate closed · ${verb}</b><br>${verb === 'merged' ? 'Merged' : 'Accepted'} at round ${at} · ${n} of ${checks.length} checks passed</div>
+        <div class="gate-t"><b>Gate closed · ${verb}</b><br>${verb === 'merged' ? 'Merged' : 'Accepted'} at round ${at}${checks.length ? ` after ${n} of ${checks.length} checks passed` : ''}.</div>
       </div>`;
   }
 
@@ -1537,20 +1565,20 @@
       return `
         <div class="art" title="${esc(a.path)}">
           <span class="fn">${esc(fn)}</span>
-          <span class="sz">${a.bytes != null ? fmt(a.bytes) + ' b' : '—'}</span>
+          <span class="sz">${a.bytes != null ? bytes(a.bytes) : '—'}</span>
           <span class="loc">${esc(loc)}</span>
         </div>`;
     }).join('');
 
     return `
       ${runFactsHtml(state.detail.run)}
-      <section class="fsec" aria-labelledby="sec-board">
+      ${state.view === 'board' ? '' : `<section class="fsec" aria-labelledby="sec-board">
         <div class="fsec-head"><h2 id="sec-board">Board</h2><span class="n">${ledger.length}</span>
           <button class="fsec-link" data-act="board">View all</button></div>
         ${ledger.length ? ledger.slice().reverse().map((e) => ledgerHtml(e)).join('') : '<p class="facts-empty">No board entries yet.</p>'}
-      </section>
+      </section>`}
       <section class="fsec" aria-labelledby="sec-checks">
-        <div class="fsec-head"><h2 id="sec-checks">Checks</h2><span class="n">${passed} / ${checks.length}</span></div>
+        <div class="fsec-head"><h2 id="sec-checks">Checks</h2><span class="n">${checks.length ? `${passed} of ${checks.length}` : ''}</span></div>
         ${checksHtml()}
       </section>
       <section class="fsec" id="gate" tabindex="-1" aria-labelledby="sec-gate">
@@ -1592,13 +1620,12 @@
     const cap = Number(budget.tokens || 0);
     const pct = cap ? Math.min(100, Math.round((tokens / cap) * 100)) : 0;
     return `
-      <section class="fsec" aria-labelledby="sec-run">
-        <div class="fsec-head"><h2 id="sec-run">Run</h2><span class="n">${esc(runIsWaiting() ? 'waiting' : statusWord(run.status))}</span></div>
+      <section class="fsec" aria-label="Run facts">
         <div class="frow"><span>Folder</span><span class="v" title="${esc(run.project || '')}">${esc(tailPath(run.project) || '—')}</span></div>
         <div class="frow"><span>Id</span><span class="v" title="${esc(run.id || '')}">${esc(String(run.id || '—').slice(0, 8))}</span></div>
         <div class="frow"><span>Ran for</span><span class="v">${esc(ranFor)}</span></div>
-        <div class="frow"><span>Rounds</span><span class="v"><b>${roundsUsed()}</b>${budget.rounds ? ' / ' + esc(budget.rounds) : ''}</span></div>
-        <div class="frow"><span>Tokens</span><span class="v"><b>${compact(tokens)}</b>${cap ? ' / ' + compact(cap) : ''}</span></div>
+        <div class="frow"><span>Rounds</span><span class="v"><b>${roundsUsed()}</b>${budget.rounds ? ' of ' + esc(budget.rounds) : ''}</span></div>
+        <div class="frow"><span>Tokens</span><span class="v"><b>${compact(tokens)}</b>${cap ? ' of ' + compact(cap) : ''}</span></div>
         ${cap ? `<div class="bar${pct >= 90 ? ' hot' : ''}" role="img" aria-label="${pct}% of this run's token budget used"><i style="width:${pct}%"></i></div>` : ''}
       </section>`;
   }
@@ -1610,7 +1637,7 @@
     body.innerHTML = factsHtml();
     if (state.lastRunId === state.currentId) body.scrollTop = top;
     else body.scrollTop = 0;
-    $('#factsLbl').textContent = state.detail ? 'Run work' : 'No run';
+    $('#factsLbl').textContent = state.detail ? 'Run' : 'No run';
   }
 
   // ---- centre render ---------------------------------------------------------------------------
@@ -1686,6 +1713,17 @@
     el.style.height = Math.min(el.scrollHeight, 150) + 'px';
   }
 
+  // What a person can do when the run cannot take a message. A finished run takes a new one; a paused
+  // run is picked up again. The bars that offer these live in runStopBanner, so this only adds the move.
+  function composerNextAction() {
+    const run = state.detail?.run;
+    if (!run || state.health === false) return '';
+    if (['blocked', 'budget_exhausted', 'no_progress', 'human_paused'].includes(run.status)) {
+      return '<button class="btn" data-act="resume">Resume</button>';
+    }
+    return '<button class="btn" data-act="new-run">New run</button>';
+  }
+
   function renderComposer() {
     const form = $('#composer');
     const thread = currentThread();
@@ -1695,21 +1733,31 @@
 
     const text = $('#composerText');
     const send = $('[data-act="send-message"]');
+    const box = $('#composerBox');
     const note = $('#composerNote');
     const error = $('#composerError');
+    const closed = $('#composerClosed');
     const draft = state.drafts.get(thread.name) || '';
     if (text.value !== draft) text.value = draft;
     autosizeText(text);
 
     const reason = composerReason(thread);
     const usable = !reason && !state.sending;
+    // The run cannot take a message, so the box goes and the reason takes its place. A box you cannot
+    // type in says "you are missing something"; one sentence says what happened and what to do.
+    const shut = !!reason;
     text.disabled = !usable;
     text.placeholder = `Message ${thread.name}…`;
     send.disabled = !usable || !draft.trim();
-    form.querySelector('.composer-box').classList.toggle('is-off', !usable);
-    note.textContent = reason || (thread.tasks.length
+    box.hidden = shut;
+    note.hidden = shut;
+    form.classList.toggle('closed', shut);
+    closed.hidden = !shut;
+    closed.innerHTML = shut ? `<span>${esc(reason)}</span>${composerNextAction()}` : '';
+
+    note.textContent = thread.tasks.length
       ? `Ctrl+Enter sends. It arrives as a message task on ${thread.name}.`
-      : `${thread.name} has no task yet. Sending starts its first one, as a message.`);
+      : `${thread.name} has no task yet. Sending starts its first one, as a message.`;
 
     const err = state.sendError && state.sendError.thread === thread.name ? state.sendError.message : '';
     error.hidden = !err;
@@ -1839,7 +1887,7 @@
     const produced = arts.length
       ? arts.map((a) => {
         const fn = String(a.path || '').split('/').pop();
-        return `<div class="dfile" title="${esc(a.path)}">${ic('folder')}<span>${esc(fn)}</span><span class="sz">${a.bytes != null ? fmt(a.bytes) + ' b' : '—'}</span></div>`;
+        return `<div class="dfile" title="${esc(a.path)}">${ic('folder')}<span>${esc(fn)}</span><span class="sz">${a.bytes != null ? bytes(a.bytes) : '—'}</span></div>`;
       }).join('')
       : '<div class="dnone">No artifact was collected for this task.</div>';
 
@@ -1895,11 +1943,11 @@
             <div class="agent">
               <div class="agent-top">
                 <span class="agent-name">${esc(a.name)}</span>
-                <span class="agent-ver">${a.found ? esc(a.version || 'version unknown') : '—'}</span>
+                <span class="agent-ver">${a.found ? esc(agentVersion(a)) : '—'}</span>
                 <span class="agent-state"><span class="dot ${a.found ? 'ok' : 'bad'}"></span>${a.found ? 'found' : 'missing'}</span>
               </div>
               <div class="agent-path" title="${esc(a.path || '')}">${esc(a.path || 'not on the PATH of the ilvunod process')}</div>
-              <div class="agent-safety"><span class="chip ${a.safety === 'unknown' ? '' : 'safe'}">permissions</span><span>${esc(safetyLine(a.safety))}</span></div>
+              <div class="agent-safety">${esc(safetyLine(a.safety))}</div>
             </div>`).join('') || '<p class="facts-empty">The API reported no agents.</p>'}
         </div>
         <div class="note">Ilvuno does not sandbox agents; each CLI is bounded by its own permissions.</div>`;
@@ -1932,7 +1980,7 @@
             <button class="switch" role="switch" aria-checked="${s.human_gate ? 'true' : 'false'}" aria-label="Human gate" data-act="toggle-gate"></button>
           </div>
         </div>
-        <div class="note">These are written to <code>PUT /settings</code>. The run on screen is not changed.</div>`;
+        <div class="note">The window saves each change as you make it. A run that is already going keeps its own budget.</div>`;
     }
     if (tab === 'about') {
       return `
@@ -1963,7 +2011,7 @@
       </div>
       <div class="set-sec">
         <div class="k">Run</div>
-        <div class="kv"><span>Run id</span><span class="v">${esc(state.currentId || '—')}</span></div>
+        <div class="kv"><span>Run id</span><span class="v" title="${esc(state.currentId || '')}">${esc(String(state.currentId || '—').slice(0, 8))}</span></div>
         <div class="kv"><span>Threads</span><span class="v">${state.detail?.threads?.length || 0}</span></div>
       </div>
       <div class="set-sec">
