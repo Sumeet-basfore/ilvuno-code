@@ -170,3 +170,13 @@ python3 tools/render-report.py docs/<file>.md
 - Start an agent in `bypassPermissions` by default.
 - Add a scheduler, cron, cloud runner, or multi-user support to v1.
 - Add a dependency, a doc, or a directory that the PRD's non-goals do not need.
+
+## Factory
+
+Commands this repo verifies with. Written down so `bin/verify` runs exactly these.
+
+```factory
+typecheck: cargo check
+test: cargo test
+build: cargo build
+```

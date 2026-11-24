@@ -198,3 +198,18 @@ the repo, untracked; it now sits at `/tmp/ilvuno-stray-skills` and can be delete
 
 Known: the rpm is unsigned, so `dnf` warns about the key. The `.deb` has never been installed by a real
 package manager, because this host is Arch.
+
+## Current state update · 2026-11-24 · pause point
+
+Stopped here, with a cold-start note at `/tmp/ilvuno-pause-resume.md`. `main` is `c60b4dd` on GitHub, and
+one local commit sits on top with this note.
+
+The question that ended the day: is Ilvuno ready to build itself? Not yet. It did once, in run `64239160`,
+which added a test to `crates/runner/src/git.rs` and merged it. But a command check runs in the project
+folder, not in a thread's worktree (`crates/runner/src/checks.rs`, `current_dir(at.goal_dir)`), so the
+runner cannot test what an agent wrote. A person still runs the test.
+
+Next: stage 6, with the design fork settled first. Worktrees are per thread and checks are per round, so
+either every thread's worktree is checked, or the runner builds one integration worktree at round close and
+checks that. The second matches accept, which merges the threads into one tree, and it is the tree the gate
+should show.
