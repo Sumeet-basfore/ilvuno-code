@@ -1,0 +1,19 @@
+{
+  "bundle": {
+    "resources": {
+      "../../target/release/ilvunod": "ilvunod"
+    },
+    "linux": {
+      "deb": {
+        "files": {
+          "/usr/bin/ilvuno": "../../target/release/ilvuno"
+        }
+      },
+      "appimage": {
+        "files": {
+          "usr/bin/ilvuno": "../../target/release/ilvuno"
+        }
+      }
+    }
+  }
+}

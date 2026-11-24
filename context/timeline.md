@@ -84,3 +84,12 @@ evening was verification — and every one of the serious defects (resume, the s
 | Phase | What landed |
 |---|---|
 | **First dogfood run** | Human accepted run `64239160-0caa-456a-b3cf-3011a0f64bb1`. The runner merged writer commit `82486ce` to local `main` as `d03a026`; it adds one test for `branch_name` with spaces, slashes and Unicode. The post-accept workspace suite passed: 161 passed, 3 ignored, 0 failed. Report: [`04-first-dogfood-change`](prompts/reports/2026-11-24-04-first-dogfood-change.md). |
+
+## Stage 5 · packaging attempt (2026-11-24)
+
+| Phase | What happened |
+|---|---|
+| **Prompt 06 resumed** | The human accepted the prompt 04 run and the runner landed it as `d03a026`. Work resumed on `feat/linux-packaging`. |
+| **Linux build** | Enabled `.deb` and AppImage bundling, added gem icons, a first-run guide and a packaging script. The window starts bundled `ilvunod` when the local health route is not healthy. Decision D24 records this choice. |
+| **Package build** | `RUSTUP_TOOLCHAIN=1.100.0 cargo build --release -p desktop` passed. Tauri CLI 2.12.6 produced `Ilvuno_0.0.1_amd64.deb` and `Ilvuno_0.0.1_amd64.AppImage`. The `.deb` metadata and file layout were inspected. |
+| **AppImage check stopped** | The AppImage was copied to `/tmp` and launched there. Its bundled runner returned the real run `64239160-0caa-456a-b3cf-3011a0f64bb1`; the 1440×900 window capture was blank. Prompt 06 requires stopping here. `dpkg-deb` is not installed on this CachyOS machine, so the `.deb` desktop entry was not launched. Report: [`06-packaging`](prompts/reports/2026-11-24-06-packaging.md). |

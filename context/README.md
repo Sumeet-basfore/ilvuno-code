@@ -72,3 +72,10 @@ and landing. The packaging attempt stopped before build changes; see
 Run `64239160-0caa-456a-b3cf-3011a0f64bb1` was accepted by a person and landed by the runner as
 `d03a026`. It adds one `branch_name` test. The full workspace suite passed after the landing: **161 passed,
 3 ignored, 0 failed**. Prompt 04 is complete; packaging is now underway on `feat/linux-packaging`.
+
+## Current state update · 2026-11-24 · packaging check
+
+The `.deb` and AppImage build artifacts were produced on `feat/linux-packaging`. The AppImage, launched
+from `/tmp`, started its bundled API and returned the real accepted run. Its 1440×900 screenshot was blank.
+Prompt 06 says to stop on this defect. The package is not ready to ship; the next step is to fix and verify
+the blank AppImage window. Details are in [`2026-11-24-06-packaging`](prompts/reports/2026-11-24-06-packaging.md).

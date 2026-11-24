@@ -115,3 +115,12 @@ passing tests and 3 ignored live-provider tests**.
 Gate acceptance now refuses a thread worktree with uncommitted files and names those paths. Only an
 untracked `provider-stderr.log` is ignored; a staged or tracked copy is still dirty. The API and git
 coverage passed as part of the workspace suite: **160 tests passed and 3 ignored** (`54c0004`).
+
+## Stage 5 · packaging status (2026-11-24)
+
+Tauri produced a `.deb` and an AppImage. The `.deb` metadata includes `libwebkit2gtk-4.1-0` and `libgtk-3-0`;
+its file list includes the desktop app, the `ilvuno` CLI and `ilvunod` under the Tauri resource directory.
+The AppImage also contains `ilvuno` and `ilvunod`. Launching the AppImage from outside the repository
+started the API and returned the real accepted run, but the captured app window was blank. Packaging is
+therefore **not complete**. The `.deb` layout was inspected from its archive; this system has no `dpkg-deb`,
+so its desktop entry was not executed.

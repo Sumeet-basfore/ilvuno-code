@@ -40,6 +40,7 @@ Written down because it is the most expensive kind of error to repeat.
 | "Dogfooding is next" | Impossible: agents write in `run/threads/<name>/`, not in the project. | Reading `dispatch.rs` (R5). |
 | Coordinates read off a scaled screenshot | Three clicks landed on the wrong control, twice blamed the app. | Measuring the element's rectangle from an unscaled capture. |
 | The first count of tool activity was 14 calls and 3 denials | The real run has 7 tool calls and 2 denied permissions. | Recounting the filtered journal rows before reading the screenshots. |
+| A direct Tauri CLI check was run without `RUSTUP_TOOLCHAIN=1.100.0` | It called the broken `stable` toolchain and panicked; the pinned packaging script and pinned retry built the AppImage. | Re-running with the required toolchain environment. |
 
 ## Where we agreed, and why it stuck
 
