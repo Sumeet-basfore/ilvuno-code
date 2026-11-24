@@ -292,6 +292,14 @@ mod tests {
     }
 
     #[test]
+    fn branch_names_replace_spaces_slashes_and_unicode_in_thread_names() {
+        // Anything outside ASCII letters, digits, `-` and `_` becomes `-`, one character at a time.
+        assert_eq!(branch_name("12345678-rest", "a b"), "run/12345678/a-b");
+        assert_eq!(branch_name("12345678-rest", "A/B"), "run/12345678/A-B");
+        assert_eq!(branch_name("12345678-rest", "ünïcode"), "run/12345678/-n-code");
+    }
+
+    #[test]
     fn a_worktree_is_a_real_checkout_and_its_commit_stays_on_its_branch() {
         let r = repo("worktree");
         let base = head(&r.dir).expect("head");
