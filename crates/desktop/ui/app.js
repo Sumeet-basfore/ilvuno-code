@@ -627,6 +627,7 @@
     const root = rootPath();
     if (root && s.startsWith(root + '/')) s = s.slice(root.length + 1);
     s = s.replace(/^.*\/runs\/[0-9a-f-]{36}\//, 'run/');
+    s = s.replace(/^.*\/worktrees\/[0-9a-f]{8}\//, 'worktree/');
     return s;
   }
 
@@ -1016,11 +1017,19 @@
 
   // ---- centre: thread view ---------------------------------------------------------------------
 
+  // A scope chip is narrow. A long path loses its end in the box, and the end is the part a reader
+  // needs (the file). Keep the last folders, put the full path in the title.
+  function chipPath(p) {
+    const s = relPath(p);
+    if (s.length <= 30) return s;
+    return '…/' + s.split('/').slice(-3).join('/');
+  }
+
   function scopeChips(scope) {
     if (!scope || !scope.length) return '';
     const items = scope.map((p) => p === 'run'
       ? '<span class="fchip run" title="the whole run">whole run</span>'
-      : `<span class="fchip" title="${esc(relPath(p))}">${esc(relPath(p))}</span>`).join('');
+      : `<span class="fchip" title="${esc(p)}">${esc(chipPath(p))}</span>`).join('');
     return `<div class="led-scope">${items}</div>`;
   }
 
