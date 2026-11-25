@@ -150,6 +150,7 @@ states. The roadmap now describes the integration-tree behavior and the remainin
 
 A second review found a partial-accept retry could also land a later branch on changed project code. Each
 merge step now checks the prior commit recorded in the journal. A scripted test covers that retry.
+
 ## Harness · T3 Code to Orca (2026-11-25)
 
 The owner moved the work harness from T3 Code to Orca, and may move it again. The reason given is a worry
@@ -160,3 +161,9 @@ the reference products; no build file, config or code path depends on the harnes
 the project `AGENTS.md` name Orca workers, and the prompt briefs name no harness at all.
 
 Nothing in `crates/`, the release or the open pull requests changed.
+
+## Stage 6 follow-up · merge journal recovery (2026-11-25)
+
+Git and SQLite cannot commit atomically. Acceptance retries now recognize an unjournaled Git merge only when
+its parents, message and tree match the expected merge. It records that merge and continues. A different
+tree or project movement refuses the remaining branches. Two scripted tests cover recovery and refusal.

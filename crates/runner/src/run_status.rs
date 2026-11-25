@@ -269,6 +269,19 @@ pub fn decide_gate_and_render(home: &Home, store: &mut Store, run_id: &str, deci
                     .ok_or_else(|| anyhow!("git run has no expected project head"))?;
                 let current_head = crate::git::head(&root)?;
                 if !current_head.starts_with(expected) {
+                    if let Some(recovered_head) =
+                        crate::git::unrecorded_merge_head(&root, expected, &target.branch, &message)?
+                    {
+                        let sha: String = recovered_head.chars().take(8).collect();
+                        p.push(
+                            run_id,
+                            None,
+                            Some(&target.thread_id),
+                            "merge.landed",
+                            json!({ "branch": target.branch, "sha": sha, "by": "user", "recovered": true }),
+                        );
+                        return Ok(Outcome::Applied(Some(crate::git::MergeOutcome::Merged(sha))));
+                    }
                     let reason = "the project moved during acceptance; no more thread branches were merged".to_string();
                     p.push(
                         run_id,

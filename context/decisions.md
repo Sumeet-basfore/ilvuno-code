@@ -109,6 +109,7 @@ project commit. This avoids accepting work that was checked against a different 
 
 Each merge step also checks the expected project HEAD. A retry uses the latest recorded landed commit as
 its expected HEAD. If the project moved during a partial accept, the runner refuses the remaining branches.
+
 ## Harness · Orca instead of T3 Code (2026-11-25)
 
 | # | Decision | Why | What would reverse it |
@@ -120,3 +121,9 @@ reference products. No build file, no config, no code path names either as a dep
 
 Recorded honestly: the reason for leaving is the owner's and was not audited here. The durable sentence is
 "we stopped using it", not "it was proven to do X".
+
+## Gate recovery · a merge without its journal row (2026-11-25)
+
+| # | Decision | Why | What would reverse it |
+|---|---|---|---|
+| **D27** | On acceptance retry, record an unjournaled Git merge only when its first parent, second parent, message and tree match the expected merge. Otherwise refuse to merge more branches. | Git and SQLite cannot commit atomically. Retrying safely must preserve a merge Git already made without accepting unrelated or altered project state. | A single transactional store for Git refs and the journal, or evidence that Git can atomically commit both. |

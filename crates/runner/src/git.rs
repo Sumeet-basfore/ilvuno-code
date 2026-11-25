@@ -338,6 +338,46 @@ pub fn merge(root: &Path, branch: &str, message: &str) -> Result<MergeOutcome> {
     Ok(MergeOutcome::Conflict(conflicts.lines().map(str::to_string).collect()))
 }
 
+/// Return HEAD when its parents, subject and tree match a merge of `branch` at `expected`.
+pub fn unrecorded_merge_head(
+    root: &Path,
+    expected: &str,
+    branch: &str,
+    message: &str,
+) -> Result<Option<String>> {
+    let current = head(root)?;
+    let expected_spec = format!("{expected}^{{commit}}");
+    let expected = git_ok(root, &["rev-parse", &expected_spec])?;
+    let branch_spec = format!("{branch}^{{commit}}");
+    let branch_head = git_ok(root, &["rev-parse", &branch_spec])?;
+    let first_parent = git_ok(root, &["rev-parse", "HEAD^1"]);
+    let second_parent = git_ok(root, &["rev-parse", "HEAD^2"]);
+    let commit_message = git_ok(root, &["show", "-s", "--format=%B", "HEAD"])?;
+
+    let (Ok(first_parent), Ok(second_parent)) = (first_parent, second_parent) else {
+        return Ok(None);
+    };
+    if first_parent != expected || second_parent != branch_head || commit_message != message {
+        return Ok(None);
+    }
+
+    let merge_tree = git(root, &["merge-tree", "--write-tree", &expected, &branch_head])?;
+    if !merge_tree.status.success() {
+        return Ok(None);
+    }
+    let expected_tree = String::from_utf8_lossy(&merge_tree.stdout)
+        .lines()
+        .next()
+        .unwrap_or_default()
+        .to_string();
+    if expected_tree.is_empty()
+        || git_ok(root, &["rev-parse", "HEAD^{tree}"])? != expected_tree
+    {
+        return Ok(None);
+    }
+    Ok(Some(current))
+}
+
 /// Remove a worktree and forget the branch. Safe to call for one that is already gone.
 pub fn remove_worktree(root: &Path, path: &Path) -> Result<()> {
     let p = path.to_string_lossy().to_string();
