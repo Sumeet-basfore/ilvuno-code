@@ -337,3 +337,26 @@ impl Session for AcpSession {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::AcpProvider;
+    use serde_json::json;
+
+    #[test]
+    fn agent_command_uses_a_clean_environment_and_only_passed_variables() {
+        let provider = AcpProvider::new("codex-acp", None);
+        let env = [
+            ("HOME".to_string(), "/tmp/x".to_string()),
+            ("PATH".to_string(), "/usr/bin".to_string()),
+        ];
+        let command = provider.launch(&env).unwrap();
+        let described = serde_json::to_value(command).unwrap();
+
+        assert_eq!(described["command"], "env");
+        assert_eq!(
+            described["args"],
+            json!(["-i", "HOME=/tmp/x", "PATH=/usr/bin", "codex-acp"])
+        );
+    }
+}

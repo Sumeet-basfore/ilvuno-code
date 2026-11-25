@@ -4,10 +4,16 @@ use anyhow::{bail, Context, Result};
 use api::state::{AppState, ProviderBuilder};
 use cli::{ops, providers};
 use runner::{Home, Store};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 
 const DEFAULT_PORT: u16 = 4737;
+const LOOPBACK: IpAddr = IpAddr::V4(Ipv4Addr::LOCALHOST);
+
+fn bind_address(port: u16) -> SocketAddr {
+    SocketAddr::new(LOOPBACK, port)
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -25,11 +31,24 @@ async fn main() -> Result<()> {
 
     let build: ProviderBuilder<providers::AnyProvider> = Arc::new(providers::build);
     let app = api::router(AppState::new(home, build));
-    let listener = match TcpListener::bind(("127.0.0.1", port)).await {
+    let address = bind_address(port);
+    let listener = match TcpListener::bind(address).await {
         Ok(listener) => listener,
-        Err(err) => bail!("cannot listen on 127.0.0.1:{port}: {err}"),
+        Err(err) => bail!("cannot listen on {address}: {err}"),
     };
-    println!("ilvunod {} listening on http://127.0.0.1:{port}", env!("CARGO_PKG_VERSION"));
+    println!("ilvunod {} listening on http://{address}", env!("CARGO_PKG_VERSION"));
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::bind_address;
+    use tokio::net::TcpListener;
+
+    #[tokio::test]
+    async fn api_bind_address_is_loopback() {
+        let listener = TcpListener::bind(bind_address(0)).await.unwrap();
+        assert!(listener.local_addr().unwrap().ip().is_loopback());
+    }
 }

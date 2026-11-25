@@ -180,3 +180,10 @@ reading copy was generated and read, but is not committed.
 Added hand-written stream-json fixtures for a normal tool turn and a permission request. The replay test feeds
 each frame through `provider_claude::wire::parse_frame` and checks the events, including an unknown frame as
 `Raw`. `RUSTUP_TOOLCHAIN=1.100.0 cargo test -p provider-claude --test replay` passed: 2 passed, 0 failed.
+
+## Prompt 09 · Credential boundary tests (2026-11-25)
+
+Added an ACP test for `env -i`, an API test that binds through the production loopback address helper, and
+three plain-English lines in the security model. The first test attempt hit a full `/tmp` filesystem while
+compiling dependencies. Retrying with the existing `/home` build target passed: API 56 passed, ACP 19 passed,
+1 ignored, 0 failed.
