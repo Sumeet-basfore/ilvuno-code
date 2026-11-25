@@ -27,4 +27,4 @@ Run each round's checks against the worktree gate acceptance will merge.
 
 ## Open
 
-The branch push is pending. No functional issue remains open.
+The branch is pushed to `origin/feat/checks-see-the-work`. No functional issue remains open.
