@@ -128,3 +128,14 @@ skipped its optional review, and no required checks are configured.
 
 PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) merged into `main` as `6af44e8`. The
 packaging implementation, verification report and screenshots are now in `main`.
+
+## Harness · T3 Code to Orca (2026-11-25)
+
+The owner moved the work harness from T3 Code to Orca, and may move it again. The reason given is a worry
+about how T3 Code handles the data of the agents running in it. That was not verified.
+
+Checked before recording it: `rg -i "t3 ?code"` over the tree returns only research and context prose about
+the reference products; no build file, config or code path depends on the harness. The delegation lines in
+the project `AGENTS.md` name Orca workers, and the prompt briefs name no harness at all.
+
+Nothing in `crates/`, the release or the open pull requests changed.

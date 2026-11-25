@@ -91,3 +91,15 @@ O1 is resolved. The implementation is `6648207`; run and screenshot evidence is 
 | **D24** | The packaged window starts its bundled `ilvunod` when `/health` on `127.0.0.1:4737` is not healthy. It uses Tauri's resource directory and a direct executable path. The runner stays alive after the window closes. The child gets only `HOME`, `PATH`, `USER`, locale, terminal/temp settings and `ILVUNO_HOME` from the parent. | This lets a person open the app without starting a service by hand, and closing the window cannot kill an active run. A systemd user unit adds setup work; a manual start defeats the first-run goal. | If the AppImage launch shows that this process model is unreliable, or a user needs a documented stop control before v1. |
 
 The runner startup code and package layout are implemented, but prompt 06 is not complete. The AppImage started `ilvunod` and returned the real accepted run, while the captured window was blank. See the packaging continuation report before treating this decision as shipped.
+
+## Harness · Orca instead of T3 Code (2026-11-25)
+
+| # | Decision | Why | What would reverse it |
+|---|---|---|---|
+| **D26** | The work harness is Orca, or whatever the owner chooses next. Ilvuno itself takes no dependency on any harness: it runs agent CLIs, and its engine, API, window and packages are unchanged by this. | The owner stopped trusting T3 Code with the data of the agents inside it. That is the owner's call about their own machine, and it costs the project nothing because nothing in the code ever depended on the harness. | Nothing in Ilvuno. If a harness ever offers an embedded agent runtime that the product needs, that would be a new product decision, not a swap of tools. |
+
+Verified before writing this: a search of the tree for T3 and Orca finds only research prose about the three
+reference products. No build file, no config, no code path names either as a dependency.
+
+Recorded honestly: the reason for leaving is the owner's and was not audited here. The durable sentence is
+"we stopped using it", not "it was proven to do X".

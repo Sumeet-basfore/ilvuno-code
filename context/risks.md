@@ -103,3 +103,12 @@ desktop entry still needs a launch check on a system with Debian package tools.
 The blank AppImage capture was caused by Xvfb without DRI3. The AppImage opened on the actual X11 display,
 and the extracted `.deb` executable opened the same run. A full `.deb` install on a Debian system remains
 untested because this machine has no `dpkg-deb`.
+
+## Harness change (2026-11-25)
+
+- **An unverified accusation kept in memory.** `context/README.md` and `decisions.md` record that we stopped
+  using T3 Code, and that the reason is the owner's and unaudited. If it is ever repeated as fact, the
+  reputational risk is the owner's. The honest sentence stays "we stopped using it".
+- **Harness churn.** The instructions a session inherits partly live outside this repo. The one thing that
+  keeps a harness swap cheap is that `context/prompts/` and `docs/` name no harness and no harness-specific
+  tool. Keep it that way; name the repo, not the app the work happens in.

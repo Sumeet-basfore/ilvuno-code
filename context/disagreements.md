@@ -58,3 +58,17 @@ Written down because it is the most expensive kind of error to repeat.
 The agent treated a blank screenshot as an AppImage defect. The screenshot came from Xvfb, which logged
 that DRI3 was unavailable. The AppImage and extracted `.deb` both showed the real run on the actual X11
 display. The package check must use the real display when WebKitGTK cannot render in Xvfb.
+
+## Harness · a reason that was not verified (2026-11-25)
+
+The owner said T3 Code steals the data of the agents in it, and stopped using it. The agent's pushback was
+narrow: the switch is fine and needs no evidence, because it is the owner's own environment, but the claim
+itself cannot go into the project memory as a fact. It is written down as the owner's reason, with a line
+saying it was not audited.
+
+The owner accepted that framing by asking for the context to be updated and not for the claim to be stated
+as proven.
+
+What changed: the harness, and how work is delegated. What did not change: any line of Ilvuno, the release,
+or the open pull requests. If the claim is ever repeated in public, the honest version is "we did not audit
+it, so we stopped using it", not "it was proven".
