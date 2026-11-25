@@ -41,6 +41,7 @@ Written down because it is the most expensive kind of error to repeat.
 | Coordinates read off a scaled screenshot | Three clicks landed on the wrong control, twice blamed the app. | Measuring the element's rectangle from an unscaled capture. |
 | The first count of tool activity was 14 calls and 3 denials | The real run has 7 tool calls and 2 denied permissions. | Recounting the filtered journal rows before reading the screenshots. |
 | A direct Tauri CLI check was run without `RUSTUP_TOOLCHAIN=1.100.0` | It called the broken `stable` toolchain and panicked; the pinned packaging script and pinned retry built the AppImage. | Re-running with the required toolchain environment. |
+| The Paseo synthesis counted nine native providers | The provider docs at the reviewed commit list ten. The report preserves both counts and names the mismatch. | Counting the entries in `public-docs/providers.md:21` at commit `cfcf0dc`. |
 
 ## Where we agreed, and why it stuck
 

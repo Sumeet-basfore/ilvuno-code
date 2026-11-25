@@ -167,3 +167,10 @@ Nothing in `crates/`, the release or the open pull requests changed.
 Git and SQLite cannot commit atomically. Acceptance retries now recognize an unjournaled Git merge only when
 its parents, message and tree match the expected merge. It records that merge and continues. A different
 tree or project movement refuses the remaining branches. Two scripted tests cover recovery and refusal.
+
+## Prompt 09 · Paseo comparison (2026-11-25)
+
+The five Paseo reviews are now summarized in `research/15-paseo.md`, which names the target commit and cites
+the upstream files reviewed. The summary says nine native providers, while the pinned provider docs list
+ten. The page records that difference and preserves the 25.1k star count as a dated snapshot. Its HTML
+reading copy was generated and read, but is not committed.
