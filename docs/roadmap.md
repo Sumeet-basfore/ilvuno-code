@@ -18,8 +18,8 @@ left, conversation in the middle, the run's work on the right), starting a run f
 and resuming it, choosing a thread's agent, honest states, tests. A clean git project now gives each
 thread its own worktree and branch, with a commit after every task; folder mode is the fallback.
 
-Not done: packaging, checks that can see a thread's change, and the one metric. Also unmerged: the
-truthful-restart work and the audit's fixes, both finished on their own branches.
+Not done: the one metric (stage 7). Also unmerged: the truthful-restart work and the audit's fixes, both
+finished on their own branches.
 
 Renumbered on 2026-11-24. Stages 0-5 keep their numbers. The work that used to be only "beta" is now four
 stages, because the first self-built change (stage 4) exposed what beta would otherwise discover: a check
@@ -37,7 +37,7 @@ cannot see what an agent changed, and nobody measures whether the loop works.
 | 3 | **Truth in the UI** *(in progress)* | safety and cost are visible | each thread shows its safety level; permission log; budget bar; kill the app mid-run and reopen to an honest state — written on `feat/truth-in-the-ui`, not merged | 1–2 w |
 | 4 | ~~**Dogfood**~~ **done once** | Ilvuno builds Ilvuno | run `64239160` wrote a test, a second thread reviewed it, the runner merged it; commit `d03a026` names the run | done |
 | 5 | **Installable** *(in progress)* | someone else can use it | a `.deb` and an `.AppImage` that start the window, and an install guide whose commands were all run | 1–2 w |
-| 6 | **Checks that see the work** | a check tests what the agent changed | a check fails on a broken thread worktree and passes after the fix; today checks only read `artifacts/` and the goal folder | 2–3 d |
+| 6 | ~~**Checks that see the work**~~ **done** | a check tests what the agent changed | the round's checks run in a throwaway tree built from the base plus the checked-out thread branches, in the gate's own order, and removed after; a check fails on a broken tree and passes once the next round fixes it — **verified on 2026-11-25** | done |
 | 7 | **Measure the loop** | the metric is a command | `ilvuno report` prints runs, accepted runs, and how many were accepted with no human message between agent turns | 1 d |
 | 8 | **A second agent CLI** | "agents are choices" is proven, not claimed | one live run on Pi or Cursor through ACP, not just `codex-acp` | 1 d |
 | 9 | **Two runs, one project** | nothing collides | a second run on a project with an open run is refused; a crashed run can discard its worktree | 1 d |
