@@ -28,10 +28,17 @@
   <symbol id="i-send" viewBox="0 0 16 16"><path d="M8 12.6V3.6"/><path d="m4.4 7.2 3.6-3.6 3.6 3.6"/></symbol>
   <symbol id="i-message" viewBox="0 0 16 16"><path d="M2.6 4.2a1.2 1.2 0 0 1 1.2-1.2h8.4a1.2 1.2 0 0 1 1.2 1.2v5.4a1.2 1.2 0 0 1-1.2 1.2H6.6l-2.8 2v-2h-.6a1.2 1.2 0 0 1-1.2-1.2Z"/></symbol>
   <symbol id="i-stop" viewBox="0 0 16 16"><rect x="4.6" y="4.6" width="6.8" height="6.8" rx="1"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 16 16"><circle cx="4.4" cy="3.6" r="1.6"/><circle cx="4.4" cy="12.4" r="1.6"/><circle cx="11.6" cy="5.4" r="1.6"/><path d="M4.4 5.2v5.6M11.6 7c0 2.2-2.2 2.8-7.2 3.8"/></symbol>
+  <symbol id="i-sidebar" viewBox="0 0 16 16"><rect x="2.4" y="3.4" width="11.2" height="9.2" rx="1.2"/><path d="M6.2 3.4v9.2"/></symbol>
+  <symbol id="i-diff" viewBox="0 0 16 16"><path d="M3.2 2.8h6.2l3.4 3.4v7H3.2Z"/><path d="M8 7.6v3.6M6.2 9.4h3.6"/></symbol>
   <symbol id="i-board" viewBox="0 0 16 16"><rect x="2.4" y="3.4" width="11.2" height="9.2" rx="1.2"/><path d="M2.4 6.4h11.2"/><path d="M6.4 6.4v6.2"/></symbol>
 </svg>
 
-<div class="app" id="app" data-right="">
+<div class="app" id="app" data-right="" data-rail="open">
+  <div class="resizer" id="resizeRail" role="separator" aria-orientation="vertical" aria-label="Resize the threads panel"
+       aria-valuemin="200" aria-valuemax="380" tabindex="0" title="Drag to resize. Arrow keys also work."></div>
+  <div class="resizer" id="resizeFacts" role="separator" aria-orientation="vertical" aria-label="Resize the run work panel"
+       aria-valuemin="260" aria-valuemax="480" tabindex="0" title="Drag to resize. Arrow keys also work."></div>
   <aside class="rail" id="rail">
     <div class="rail-top">
       <div class="brand"><span class="gem">◆</span> Ilvuno</div>
@@ -54,6 +61,10 @@
 
   <main class="main">
     <div class="topbar">
+      <button class="iconbtn rail-toggle" data-act="toggle-rail" aria-controls="rail" aria-expanded="true"
+              aria-label="Show or hide the threads panel" title="Threads panel (Ctrl+B)">
+        <svg class="ic" aria-hidden="true"><use href="#i-sidebar"></use></svg>
+      </button>
       <div class="crumbs">
         <span class="crumb-project" id="crumbProject">—</span>
         <svg class="ic sm" aria-hidden="true"><use href="#i-chevron-right"></use></svg>
@@ -78,6 +89,8 @@
       <button class="btn" data-act="retry">Retry</button>
     </div>
 
+    <nav class="tabbar" id="tabbar" aria-label="Run views" hidden></nav>
+
     <div class="scroll" id="scroll">
       <div class="view" id="view"></div>
     </div>
@@ -96,6 +109,7 @@
       <p class="composer-note" id="composerNote"></p>
       <p class="composer-error" id="composerError" role="alert" hidden></p>
     </form>
+    <footer class="statusbar" id="statusbar" aria-label="Status"></footer>
   </main>
 
   <aside class="facts" id="facts">
@@ -198,6 +212,7 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="diff.js" defer></script>
 <script src="app.js" defer></script>
 </body>
 </html>

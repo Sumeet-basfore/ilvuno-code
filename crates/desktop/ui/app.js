@@ -115,7 +115,9 @@
     activityLoaded: false,
     activityError: '',
     activityExpanded: new Set(),
-    threadDiffs: new Map(),
+    threadDiffs: new Map(), // IlvunoDiff.cacheKey → { patch, stat, truncated } or { error }
+    parsedDiffs: new Map(), // same key → parsed files, so a file list is not re-parsed on every render
+    diffSel: null, // { thread, path } of the file open in the Diff tab
     board: '',
     boardError: '',
     view: 'thread', // thread | board
@@ -393,18 +395,35 @@
     state.board = board?.markdown || '';
     pickThread();
     renderAll();
-    if (detail.run?.status === 'reviewed') {
-      const missing = (detail.threads || []).filter((thread) => thread.has_checkout && !state.threadDiffs.has(`${id}/${thread.name}`));
-      await Promise.all(missing.map(async (thread) => {
-        try {
-          const diff = await getJson(`/runs/${encodeURIComponent(id)}/threads/${encodeURIComponent(thread.name)}/diff`);
-          state.threadDiffs.set(`${id}/${thread.name}`, diff);
-        } catch (err) {
-          state.threadDiffs.set(`${id}/${thread.name}`, { error: err.message });
-        }
-      }));
-      if (seq === state.loadSeq && state.currentId === id) renderFacts();
-    }
+    await loadThreadDiffs(id, detail, seq);
+  }
+
+  // A thread's patch describes one commit. The cache is keyed by that commit (IlvunoDiff.cacheKey), so
+  // a new round fetches a new patch instead of showing the last round's. Runs with no checkout skip this.
+  async function loadThreadDiffs(id, detail, seq) {
+    // A failed read is not kept: the next refresh asks again, so a runner hiccup does not hide the patch.
+    const missing = (detail.threads || []).filter((thread) => {
+      if (!thread.has_checkout) return false;
+      const cached = state.threadDiffs.get(IlvunoDiff.cacheKey(id, thread));
+      return !cached || !!cached.error;
+    });
+    if (!missing.length) return;
+    let changed = false;
+    await Promise.all(missing.map(async (thread) => {
+      const key = IlvunoDiff.cacheKey(id, thread);
+      let value;
+      try {
+        value = await getJson(`/runs/${encodeURIComponent(id)}/threads/${encodeURIComponent(thread.name)}/diff`);
+      } catch (err) {
+        value = { error: err.message };
+      }
+      const before = state.threadDiffs.get(key);
+      if (!before || before.error !== value.error || before.patch !== value.patch) changed = true;
+      state.threadDiffs.set(key, value);
+    }));
+    // Re-render only when something new arrived. A diff that keeps failing must not rebuild the view on
+    // every refresh, because that would clear a text selection in the patch.
+    if (changed && seq === state.loadSeq && state.currentId === id) renderAll(true);
   }
 
   function scheduleRefresh() {
@@ -532,7 +551,7 @@
   function routeName() {
     const h = hashText();
     if (h.startsWith('settings')) return 'settings';
-    if (h === 'palette' || h === 'newrun' || h === 'board') return h;
+    if (h === 'palette' || h === 'newrun' || h === 'board' || h === 'diff') return h;
     if (h === 'drawer' || /^task-\d+$/.test(h)) return 'drawer';
     if (h.startsWith('t/')) return 'thread';
     return 'thread';
@@ -559,7 +578,7 @@
   }
 
   function homeRoute() {
-    if (state.view === 'board') return 'board';
+    if (state.view === 'board' || state.view === 'diff') return state.view;
     return state.thread ? 't/' + state.thread : 'thread';
   }
 
@@ -577,8 +596,8 @@
 
   function applyRoute() {
     const name = routeName();
-    if (name === 'board') {
-      state.view = 'board';
+    if (name === 'board' || name === 'diff') {
+      state.view = name;
     } else if (name === 'thread') {
       state.view = 'thread';
       const h = hashText();
@@ -743,6 +762,10 @@
         role: t.role || 'worker',
         status: t.status || 'idle',
         standing: t.prompt || '',
+        branch: t.branch || '',
+        commit: t.commit || '',
+        stat: t.stat || '',
+        hasCheckout: !!t.has_checkout,
         tasks: [],
       });
     }
@@ -807,7 +830,7 @@
 
   function threadDot(thread) {
     const group = threadGroup(thread);
-    return group === 'needs' ? 'warn' : group === 'working' ? 'ok' : '';
+    return group === 'needs' ? 'warn' : group === 'working' ? 'ok pulse' : '';
   }
 
   // ---- toast -----------------------------------------------------------------------------------
@@ -857,8 +880,8 @@
     }
     setInert(app, false);
     const offline = state.health === false;
-    setInert($('.rail'), offline);
-    setInert($('.facts'), offline);
+    setInert($('.rail'), offline || !layout.railOpen);
+    setInert($('.facts'), offline || app.dataset.right !== 'open');
     setInert($('#scroll'), offline);
     setInert($('#composer'), offline);
   }
@@ -1290,6 +1313,9 @@
           ${status}
         </div>
         <p class="th-sub">${thread.tasks.length} ${thread.tasks.length === 1 ? 'task' : 'tasks'} in this run${task ? ` · last in round ${esc(task.round ?? '—')}` : ''}</p>
+        ${thread.hasCheckout
+          ? `<p class="th-where">${ic('branch', 'ic sm')}<span class="mono">${esc(thread.branch)}</span>${thread.commit ? `<span class="sep">·</span><span class="mono">${esc(thread.commit)}</span>` : ''}${thread.stat ? `<span class="sep">·</span><span>${esc(thread.stat.split('\n').pop().trim())}</span>` : ''}</p>`
+          : '<p class="th-where muted">No worktree yet. It starts with this thread\'s first task.</p>'}
       </div>
       ${runStopBanner()}
       ${runIsWaiting()
@@ -1366,13 +1392,17 @@
   function boardViewHtml() {
     const d = state.detail;
     const ledger = d?.ledger || [];
+    // The goal's own "done" text is the acceptance test, so it stays in view while the board is read.
+    const done = d?.goal?.done
+      ? `<p class="bview-done"><span class="k">Done when</span>${esc(shrinkText(d.goal.done))}</p>`
+      : '';
     return `
       <div class="bview-head">
-        <button class="backlink" data-act="back-thread">${ic('chevron-left', 'ic sm')}Back to conversation</button>
         <div class="bview-line">
           <h1>Board</h1>
           <span class="cnt">${ledger.length} ${ledger.length === 1 ? 'entry' : 'entries'} · ${esc(runTitle())}</span>
         </div>
+        ${done}
       </div>
       ${runStopBanner()}
       ${boardGroups()}
@@ -1382,6 +1412,187 @@
         ${state.boardError ? `<p class="nr-error" role="alert">${esc(state.boardError)}</p>` : ''}
         <pre class="log-pre" tabindex="0" aria-label="board.md, read only">${esc(state.board || (state.boardError ? '' : 'The board is empty.'))}</pre>
       </details>`;
+  }
+
+  // ---- centre: diff view -----------------------------------------------------------------------
+
+  // One row per thread that has a worktree. Each thread's patch is parsed once per commit.
+  function diffThreads() {
+    const runId = state.currentId;
+    return (state.detail?.threads || []).filter((t) => t.has_checkout).map((t) => {
+      const key = IlvunoDiff.cacheKey(runId, t);
+      const entry = state.threadDiffs.get(key);
+      if (entry && !entry.error && !state.parsedDiffs.has(key)) {
+        state.parsedDiffs.set(key, IlvunoDiff.splitFiles(entry.patch));
+      }
+      return {
+        name: t.name, branch: t.branch || '', commit: t.commit || '', stat: t.stat || '',
+        entry, files: state.parsedDiffs.get(key) || [],
+      };
+    });
+  }
+
+  // The file to show: the one picked, else the current thread's first file, else the first file.
+  function selectedDiff(threads) {
+    const sel = state.diffSel;
+    if (sel) {
+      const thread = threads.find((t) => t.name === sel.thread);
+      const file = thread?.files.find((f) => f.path === sel.path);
+      if (file) return { thread, file };
+    }
+    const thread = threads.find((t) => t.name === state.thread && t.files.length) || threads.find((t) => t.files.length);
+    return thread ? { thread, file: thread.files[0] } : null;
+  }
+
+  const KIND_LETTER = { added: 'A', deleted: 'D', renamed: 'R', modified: 'M' };
+  const baseOf = (p) => String(p || '').split('/').pop();
+  const dirOf = (p) => {
+    const s = String(p || '');
+    const i = s.lastIndexOf('/');
+    return i >= 0 ? s.slice(0, i + 1) : '';
+  };
+
+  // Gate state, shown above the diff. The decision itself stays in the gate panel.
+  function gateBarHtml() {
+    const status = state.detail?.run?.status;
+    if (status === 'reviewed') {
+      return `<div class="dv-gate" role="status">
+        <span class="chip warn">Gate open</span>
+        <span>Accept or send back in the gate. Nothing merges until you accept.</span>
+        <button class="btn sm" data-act="focus-gate">Open the gate</button>
+      </div>`;
+    }
+    if (status === 'accepted' || status === 'merged') {
+      return `<div class="dv-gate closed"><span class="chip ok">${esc(statusWord(status))}</span><span>The gate is closed for this run.</span></div>`;
+    }
+    return '';
+  }
+
+  function fileGroupHtml(thread, sel) {
+    const isOn = (f) => !!sel && sel.thread.name === thread.name && sel.file.path === f.path;
+    const head = `<div class="dv-thread"><span class="dv-thread-name">${esc(thread.name)}</span><span class="dv-thread-branch">${ic('branch', 'ic sm')}${esc(thread.branch || 'no branch')}</span></div>`;
+    const err = thread.entry?.error ? `<p class="dv-note bad">Could not read this patch: ${esc(thread.entry.error)}</p>` : '';
+    const rows = thread.files.map((f) => `
+      <button class="dv-file${isOn(f) ? ' on' : ''}" data-act="diff-file" data-thread="${esc(thread.name)}" data-path="${esc(f.path)}"${isOn(f) ? ' aria-current="true"' : ''} title="${esc(f.path)}">
+        <span class="dv-kind k-${esc(f.kind)}" title="${esc(f.kind)}">${KIND_LETTER[f.kind] || 'M'}</span>
+        <span class="dv-path"><span class="dir">${esc(dirOf(f.path))}</span>${esc(baseOf(f.path))}</span>
+        <span class="dv-counts"><span class="add">+${f.added}</span><span class="del">−${f.removed}</span></span>
+      </button>`).join('');
+    const empty = !thread.files.length && !err
+      ? `<p class="dv-note">${thread.entry ? 'No file changes on this thread yet.' : 'Reading the patch…'}</p>`
+      : '';
+    return `<section class="dv-group" aria-label="Changes on ${esc(thread.name)}">${head}${err}${rows}${empty}</section>`;
+  }
+
+  function hunkHtml(hunk) {
+    const rows = hunk.rows.map((r) => {
+      const sign = r.type === 'add' ? '+' : r.type === 'del' ? '−' : '';
+      return `<div class="dv-row ${r.type}"><span class="ln">${r.oldNo ?? ''}</span><span class="ln">${r.newNo ?? ''}</span><span class="sg">${sign}</span><code class="tx">${esc(r.text) || '&nbsp;'}</code></div>`;
+    }).join('');
+    return `<div class="dv-hunk"><div class="dv-hunk-head">${esc(hunk.header)}</div>${rows}</div>`;
+  }
+
+  function fileDiffHtml({ thread, file }) {
+    const head = `<header class="dv-fhead">
+        <span class="dv-fpath"><span class="dir">${esc(dirOf(file.path))}</span><b>${esc(baseOf(file.path))}</b></span>
+        <span class="chip">${esc(file.kind)}</span>
+        <span class="dv-counts"><span class="add">+${file.added}</span><span class="del">−${file.removed}</span></span>
+        <span class="dv-on">${esc(thread.name)} · <code>${esc(thread.branch)}</code></span>
+      </header>`;
+    const cut = thread.entry?.truncated
+      ? '<p class="dv-note warn">This patch was cut off at 128 KiB, so later files may be missing from the list.</p>'
+      : '';
+    let body;
+    if (file.binary) body = '<p class="dv-note">Binary file. Its contents are not shown.</p>';
+    else if (!file.hunks.length) body = '<p class="dv-note">No text changes in this file.</p>';
+    else body = file.hunks.map(hunkHtml).join('');
+    return `${head}${cut}<div class="dv-code" tabindex="0" aria-label="Changes in ${esc(file.path)}">${body}</div>`;
+  }
+
+  function diffViewHtml() {
+    const threads = diffThreads();
+    if (!threads.length) {
+      return `
+        <div class="empty-state">
+          <span class="empty-gem" aria-hidden="true">◆</span>
+          <p>No thread has a worktree in this run yet.</p>
+          <p class="empty-note">A thread gets its branch and worktree when its first task starts.</p>
+        </div>`;
+    }
+    const total = IlvunoDiff.summarize(threads.flatMap((t) => t.files));
+    const sel = selectedDiff(threads);
+    return `
+      <div class="dv">
+        ${gateBarHtml()}
+        <div class="dv-head">
+          <span class="dv-title">${total.files} ${total.files === 1 ? 'file' : 'files'} changed</span>
+          <span class="dv-counts"><span class="add">+${fmt(total.added)}</span><span class="del">−${fmt(total.removed)}</span></span>
+          <span class="dv-scope">across ${threads.length} ${threads.length === 1 ? 'thread' : 'threads'}</span>
+        </div>
+        <div class="dv-body">
+          <nav class="dv-list" aria-label="Changed files">${threads.map((t) => fileGroupHtml(t, sel)).join('')}</nav>
+          <section class="dv-view" aria-label="Diff of the selected file">${sel ? fileDiffHtml(sel) : '<p class="facts-empty">No file changes in these threads.</p>'}</section>
+        </div>
+      </div>`;
+  }
+
+  // ---- tab strip and status bar ----------------------------------------------------------------
+
+  // The thread the tab strip and status bar talk about: the selected one, else the first.
+  function focusThread() {
+    const threads = runThreads();
+    return threads.find((t) => t.name === state.thread) || threads[0] || null;
+  }
+
+  function renderTabs() {
+    const bar = $('#tabbar');
+    if (!bar) return;
+    const d = state.detail;
+    bar.hidden = !d;
+    if (!d) {
+      bar.innerHTML = '';
+      return;
+    }
+    const diffs = diffThreads();
+    const fileCount = diffs.reduce((n, t) => n + t.files.length, 0);
+    const entries = (d.ledger || []).length;
+    const tab = (name, label, count) => {
+      const on = state.view === name;
+      return `<button class="tab${on ? ' on' : ''}" role="tab" id="tab-${name}" aria-selected="${on}" aria-controls="view"
+          tabindex="${on ? 0 : -1}" data-act="tab" data-tab="${name}">${label}${count ? `<span class="tab-n">${count}</span>` : ''}</button>`;
+    };
+    // In the Diff tab the branch shown is the open file's thread; elsewhere it is the selected thread.
+    const shown = state.view === 'diff' && selectedDiff(diffs) ? selectedDiff(diffs).thread : focusThread();
+    const where = shown?.branch
+      ? `<span class="tab-where" title="Branch of ${esc(shown.name)}">${ic('branch', 'ic sm')}<span class="mono">${esc(shown.branch)}</span></span>`
+      : '';
+    bar.innerHTML = `<div class="tabs" role="tablist" aria-label="Run views">
+        ${tab('thread', 'Conversation', '')}${tab('diff', 'Diff', fileCount ? fmt(fileCount) : '')}${tab('board', 'Board', entries ? fmt(entries) : '')}
+      </div>
+      <span class="tab-spacer"></span>${where}`;
+  }
+
+  function renderStatus() {
+    const bar = $('#statusbar');
+    if (!bar) return;
+    if (!state.detail) {
+      bar.innerHTML = `<span class="sb-item muted">${state.health === false ? 'Runner offline' : 'No run selected'}</span>
+        <span class="sb-spacer"></span><span class="sb-item muted">Ctrl K for commands</span>`;
+      return;
+    }
+    const thread = focusThread();
+    const groups = groupedThreads();
+    const files = diffThreads().reduce((n, t) => n + t.files.length, 0);
+    const branch = thread?.hasCheckout
+      ? `${ic('branch', 'ic sm')}<span class="mono">${esc(thread.branch)}</span>`
+      : '<span class="muted">no branch yet</span>';
+    bar.innerHTML = `
+      <span class="sb-item">${branch}</span>
+      <span class="sb-item"><span class="dot${groups.working.length ? ' ok' : ''}"></span>${groups.working.length} working</span>
+      <span class="sb-item"><span class="dot${groups.needs.length ? ' warn' : ''}"></span>${groups.needs.length} ${groups.needs.length === 1 ? 'needs' : 'need'} you</span>
+      <span class="sb-spacer"></span>
+      <span class="sb-item muted">${fmt(files)} ${files === 1 ? 'file' : 'files'} changed</span>
+      <span class="sb-item muted">Ctrl K for commands</span>`;
   }
 
   // ---- centre: no run --------------------------------------------------------------------------
@@ -1450,7 +1661,8 @@
       : 'Accept · no files to merge';
     const threadDiffs = threads.map((thread) => {
       if (!thread.has_checkout) return '';
-      const diff = state.threadDiffs.get(`${state.currentId}/${thread.name}`);
+      const key = IlvunoDiff.cacheKey(state.currentId, thread);
+      const diff = state.threadDiffs.get(key);
       const stat = thread.stat || 'No file changes';
       const branch = thread.branch || 'branch unknown';
       const patch = diff?.patch || '';
@@ -1460,7 +1672,7 @@
       return `<article class="gate-thread">
         <div class="gate-thread-head"><b>${esc(thread.name)}</b><span>${esc(branch)}</span></div>
         <p class="gate-stat">${esc(stat)}</p>
-        <details class="gate-diff"><summary>View patch</summary><pre>${esc(patchContent)}</pre></details>
+        <details class="gate-diff" data-key="${esc(key)}"><summary>View patch</summary><pre>${esc(patchContent)}</pre></details>
       </article>`;
     }).join('');
     return `
@@ -1634,7 +1846,10 @@
     const body = $('#factsBody');
     if (!body) return;
     const top = body.scrollTop;
+    // A refresh rebuilds the panel. Keep any open patch open, so reading one is not interrupted by polling.
+    const openPatches = new Set($$('details.gate-diff[open]', body).map((d) => d.dataset.key));
     body.innerHTML = factsHtml();
+    $$('details.gate-diff', body).forEach((d) => { if (openPatches.has(d.dataset.key)) d.open = true; });
     if (state.lastRunId === state.currentId) body.scrollTop = top;
     else body.scrollTop = 0;
     $('#factsLbl').textContent = state.detail ? 'Run' : 'No run';
@@ -1646,6 +1861,7 @@
     const view = $('#view');
     const scroll = $('#scroll');
     if (!view || !scroll) return;
+    scroll.classList.toggle('is-fill', !!state.detail && state.view === 'diff');
     const top = scroll.scrollTop;
     $$('details[data-activity-key]', view).forEach((details) => {
       const key = details.dataset.activityKey;
@@ -1659,6 +1875,14 @@
       view.className = 'view';
       view.innerHTML = emptyState();
       scroll.scrollTop = 0;
+    } else if (state.view === 'diff') {
+      // The file list and the code scroll on their own; keep both where they were across a refresh.
+      const panes = { list: $('.dv-list', view)?.scrollTop, code: $('.dv-view', view)?.scrollTop };
+      view.className = 'view diff-view';
+      view.innerHTML = diffViewHtml();
+      scroll.scrollTop = 0;
+      if (panes.list != null && $('.dv-list', view)) $('.dv-list', view).scrollTop = panes.list;
+      if (panes.code != null && $('.dv-view', view)) $('.dv-view', view).scrollTop = panes.code;
     } else if (state.view === 'board') {
       view.className = 'view wide';
       view.innerHTML = boardViewHtml();
@@ -1812,6 +2036,94 @@
     renderAll();
   }
 
+  // ---- panel layout ----------------------------------------------------------------------------
+
+  // Panel sizes and open flags are a per-viewer convenience, kept in localStorage. Every access is
+  // guarded: a window without storage still lays out, it just forgets its sizes.
+  const LAYOUT_KEY = 'ilvuno-layout';
+  const RAIL_LIMITS = [200, 380];
+  const FACTS_LIMITS = [260, 480];
+  const MAIN_MIN = 520; // a panel that would squeeze the centre below this is hidden, not shrunk
+  const layout = { rail: 272, facts: 330, railOpen: true, factsOpen: window.innerWidth > 1280 };
+  const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
+
+  function loadLayout() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || '{}');
+      if (Number.isFinite(saved.rail)) layout.rail = clamp(saved.rail, RAIL_LIMITS);
+      if (Number.isFinite(saved.facts)) layout.facts = clamp(saved.facts, FACTS_LIMITS);
+      if (typeof saved.railOpen === 'boolean') layout.railOpen = saved.railOpen;
+      if (typeof saved.factsOpen === 'boolean') layout.factsOpen = saved.factsOpen;
+    } catch (err) {
+      // Unreadable storage: the defaults stand.
+    }
+  }
+
+  function saveLayout() {
+    try {
+      localStorage.setItem(LAYOUT_KEY, JSON.stringify({
+        rail: layout.rail, facts: layout.facts, railOpen: layout.railOpen, factsOpen: layout.factsOpen,
+      }));
+    } catch (err) {
+      // No storage, no memory of the sizes; the layout still works.
+    }
+  }
+
+  // The one place the grid is decided. CSS reads the two column widths; the handles follow them.
+  function applyLayout() {
+    const app = $('#app');
+    if (!app) return;
+    // The threads panel keeps its saved width until the window is too narrow for it, then gives way.
+    const railW = layout.railOpen ? Math.min(layout.rail, Math.max(RAIL_LIMITS[0], window.innerWidth - MAIN_MIN)) : 0;
+    const factsW = state.rightOpen && window.innerWidth - railW - layout.facts >= MAIN_MIN ? layout.facts : 0;
+    app.style.setProperty('--rail-col', `${railW}px`);
+    app.style.setProperty('--facts-col', `${factsW}px`);
+    app.dataset.rail = layout.railOpen ? 'open' : 'closed';
+    app.dataset.right = factsW ? 'open' : '';
+    // The panels stay in the grid when closed: a 0px column hides them, and display:none would shift the
+    // centre into the wrong column. Visibility and inert keep them out of sight and out of the tab order.
+    setInert($('#rail'), !layout.railOpen);
+    setInert($('.facts'), !factsW);
+    $('#resizeRail').hidden = !layout.railOpen;
+    $('#resizeFacts').hidden = !factsW;
+    $('#resizeRail').setAttribute('aria-valuenow', String(layout.rail));
+    $('#resizeFacts').setAttribute('aria-valuenow', String(layout.facts));
+    $('.rail-toggle').setAttribute('aria-expanded', String(layout.railOpen));
+    $('.facts-toggle').setAttribute('aria-expanded', String(!!factsW));
+  }
+
+  // Drag a handle to resize. Pointer capture keeps the drag alive when the pointer leaves the handle.
+  function startResize(side, event) {
+    const handle = event.currentTarget;
+    event.preventDefault();
+    handle.setPointerCapture?.(event.pointerId);
+    handle.classList.add('dragging');
+    const move = (ev) => {
+      if (side === 'rail') layout.rail = clamp(ev.clientX, RAIL_LIMITS);
+      else layout.facts = clamp(window.innerWidth - ev.clientX, FACTS_LIMITS);
+      applyLayout();
+    };
+    const stop = () => {
+      handle.classList.remove('dragging');
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', stop);
+      handle.removeEventListener('pointercancel', stop);
+      saveLayout();
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', stop);
+    handle.addEventListener('pointercancel', stop);
+  }
+
+  // Arrow keys on a focused handle: 16px a step, 48px with Shift.
+  function nudgeResize(handle, key, shift) {
+    const step = (shift ? 48 : 16) * (key === 'ArrowRight' ? 1 : -1);
+    if (handle.id === 'resizeRail') layout.rail = clamp(layout.rail + step, RAIL_LIMITS);
+    else layout.facts = clamp(layout.facts - step, FACTS_LIMITS);
+    applyLayout();
+    saveLayout();
+  }
+
   // ---- chrome ----------------------------------------------------------------------------------
 
   function renderConn() {
@@ -1851,10 +2163,8 @@
     $('#settingsVersion').textContent = state.version ? `v${state.version}` : 'Ilvuno';
     document.title = state.detail ? `${runTitle()} — Ilvuno` : 'Ilvuno';
 
+    applyLayout();
     const app = $('#app');
-    app.dataset.right = state.rightOpen ? 'open' : '';
-    const toggle = $('.facts-toggle');
-    toggle.setAttribute('aria-expanded', String(state.rightOpen));
 
     const offline = state.health === false;
     $('#offlineBanner').hidden = !offline;
@@ -1925,8 +2235,8 @@
   }
 
   function policySeg(current) {
-    const opt = (value, label) => `<label><input type="radio" name="policy" value="${value}" data-setting="message_policy"${current === value ? ' checked' : ''}><span>${label}</span></label>`;
-    return `<div class="seg" role="radiogroup" aria-label="Message policy">${opt('never', 'Never')}${opt('round', 'At round end')}${opt('anytime', 'Anytime')}</div>`;
+    const opt = (value, label) => `<label><input type="radio" name="policy" value="${value}" data-setting="message_policy"${current === value ? ' checked' : ''} disabled><span>${label}</span></label>`;
+    return `<div class="seg is-disabled" role="radiogroup" aria-label="Message policy (not enforced yet)">${opt('never', 'Never')}${opt('round', 'At round end')}${opt('anytime', 'Anytime')}</div>`;
   }
 
   function settingsHtml(tab) {
@@ -1957,30 +2267,33 @@
       if (!s) return state.settingsError ? `<p class="nr-error" role="alert">${esc(state.settingsError)}</p>` : '<p class="settings-loading">Reading settings…</p>';
       return `
         ${state.settingsError ? `<p class="nr-error" role="alert">${esc(state.settingsError)}</p>` : ''}
-        <p class="set-sub">These apply to new runs. The run on screen keeps its own budget.</p>
+        <p class="set-sub">Not used yet. The runner reads the budget and message policy from each run's goal file, so these values change nothing today.</p>
         <div class="set-sec">
-          <div class="k">Budget</div>
+          <div class="k">Budget <span class="chip">Not enforced yet</span></div>
           <div class="form-row">
-            <div class="form-label">Rounds<small>The runner refuses to start another round past this number.</small></div>
-            <input class="num-input" type="number" min="1" max="20" value="${esc(s.budget_rounds)}" data-setting="budget_rounds" aria-label="Default rounds">
+            <div class="form-label">Rounds<small>Set in each run's goal file.</small></div>
+            <input class="num-input" type="number" min="1" max="20" value="${esc(s.budget_rounds)}" aria-label="Default rounds" disabled>
           </div>
           <div class="form-row">
-            <div class="form-label">Tokens<small>A soft stop. The round in flight finishes; no new round starts.</small></div>
-            <input class="num-input" type="text" inputmode="numeric" value="${esc(fmt(s.budget_tokens))}" data-setting="budget_tokens" aria-label="Default tokens">
+            <div class="form-label">Tokens<small>Set in each run's goal file.</small></div>
+            <input class="num-input" type="text" inputmode="numeric" value="${esc(fmt(s.budget_tokens))}" aria-label="Default tokens" disabled>
           </div>
         </div>
         <div class="set-sec">
-          <div class="k">Messages</div>
+          <div class="k">Messages <span class="chip">Not enforced yet</span></div>
           <div class="form-row">
-            <div class="form-label">Message policy<small>When one thread may write to another.</small></div>
+            <div class="form-label">Message policy<small>Set per run in its goal file. The agents are told the policy in their prompt; nothing checks it.</small></div>
             ${policySeg(s.message_policy)}
           </div>
+        </div>
+        <div class="set-sec">
+          <div class="k">Gate</div>
           <div class="form-row">
-            <div class="form-label">Human gate<small>Nothing is accepted until you accept the run.</small></div>
-            <button class="switch" role="switch" aria-checked="${s.human_gate ? 'true' : 'false'}" aria-label="Human gate" data-act="toggle-gate"></button>
+            <div class="form-label">Human gate<small>Every run stops at the gate. Nothing merges until you accept it.</small></div>
+            <span class="chip ok">Always on</span>
           </div>
         </div>
-        <div class="note">The window saves each change as you make it. A run that is already going keeps its own budget.</div>`;
+        <div class="note">Theme is the only setting that takes effect today. Budgets and policy are saved but no run reads them yet.</div>`;
     }
     if (tab === 'about') {
       return `
@@ -2019,6 +2332,10 @@
         <div class="kv"><span>Command palette</span><span class="keys"><span class="kbd">Ctrl K</span></span></div>
         <div class="kv"><span>New run</span><span class="keys"><span class="kbd">Ctrl N</span></span></div>
         <div class="kv"><span>Send a message</span><span class="keys"><span class="kbd">Ctrl ↵</span></span></div>
+        <div class="kv"><span>Conversation, Diff, Board</span><span class="keys"><span class="kbd">Ctrl 1</span><span class="kbd">Ctrl 2</span><span class="kbd">Ctrl 3</span></span></div>
+        <div class="kv"><span>Threads panel</span><span class="keys"><span class="kbd">Ctrl B</span></span></div>
+        <div class="kv"><span>Run work panel</span><span class="keys"><span class="kbd">Ctrl .</span></span></div>
+        <div class="kv"><span>Next or previous thread or file</span><span class="keys"><span class="kbd">↑</span><span class="kbd">↓</span></span></div>
         <div class="kv"><span>Close a panel or dialog</span><span class="keys"><span class="kbd">Esc</span></span></div>
       </div>
       <div class="note">Agent detection is on the Agents tab. A real run fails on spawn rather than guessing.</div>`;
@@ -2107,6 +2424,10 @@
     const out = [{ act: 'new-run', label: 'New run', icon: 'plus', keys: 'new run start', on: true }];
     if (state.view !== 'board') out.push({ act: 'board', label: 'Show the board', icon: 'board', keys: 'board entries ledger view all', on: !!state.detail });
     if (state.view === 'board') out.push({ act: 'back-thread', label: 'Back to the conversation', icon: 'message', keys: 'conversation thread back', on: !!currentThread() || !!state.thread });
+    if (state.detail && state.view !== 'diff') out.push({ act: 'show-diff', label: 'Show the diff', icon: 'diff', keys: 'diff changes files patch review', on: true });
+    if (state.detail && state.view !== 'thread') out.push({ act: 'show-thread', label: 'Show the conversation', icon: 'message', keys: 'conversation thread chat', on: true });
+    out.push({ act: 'toggle-rail', label: layout.railOpen ? 'Hide the threads panel' : 'Show the threads panel', icon: 'sidebar', keys: 'threads panel sidebar rail', on: true });
+    out.push({ act: 'toggle-right', label: state.rightOpen ? 'Hide the run work panel' : 'Show the run work panel', icon: 'panel-right', keys: 'run work panel inspector facts', on: true });
     if (atGate) {
       out.push({ act: 'accept-gate', label: 'Accept and merge', icon: 'check', keys: 'accept merge gate done', on: true });
       out.push({ act: 'send-back', label: 'Send back with a note', icon: 'x', keys: 'send back reject gate note', on: true });
@@ -2359,6 +2680,24 @@
     setRoute('t/' + name);
   }
 
+  // Conversation keeps the selected thread; Diff and Board are whole-run views. The hash carries the view.
+  function switchTab(name) {
+    if (!state.detail) return;
+    if (name === 'thread') setRoute(state.thread ? 't/' + state.thread : 'thread');
+    else setRoute(name);
+  }
+
+  // Arrow keys move through a thread list or a file list, and the item moved to is opened at once.
+  function moveInList(list, from, step) {
+    const selector = list.classList.contains('dv-list') ? '.dv-file' : '.trow';
+    const items = $$(selector, list);
+    const i = items.indexOf(from.closest(selector));
+    if (i < 0 || !items.length) return;
+    const next = items[Math.min(items.length - 1, Math.max(0, i + step))];
+    next.focus({ preventScroll: true });
+    next.click();
+  }
+
   function focusGate() {
     if (!state.rightOpen) {
       state.rightOpen = true;
@@ -2379,13 +2718,13 @@
     if (!node || !node.closest || !node.closest('#app')) return null;
     const d = node.dataset;
     if (!d || !d.act) return null;
-    return { act: d.act, name: d.name, i: d.i, id: d.id, tab: d.tab, target: d.target };
+    return { act: d.act, name: d.name, i: d.i, id: d.id, tab: d.tab, target: d.target, path: d.path, thread: d.thread };
   }
 
   function restoreFocus(token) {
     if (!token) return;
     const all = $$(`[data-act="${token.act}"]`);
-    const el = all.find((n) => ['name', 'i', 'id', 'tab', 'target']
+    const el = all.find((n) => ['name', 'i', 'id', 'tab', 'target', 'path', 'thread']
       .every((key) => token[key] === undefined || n.dataset[key] === token[key]));
     if (!el || el.closest('[inert]')) return;
     setTimeout(() => el.focus({ preventScroll: true }), 0);
@@ -2401,6 +2740,7 @@
       agentsLoading: state.agentsLoading, gateBusy: state.gateBusy, sending: state.sending,
       sendError: state.sendError, expanded: Array.from(state.expanded),
       note: Array.from(state.noteDrafts.entries()), route: routeName(),
+      diffSel: state.diffSel, diffs: Array.from(state.threadDiffs.keys()),
     });
   }
 
@@ -2412,10 +2752,12 @@
     const focused = focusToken();
 
     renderRail();
+    renderTabs();
     renderView();
     renderComposer();
     renderFacts();
     renderChrome();
+    renderStatus();
 
     const settingsOpen = routeName() === 'settings';
     const paletteOpen = routeName() === 'palette';
@@ -2517,6 +2859,14 @@
         state.view = 'thread';
         selectRun(target.dataset.id);
         break;
+      case 'tab':
+        if (dialogName() === 'palette') closeDialog();
+        switchTab(target.dataset.tab);
+        break;
+      case 'diff-file':
+        state.diffSel = { thread: target.dataset.thread, path: target.dataset.path };
+        renderAll();
+        break;
       case 'board':
         if (dialogName() === 'palette') state.lastDialog = 'palette';
         state.view = 'board';
@@ -2536,10 +2886,24 @@
         setRoute('settings-' + target.dataset.tab);
         break;
       case 'toggle-right': {
+        if (dialogName() === 'palette') closeDialog();
         state.rightOpen = !state.rightOpen;
+        layout.factsOpen = state.rightOpen;
+        saveLayout();
         renderChrome();
         break;
       }
+      case 'toggle-rail':
+        if (dialogName() === 'palette') closeDialog();
+        layout.railOpen = !layout.railOpen;
+        saveLayout();
+        applyLayout();
+        break;
+      case 'show-diff':
+      case 'show-thread':
+        if (dialogName() === 'palette') closeDialog();
+        switchTab(act === 'show-diff' ? 'diff' : 'thread');
+        break;
       case 'stop-run':
         stopRun();
         break;
@@ -2569,13 +2933,6 @@
         if (dialogName() === 'palette') closeDialog();
         resumeRun();
         break;
-      case 'toggle-gate': {
-        if (!state.settings) return;
-        const next = !state.settings.human_gate;
-        target.setAttribute('aria-checked', String(next));
-        saveSettings({ human_gate: next });
-        break;
-      }
       case 'more': {
         const body = document.getElementById(target.dataset.target);
         if (!body) return;
@@ -2741,6 +3098,38 @@
       sendMessage();
       return;
     }
+    if (e.target?.classList?.contains('resizer') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault();
+      nudgeResize(e.target, e.key, e.shiftKey);
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && !dialog && (key === 'b' || e.key === '.')) {
+      e.preventDefault();
+      if (key === 'b') {
+        layout.railOpen = !layout.railOpen;
+        saveLayout();
+        applyLayout();
+      } else {
+        state.rightOpen = !state.rightOpen;
+        layout.factsOpen = state.rightOpen;
+        saveLayout();
+        renderChrome();
+      }
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && ['1', '2', '3'].includes(e.key) && !dialog && state.detail) {
+      e.preventDefault();
+      switchTab({ 1: 'thread', 2: 'diff', 3: 'board' }[e.key]);
+      return;
+    }
+    if (!dialog && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && e.target.closest) {
+      const list = e.target.closest('.dv-list, .rail-body');
+      if (list) {
+        e.preventDefault();
+        moveInList(list, e.target, e.key === 'ArrowDown' ? 1 : -1);
+        return;
+      }
+    }
     if ((e.metaKey || e.ctrlKey) && key === 'k') {
       e.preventDefault();
       if (dialogName() === 'palette') closeDialog();
@@ -2786,6 +3175,11 @@
 
   // ---- init ------------------------------------------------------------------------------------
 
+  loadLayout();
+  state.rightOpen = layout.factsOpen;
+  $('#resizeRail').addEventListener('pointerdown', (e) => startResize('rail', e));
+  $('#resizeFacts').addEventListener('pointerdown', (e) => startResize('facts', e));
+  window.addEventListener('resize', applyLayout);
   renderAll();
   loadAppVersion();
   loadSettings();
