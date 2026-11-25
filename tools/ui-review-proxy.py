@@ -37,6 +37,11 @@ CONTROL = os.environ.get("PROXY_CONTROL", "/tmp/ilvuno-review-control.json")
 # The desktop window's origins (docs/api.md). Nothing else may use this proxy from a browser.
 ALLOWED_ORIGINS = frozenset({"tauri://localhost", "http://tauri.localhost"})
 FORBIDDEN = b'{"error":"origin not allowed","kind":"forbidden"}'
+BAD_HOST = b'{"error":"host not allowed","kind":"forbidden"}'
+# DNS rebinding: a hostile page can make its own name resolve to 127.0.0.1, and then its requests are
+# same-origin with no Origin header. Only requests addressed to this proxy's own loopback name pass.
+PORT = int(os.environ.get("PROXY_PORT", "4737"))
+ALLOWED_HOSTS = frozenset({f"127.0.0.1:{PORT}", f"localhost:{PORT}"})
 
 
 def read_control() -> dict[str, Any]:
@@ -77,12 +82,19 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _host_allowed(self) -> bool:
+        return self.headers.get("Host") in ALLOWED_HOSTS
+
     def do_OPTIONS(self) -> None:
+        if not self._host_allowed():
+            return self._send(403, BAD_HOST)
         if not self._origin_allowed():
             return self._send(403, FORBIDDEN)
         self._send(204, b"", "text/plain")
 
     def _forward(self, method: str) -> None:
+        if not self._host_allowed():
+            return self._send(403, BAD_HOST)
         if not self._origin_allowed():
             return self._send(403, FORBIDDEN)
         if self.path.split("?")[0].endswith("/events"):
