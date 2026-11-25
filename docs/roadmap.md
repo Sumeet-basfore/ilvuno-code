@@ -18,8 +18,8 @@ left, conversation in the middle, the run's work on the right), starting a run f
 and resuming it, choosing a thread's agent, honest states, tests. A clean git project now gives each
 thread its own worktree and branch, with a commit after every task; folder mode is the fallback.
 
-Not done: the one metric (stage 7). Also unmerged: the truthful-restart work and the audit's fixes, both
-finished on their own branches.
+Stage 7, the one metric, is next. Stage 3, truth in the UI, remains unmerged. Stage 5 still needs a full
+package install check. The truth-in-the-UI branch and the audit fixes are on separate branches.
 
 Renumbered on 2026-11-24. Stages 0-5 keep their numbers. The work that used to be only "beta" is now four
 stages, because the first self-built change (stage 4) exposed what beta would otherwise discover: a check
@@ -107,14 +107,18 @@ worse than working by hand, write down why before changing anything.
 A Linux build a stranger can install. Auto-update, a crash log we can read, and a first-run screen that
 detects their agents. macOS and Windows after, not during.
 
-### 6 · Checks that see the work
-Today a check reads `artifacts/` and the goal folder. A thread works in a worktree. So a check named "the
-tests pass" tests the unchanged project, which is worse than no check.
+### 6 · Checks that see the work · done
+At round close, the runner builds a temporary worktree from the run base and the checked-out thread
+branches, in the same order as gate acceptance. Command checks run there. Artifact checks still read the
+artifacts folder. The runner removes the temporary worktree after checks.
 
-Run a check inside the thread's worktree, or against the merged tree at round close. Keep `file_exists` and
-`text_absent` for artifact runs. Add one check type, not a plugin system.
+If the project HEAD has moved since the run started, the runner blocks the checks. If the project moves
+after checks pass or between merge steps, the gate refuses the remaining merges. A conflict or tree-build
+error also blocks the round. The runner never falls back to checking the project folder.
 
 **Kill rule:** if a check cannot be made to fail on a deliberately broken branch, the design is wrong.
+The scripted round tests cover a failing check, a fixed next round, combined branches, conflicts, and a
+project HEAD that moves before checks or after they pass.
 
 ### 7 · Measure the loop
 One command, computed from the journal alone: per run, did the human send any message between agent turns?

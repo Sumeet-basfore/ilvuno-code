@@ -27,15 +27,14 @@ lives in the run.
 This is v0. It runs a goal end to end, and one of its runs added a test to this repository.
 
 Working: the round engine, the journal and replay, the local API, the window, the human gate, worktrees
-per thread, the Linux packages.
+per thread, Linux packages, and round checks against the combined thread work.
 
 From the window you can start a run from a goal file or a pasted goal, read a thread's conversation,
 message a thread, open the board, open a task, stop a run, resume it, choose a thread's agent, and
 accept or send back.
 
-Not there yet, in order: checks run against the project instead of the thread's worktree; one project
-can have two open runs; there is no report yet for the one number this product cares about, which is
-runs that reach accepted without a person relaying messages between agents.
+Still open in roadmap order: stages 3 and 5, then stage 7 (`ilvuno report`), stage 8 (a second ACP agent),
+and stage 9 (two runs on one project).
 
 The stages and what each has to prove are in [`docs/roadmap.md`](docs/roadmap.md).
 

@@ -228,3 +228,14 @@ failed**. The ignored tests require live provider credentials. The code commit i
 push is pending.
 
 The branch push completed to `origin/feat/checks-see-the-work` after verification.
+
+## Stage 6 review correction · 2026-11-25
+
+Review found that the integration tree used the run's starting commit while gate acceptance merges into the
+project's current commit. The runner now blocks checks if the project moved before round close. The gate
+also refuses acceptance if it moved after the checks passed. The run must start again so checks cover the
+new project state. The two movement cases have scripted tests.
+
+A second review found the same risk during a partial merge and retry. Each branch merge now checks the
+expected project commit from the run base or the last recorded merge. The runner refuses the remaining
+branches if the project moved. A scripted test covers this recovery path.

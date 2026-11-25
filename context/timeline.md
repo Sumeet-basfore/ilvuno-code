@@ -140,3 +140,13 @@ The single workspace run passed: **172 passed, 3 ignored, 0 failed**. The ignore
 accounts. Code commit: `9a95210`. The branch push is pending.
 
 The verified branch was pushed to `origin/feat/checks-see-the-work`.
+
+## Stage 6 review correction (2026-11-25)
+
+Code review found that the check tree started at `git_base`, while acceptance merges into the project's
+current HEAD. Round close now blocks if HEAD moved after run creation. Gate acceptance checks the same base
+again, so a project change while a person reviews the diff is refused. Two scripted tests cover these
+states. The roadmap now describes the integration-tree behavior and the remaining stage 3 and 5 work.
+
+A second review found a partial-accept retry could also land a later branch on changed project code. Each
+merge step now checks the prior commit recorded in the journal. A scripted test covers that retry.

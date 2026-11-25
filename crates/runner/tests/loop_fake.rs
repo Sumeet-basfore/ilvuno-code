@@ -576,6 +576,84 @@ async fn a_command_check_runs_in_the_tree_the_gate_would_merge() {
 }
 
 #[tokio::test]
+async fn a_project_head_change_blocks_round_checks() {
+    let mut env = setup_git("check-moved-head", GIT_PROJECT_GOAL, Script::default());
+    applied(run_task(&env.home, None, "writer", "write the brief", &["brief.md".into()]).expect("task"));
+    std::fs::write(env.plan.base().join("external.md"), "new project work\n").expect("external file");
+    git_in(env.plan.base(), &["add", "-A"]);
+    git_in(env.plan.base(), &["-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit", "-qm", "external change"]);
+
+    let end = drive(&mut env).await;
+    assert_ne!(end, RunEnd::AtGate, "checks on an old base must not open the gate");
+    let result = &readiness(&env.store, 0)["checks"][0];
+    assert_eq!(result["name"].as_str(), Some("project_head_changed"));
+    assert_eq!(result["passed"].as_bool(), Some(false));
+    assert!(result["detail"].as_str().unwrap_or_default().contains("differs from run base"));
+    assert!(!env.plan.base().join("brief.md").exists(), "the thread work remains outside the project");
+}
+
+#[tokio::test]
+async fn acceptance_refuses_when_the_project_moves_after_checks() {
+    let mut env = setup_git("accept-moved-head", GIT_PROJECT_GOAL, Script::default());
+    applied(run_task(&env.home, None, "writer", "write the brief", &["brief.md".into()]).expect("task"));
+    assert_eq!(drive(&mut env).await, RunEnd::AtGate);
+    std::fs::write(env.plan.base().join("external.md"), "new project work\n").expect("external file");
+    git_in(env.plan.base(), &["add", "-A"]);
+    git_in(env.plan.base(), &["-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit", "-qm", "external change"]);
+
+    let result = run_status::decide_gate_and_render(&env.home, &mut env.store, &env.run_id, &GateDecision::Accept)
+        .expect("gate acceptance");
+    assert!(matches!(result, Outcome::Refused(ref reason) if reason.contains("project changed after the checks")), "{result:?}");
+    assert_eq!(status(&env.store, &env.run_id), "reviewed");
+    assert!(!env.plan.base().join("brief.md").exists(), "acceptance does not merge onto the changed project");
+}
+
+#[tokio::test]
+async fn acceptance_retry_refuses_when_the_project_moves_after_a_partial_merge() {
+    let mut env = setup_git("retry-moved-head", TWO_WRITERS_GOAL, Script::default());
+    applied(run_task(&env.home, None, "writer-a", "write a.md", &["a.md".into()]).expect("task a"));
+    applied(run_task(&env.home, None, "writer-b", "write b.md", &["b.md".into()]).expect("task b"));
+    assert_eq!(drive(&mut env).await, RunEnd::AtGate);
+
+    let accepted = env
+        .store
+        .transact("gate.decide", None, |tx, p| run_status::gate_decide(tx, p, &env.run_id, &GateDecision::Accept))
+        .expect("accept gate");
+    assert_eq!(accepted, Outcome::Applied(()));
+    let (thread_id, branch): (String, String) = env.store.conn().query_row(
+        "SELECT t.id, t.branch FROM threads t JOIN dispatch d ON d.thread_id = t.id WHERE t.run_id = ?1 ORDER BY d.rowid LIMIT 1",
+        [&env.run_id],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    ).expect("first thread branch");
+    let sha = match runner::git::merge(env.plan.base(), &branch, "simulate first landed branch").expect("first merge") {
+        runner::git::MergeOutcome::Merged(sha) => sha,
+        other => panic!("expected first branch to merge, got {other:?}"),
+    };
+    env.store
+        .transact("merge.thread", None, |_, p| {
+            p.push(
+                &env.run_id,
+                None,
+                Some(&thread_id),
+                "merge.landed",
+                serde_json::json!({"branch": branch, "sha": sha}),
+            );
+            Ok(Outcome::Applied(()))
+        })
+        .expect("record first merge");
+    std::fs::write(env.plan.base().join("external.md"), "new project work\n").expect("external file");
+    git_in(env.plan.base(), &["add", "-A"]);
+    git_in(env.plan.base(), &["-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit", "-qm", "external change"]);
+
+    let result = run_status::decide_gate_and_render(&env.home, &mut env.store, &env.run_id, &GateDecision::Accept)
+        .expect("retry gate acceptance");
+    assert!(matches!(result, Outcome::Refused(ref reason) if reason.contains("moved during acceptance")), "{result:?}");
+    assert_eq!(status(&env.store, &env.run_id), "accepted");
+    assert!(env.plan.base().join("a.md").is_file(), "the first accepted branch remains landed");
+    assert!(!env.plan.base().join("b.md").exists(), "the next branch is not merged onto changed code");
+}
+
+#[tokio::test]
 async fn a_command_check_sees_files_from_both_thread_branches() {
     let mut env = setup_git("check-two-branches", TWO_WRITERS_GOAL, Script::default());
     applied(run_task(&env.home, None, "writer-a", "write a.md", &["a.md".into()]).expect("task a"));

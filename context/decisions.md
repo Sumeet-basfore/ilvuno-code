@@ -99,3 +99,13 @@ The runner startup code and package layout are implemented, but prompt 06 is not
 | **D25** | At round close, checks use one temporary integration worktree built from the run base and the checked-out thread branches, in the same order as gate acceptance. A merge conflict or tree-build error blocks the round. The temporary branch uses a distinct suffix so it cannot collide with a valid thread name. | Per-thread checks miss changes from other threads. Checking the combined tree the gate accepts makes a passing command relevant to the work that will land. A partial tree is not a valid check target. | If acceptance changes its branch selection or order, round checks must use that same logic. |
 
 The tree is removed after checks. On a merge conflict, configured checks are skipped because no valid combined tree exists. The readiness record shows the conflict and its files.
+
+### Stage 6 follow-up · keep the checked base fixed
+
+The project must still be at the run's recorded `git_base` when checks close the round and when a person
+accepts the work. If the project moved before checks, the round records `project_head_changed`. If it moved
+after checks pass, acceptance is refused. A new run is required because its branches start from the new
+project commit. This avoids accepting work that was checked against a different base.
+
+Each merge step also checks the expected project HEAD. A retry uses the latest recorded landed commit as
+its expected HEAD. If the project moved during a partial accept, the runner refuses the remaining branches.
