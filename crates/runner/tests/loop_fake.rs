@@ -88,6 +88,53 @@ fn setup(name: &str, goal_json: &str, script: Script) -> Env {
     Env { dir, home, store, run_id, plan, provider }
 }
 
+fn git_in(dir: &std::path::Path, args: &[&str]) {
+    let out = std::process::Command::new("git").args(args).current_dir(dir).output().expect("run git");
+    assert!(out.status.success(), "git {args:?} failed: {}", String::from_utf8_lossy(&out.stderr));
+}
+
+/// A run whose project is a clean git repository, so every thread gets a worktree. The goal file sits
+/// beside the repository, never inside it, or the repository would be dirty and the run would fall back
+/// to folder mode.
+fn setup_git(name: &str, goal_json: &str, script: Script) -> Env {
+    let dir = std::env::temp_dir().join(format!("ilvuno-git-{name}-{}", uuid::Uuid::new_v4()));
+    let repo = dir.join("repo");
+    std::fs::create_dir_all(&repo).expect("repo dir");
+    git_in(&repo, &["init", "-q"]);
+    std::fs::write(repo.join("README.md"), "the project\n").expect("readme");
+    git_in(&repo, &["add", "-A"]);
+    git_in(&repo, &["-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit", "-qm", "first"]);
+
+    let goal_path = dir.join("goal.json");
+    std::fs::write(&goal_path, goal_json).expect("goal file");
+    let plan = GoalPlan::load(&goal_path).expect("goal");
+    assert_eq!(plan.base(), repo.as_path(), "the goal's base is the repository");
+    let home = Home::new(dir.join("home"));
+    let mut store = Store::open(&home.db_path()).expect("store");
+    let raw = goal_json.to_string();
+    let new_goal = plan.new_goal().expect("new goal");
+    let project = runner::git::project_git(plan.base());
+    assert!(matches!(project, runner::git::ProjectGit::Eligible { .. }), "the run has to be a git run");
+    let run_id = match store
+        .transact("run.create", None, |tx, p| {
+            let id = commands::create_run(tx, p, &new_goal, &home)?;
+            commands::record_run_git(tx, p, &id, &new_goal.threads, &project)?;
+            goal::snapshot(tx, &id, &raw, &repo)?;
+            Ok(Outcome::Applied(id))
+        })
+        .expect("create run")
+    {
+        Outcome::Applied(id) => id,
+        other => panic!("{other:?}"),
+    };
+    let provider = FakeProvider::new();
+    provider.set_prompt_hook(agent(home.clone(), script));
+    for _ in 0..10 {
+        provider.push_turn(vec![said("I did the task in my folder."), usage(), finished()]);
+    }
+    Env { dir, home, store, run_id, plan, provider }
+}
+
 /// The scripted agent. It reads the prompt it is given, as a real agent would, and acts on it.
 fn agent(home: Home, script: Script) -> Box<dyn FnMut(&str) + Send> {
     Box::new(move |prompt: &str| {
@@ -203,6 +250,18 @@ const NO_ORCHESTRATOR_GOAL: &str = r#"{
   "goal": "read a source",
   "providers": {"claude-main": {"driver": "claude"}},
   "threads": [{"name": "reader-1", "agent": "claude-main", "prompt": "Read and write notes."}],
+  "budget": {"rounds": 2, "tokens": 600000}
+}"#;
+
+/// A check that must see what the agent wrote. The project is a real git repository, so the thread works
+/// in its own worktree and the check has to run in the tree the gate would merge.
+const GIT_PROJECT_GOAL: &str = r#"{
+  "goal": "write the brief in the project",
+  "done": "brief.md is in the project",
+  "base": "repo",
+  "checks": [{"type": "command_exit_zero", "command": "test -f brief.md"}],
+  "providers": {"claude-main": {"driver": "claude"}},
+  "threads": [{"name": "writer", "agent": "claude-main", "prompt": "Write brief.md."}],
   "budget": {"rounds": 2, "tokens": 600000}
 }"#;
 
@@ -425,6 +484,31 @@ async fn a_worker_is_refused_a_permission_outside_its_folder() {
         decisions.iter().any(|(id, d)| id == "perm-escape" && matches!(d, Decision::Deny { .. })),
         "write outside the folder must be denied: {decisions:?}"
     );
+}
+
+/// Stage 6, the failing half. A command check has to test the tree the gate would merge, not the project
+/// folder, or an agent's work can pass its checks without ever being looked at.
+#[tokio::test]
+async fn a_command_check_runs_in_the_tree_the_gate_would_merge() {
+    let mut env = setup_git("check-tree", GIT_PROJECT_GOAL, Script::default());
+    let scope = vec!["brief.md".to_string()];
+    applied(run_task(&env.home, None, "writer", "write the brief", &scope).expect("task"));
+
+    let end = drive(&mut env).await;
+    let readiness: String = env
+        .store
+        .conn()
+        .query_row("SELECT readiness FROM rounds WHERE \"index\" = 0", [], |r| r.get(0))
+        .expect("readiness");
+    assert!(readiness.contains("\"passed\":true"), "the check has to see the writer's file. readiness: {readiness}");
+    assert_eq!(end, RunEnd::AtGate, "a passing check opens the gate");
+
+    // The writer wrote it, and the turn committed it, in its own worktree.
+    let worktree = env.home.worktree_dir(&env.run_id, "writer");
+    assert!(worktree.join("brief.md").is_file(), "the agent's file is in its worktree: {}", worktree.display());
+    // The project folder is untouched until a person accepts.
+    assert!(!env.plan.base().join("brief.md").exists(), "the project folder keeps its own tree until the gate");
+    assert_eq!(status(&env.store, &env.run_id), "reviewed");
 }
 
 fn applied<T: std::fmt::Debug>(outcome: Outcome<T>) -> T {
