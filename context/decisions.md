@@ -91,3 +91,11 @@ O1 is resolved. The implementation is `6648207`; run and screenshot evidence is 
 | **D24** | The packaged window starts its bundled `ilvunod` when `/health` on `127.0.0.1:4737` is not healthy. It uses Tauri's resource directory and a direct executable path. The runner stays alive after the window closes. The child gets only `HOME`, `PATH`, `USER`, locale, terminal/temp settings and `ILVUNO_HOME` from the parent. | This lets a person open the app without starting a service by hand, and closing the window cannot kill an active run. A systemd user unit adds setup work; a manual start defeats the first-run goal. | If the AppImage launch shows that this process model is unreliable, or a user needs a documented stop control before v1. |
 
 The runner startup code and package layout are implemented, but prompt 06 is not complete. The AppImage started `ilvunod` and returned the real accepted run, while the captured window was blank. See the packaging continuation report before treating this decision as shipped.
+
+## Stage 6 · checks that see the work (2026-11-25)
+
+| # | Decision | Why | What would reverse it |
+|---|---|---|---|
+| **D25** | At round close, checks use one temporary integration worktree built from the run base and the checked-out thread branches, in the same order as gate acceptance. A merge conflict or tree-build error blocks the round. The temporary branch uses a distinct suffix so it cannot collide with a valid thread name. | Per-thread checks miss changes from other threads. Checking the combined tree the gate accepts makes a passing command relevant to the work that will land. A partial tree is not a valid check target. | If acceptance changes its branch selection or order, round checks must use that same logic. |
+
+The tree is removed after checks. On a merge conflict, configured checks are skipped because no valid combined tree exists. The readiness record shows the conflict and its files.

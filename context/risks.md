@@ -103,3 +103,9 @@ desktop entry still needs a launch check on a system with Debian package tools.
 The blank AppImage capture was caused by Xvfb without DRI3. The AppImage opened on the actual X11 display,
 and the extracted `.deb` executable opened the same run. A full `.deb` install on a Debian system remains
 untested because this machine has no `dpkg-deb`.
+
+## Stage 6 · round check limits (2026-11-25)
+
+When thread branches conflict, there is no valid combined tree. The runner records `threads_do_not_merge`
+and skips configured checks for that round. It does not report those checks as if they ran against the
+project folder or a partial tree.

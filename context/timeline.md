@@ -128,3 +128,13 @@ skipped its optional review, and no required checks are configured.
 
 PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) merged into `main` as `6af44e8`. The
 packaging implementation, verification report and screenshots are now in `main`.
+
+## Stage 6 · checks that see the work (2026-11-25)
+
+| Phase | What landed |
+|---|---|
+| **Round check tree** | Round checks build a temporary worktree from the run base and the checked-out thread branches, in acceptance order. Unstarted planned branches are skipped. Conflicts and tree-build failures block the round without running checks against the project folder. |
+| **Coverage** | The scripted loop suite passed 13 tests. The integration-tree unit tests passed 2 tests. The workspace suite is pending. See [`08-checks-see-the-work`](prompts/reports/2026-11-25-08-checks-see-the-work.md). |
+
+The single workspace run passed: **172 passed, 3 ignored, 0 failed**. The ignored tests use live provider
+accounts. Code commit: `9a95210`. The branch push is pending.

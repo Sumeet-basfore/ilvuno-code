@@ -213,3 +213,16 @@ Next: stage 6, with the design fork settled first. Worktrees are per thread and 
 either every thread's worktree is checked, or the runner builds one integration worktree at round close and
 checks that. The second matches accept, which merges the threads into one tree, and it is the tree the gate
 should show.
+
+## Current state · 2026-11-25 · stage 6
+
+Prompt 08 adds a temporary integration worktree around the existing round checks. It uses the checked-out
+thread branches in the same order as gate acceptance. It skips planned branches with no checkout. A
+conflict or tree-build error blocks the round. Checks never fall back to the project folder. The workspace
+suite is pending. The implementation is on `feat/checks-see-the-work`.
+
+## Stage 6 verification · 2026-11-25
+
+The one `RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace` run passed: **172 passed, 3 ignored, 0
+failed**. The ignored tests require live provider credentials. The code commit is `9a95210`. The branch
+push is pending.
