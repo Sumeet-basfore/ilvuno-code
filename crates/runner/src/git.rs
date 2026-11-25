@@ -99,6 +99,10 @@ pub fn branch_name(run_id: &str, thread: &str) -> String {
     )
 }
 
+pub fn integration_branch_name(run_id: &str, round: u32) -> String {
+    format!("{}.integration", branch_name(run_id, &format!("round-{round}")))
+}
+
 /// Whether a run's project can use per-thread worktrees. Decided once, at run creation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProjectGit {
@@ -205,6 +209,103 @@ pub enum MergeOutcome {
     Conflict(Vec<String>),
 }
 
+#[derive(Debug)]
+pub struct IntegrationTree {
+    pub path: PathBuf,
+    pub branch: String,
+    root: PathBuf,
+    removed: bool,
+}
+
+#[derive(Debug)]
+pub enum TreeBuild {
+    /// The base plus every thread branch with commits past the base, merged. `path` is a real checkout.
+    Ready(IntegrationTree),
+    /// Thread branches could not merge. The tree was removed and the branch deleted before returning.
+    Conflict { files: Vec<String> },
+}
+
+impl IntegrationTree {
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn remove(mut self) -> Result<()> {
+        self.remove_inner()
+    }
+
+    fn remove_inner(&mut self) -> Result<()> {
+        if self.removed {
+            return Ok(());
+        }
+        remove_integration_tree(&self.root, &self.path, &self.branch)?;
+        self.removed = true;
+        Ok(())
+    }
+}
+
+impl Drop for IntegrationTree {
+    fn drop(&mut self) {
+        let _ = self.remove_inner();
+    }
+}
+
+/// Number of commits in `branch` that are not reachable from `base`.
+pub fn commits_ahead(root: &Path, base: &str, branch: &str) -> Result<u64> {
+    let range = format!("{base}..{branch}");
+    git_ok(root, &["rev-list", "--count", &range])?
+        .parse()
+        .with_context(|| format!("parse commits ahead for {branch}"))
+}
+
+/// Build the tree the gate would produce, without changing the project's checkout.
+pub fn integration_tree(
+    root: &Path,
+    path: &Path,
+    branch: &str,
+    base: &str,
+    thread_branches: &[(String, String)],
+) -> Result<TreeBuild> {
+    remove_integration_tree(root, path, branch)?;
+
+    let build = (|| -> Result<Option<Vec<String>>> {
+        add_worktree(root, path, branch, base)?;
+        for (thread, thread_branch) in thread_branches {
+            if commits_ahead(root, base, thread_branch)? == 0 {
+                continue;
+            }
+            match merge(path, thread_branch, &format!("round check: {thread}"))? {
+                MergeOutcome::Conflict(files) => return Ok(Some(files)),
+                MergeOutcome::Merged(_) | MergeOutcome::UpToDate => {}
+            }
+        }
+        Ok(None)
+    })();
+
+    match build {
+        Ok(Some(files)) => {
+            remove_integration_tree(root, path, branch)?;
+            Ok(TreeBuild::Conflict { files })
+        }
+        Ok(None) => Ok(TreeBuild::Ready(IntegrationTree {
+            path: path.to_path_buf(),
+            branch: branch.to_string(),
+            root: root.to_path_buf(),
+            removed: false,
+        })),
+        Err(error) => {
+            let _ = remove_integration_tree(root, path, branch);
+            Err(error)
+        }
+    }
+}
+
+fn remove_integration_tree(root: &Path, path: &Path, branch: &str) -> Result<()> {
+    remove_worktree(root, path)?;
+    delete_branch(root, branch)?;
+    Ok(())
+}
+
 /// Merge `branch` into the project's current branch. Refuses to start on a dirty tree, and leaves the
 /// project untouched when the merge conflicts.
 pub fn merge(root: &Path, branch: &str, message: &str) -> Result<MergeOutcome> {
@@ -280,6 +381,16 @@ mod tests {
         git_ok(&dir, &["add", "-A"]).expect("add");
         git_ok(&dir, &["commit", "-q", "-m", "start"]).expect("commit");
         Repo { dir }
+    }
+
+    fn thread_branch(r: &Repo, run: &str, thread: &str, base: &str, file: &str, content: &str) -> String {
+        let path = std::env::temp_dir().join(format!("ilvuno-git-branch-{}", uuid::Uuid::new_v4()));
+        let branch = branch_name(run, thread);
+        add_worktree(&r.dir, &path, &branch, base).expect("thread worktree");
+        std::fs::write(path.join(file), content).expect("thread file");
+        commit_all(&path, &format!("{thread}: change {file}")).expect("thread commit").expect("sha");
+        remove_worktree(&r.dir, &path).expect("remove thread worktree");
+        branch
     }
 
     #[test]
@@ -438,5 +549,65 @@ mod tests {
 
         remove_worktree(&r.dir, &a).expect("rm a");
         remove_worktree(&r.dir, &b).expect("rm b");
+    }
+
+    #[test]
+    fn integration_tree_merges_changed_branches_and_skips_one_at_the_base() {
+        let r = repo("integration-ready");
+        let base = head(&r.dir).expect("base");
+        let first = thread_branch(&r, "ready-run", "writer-a", &base, "a.md", "a\n");
+        let second = thread_branch(&r, "ready-run", "writer-b", &base, "b.md", "b\n");
+        let round_named = thread_branch(&r, "ready-run", "round-0", &base, "round.md", "round\n");
+        let skipped = branch_name("ready-run", "writer-c");
+        git_ok(&r.dir, &["branch", &skipped, &base]).expect("empty thread branch");
+        assert_eq!(commits_ahead(&r.dir, &base, &skipped).expect("ahead"), 0);
+
+        let branch = integration_branch_name("ready-run", 0);
+        let path = std::env::temp_dir().join(format!("ilvuno-integration-ready-{}", uuid::Uuid::new_v4()));
+        let thread_branches = vec![
+            ("round-0".into(), round_named.clone()),
+            ("writer-a".into(), first),
+            ("writer-b".into(), second),
+            ("writer-c".into(), skipped),
+        ];
+
+        let tree = match integration_tree(&r.dir, &path, &branch, &base, &thread_branches).expect("tree") {
+            TreeBuild::Ready(tree) => tree,
+            TreeBuild::Conflict { files } => panic!("unexpected conflict: {files:?}"),
+        };
+        assert!(tree.path().join("a.md").is_file());
+        assert!(tree.path().join("b.md").is_file());
+        assert!(tree.path().join("round.md").is_file());
+        assert!(!r.dir.join("a.md").exists());
+        assert!(!r.dir.join("b.md").exists());
+
+        tree.remove().expect("remove integration tree");
+        assert!(!path.exists());
+        let ref_name = format!("refs/heads/{branch}");
+        assert!(!git(&r.dir, &["show-ref", "--verify", "--quiet", &ref_name]).expect("branch check").status.success());
+        let thread_ref = format!("refs/heads/{round_named}");
+        assert!(git(&r.dir, &["show-ref", "--verify", "--quiet", &thread_ref]).expect("thread branch").status.success());
+    }
+
+    #[test]
+    fn integration_tree_conflict_removes_the_checkout_and_branch() {
+        let r = repo("integration-conflict");
+        let base = head(&r.dir).expect("base");
+        let first = thread_branch(&r, "conflict-run", "writer-a", &base, "readme.md", "from a\n");
+        let second = thread_branch(&r, "conflict-run", "writer-b", &base, "readme.md", "from b\n");
+        let branch = integration_branch_name("conflict-run", 0);
+        let path = std::env::temp_dir().join(format!("ilvuno-integration-conflict-{}", uuid::Uuid::new_v4()));
+        let thread_branches = vec![("writer-a".into(), first), ("writer-b".into(), second)];
+
+        match integration_tree(&r.dir, &path, &branch, &base, &thread_branches).expect("tree conflict") {
+            TreeBuild::Conflict { files } => assert_eq!(files, ["readme.md"]),
+            TreeBuild::Ready(tree) => panic!("expected conflict, got tree at {}", tree.path().display()),
+        }
+        assert!(!path.exists());
+        assert_eq!(std::fs::read_to_string(r.dir.join("readme.md")).expect("project readme"), "one\n");
+        let worktrees = git_ok(&r.dir, &["worktree", "list", "--porcelain"]).expect("worktrees");
+        assert!(!worktrees.contains(&path.to_string_lossy().to_string()), "{worktrees}");
+        let ref_name = format!("refs/heads/{branch}");
+        assert!(!git(&r.dir, &["show-ref", "--verify", "--quiet", &ref_name]).expect("branch check").status.success());
     }
 }

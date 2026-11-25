@@ -6,6 +6,7 @@
 use crate::checks::{self, CheckResult, Locations};
 use crate::commands::{self, load_run, open_round, RoundRow};
 use crate::dispatch::{self, ExecCtx};
+use crate::git::{self, TreeBuild};
 use crate::goal::GoalPlan;
 use crate::home::Home;
 use crate::run_status::{self, set_run_status};
@@ -130,7 +131,45 @@ impl<P: Provider> Driver<'_, P> {
         // Checks run outside the write transaction: a command check may take a while, and a user's `ilvuno
         // task` must not wait on it.
         let checks: Vec<CheckResult> = if failed.is_empty() {
-            checks::evaluate(plan.checks(), &Locations { artifacts: &artifacts, goal_dir: plan.base() })
+            let (git_root, git_base): (Option<String>, Option<String>) = store.conn().query_row(
+                "SELECT git_root, git_base FROM runs WHERE id = ?1",
+                params![run_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?;
+            if let (Some(root), Some(base)) = (git_root, git_base) {
+                let thread_branches = run_status::merge_branches(store.conn(), run_id)?;
+                let round_name = format!("round-{}", round.index);
+                let tree_path = self.home.worktree_dir(run_id, &round_name);
+                let tree_branch = git::integration_branch_name(run_id, round.index);
+                match git::integration_tree(
+                    Path::new(&root),
+                    &tree_path,
+                    &tree_branch,
+                    &base,
+                    &thread_branches,
+                ) {
+                    Ok(TreeBuild::Ready(tree)) => {
+                        let checks = checks::evaluate(
+                            plan.checks(),
+                            &Locations { artifacts: &artifacts, goal_dir: tree.path() },
+                        );
+                        tree.remove()?;
+                        checks
+                    }
+                    Ok(TreeBuild::Conflict { files }) => vec![CheckResult {
+                        name: "threads_do_not_merge".into(),
+                        passed: false,
+                        detail: files.join(", "),
+                    }],
+                    Err(error) => vec![CheckResult {
+                        name: "round_tree_failed".into(),
+                        passed: false,
+                        detail: error.to_string(),
+                    }],
+                }
+            } else {
+                checks::evaluate(plan.checks(), &Locations { artifacts: &artifacts, goal_dir: plan.base() })
+            }
         } else {
             Vec::new()
         };

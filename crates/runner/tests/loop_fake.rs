@@ -27,15 +27,22 @@ struct Script {
     plans: Arc<Mutex<VecDeque<Plan>>>,
     /// Content for each write of brief.html, in order. Once empty, GOOD_BRIEF is written.
     briefs: Arc<Mutex<VecDeque<String>>>,
+    /// Optional content for other files, consumed in write order.
+    contents: Arc<Mutex<VecDeque<String>>>,
 }
 
 impl Script {
     fn with_plans(plans: Vec<Plan>) -> Self {
-        Self { plans: Arc::new(Mutex::new(plans.into())), briefs: Arc::new(Mutex::new(VecDeque::new())) }
+        Self { plans: Arc::new(Mutex::new(plans.into())), ..Self::default() }
     }
 
     fn with_briefs(self, briefs: &[&str]) -> Self {
         *self.briefs.lock().unwrap() = briefs.iter().map(|b| b.to_string()).collect();
+        self
+    }
+
+    fn with_contents(self, contents: &[&str]) -> Self {
+        *self.contents.lock().unwrap() = contents.iter().map(|b| b.to_string()).collect();
         self
     }
 }
@@ -163,7 +170,7 @@ fn agent(home: Home, script: Script) -> Box<dyn FnMut(&str) + Send> {
             let body = if file == "brief.html" {
                 script.briefs.lock().unwrap().pop_front().unwrap_or_else(|| GOOD_BRIEF.to_string())
             } else {
-                format!("notes for {file}\n")
+                script.contents.lock().unwrap().pop_front().unwrap_or_else(|| format!("notes for {file}\n"))
             };
             std::fs::write(folder.join(file), body).expect("write");
         }
@@ -223,6 +230,14 @@ fn verdicts(store: &Store, run: &str) -> Vec<Option<String>> {
     replayed.rounds.iter().map(|r| r.verdict.clone()).collect()
 }
 
+fn readiness(store: &Store, round_index: u32) -> serde_json::Value {
+    let raw: String = store
+        .conn()
+        .query_row("SELECT readiness FROM rounds WHERE \"index\" = ?1", [round_index], |r| r.get(0))
+        .expect("readiness");
+    serde_json::from_str(&raw).expect("readiness JSON")
+}
+
 fn assert_projection_matches(env: &Env) {
     let replayed = replay::replay(env.store.conn(), &env.run_id).expect("replay");
     let problems = replay::compare_with_projection(env.store.conn(), &env.run_id, &replayed).expect("compare");
@@ -260,6 +275,55 @@ const GIT_PROJECT_GOAL: &str = r#"{
   "done": "brief.md is in the project",
   "base": "repo",
   "checks": [{"type": "command_exit_zero", "command": "test -f brief.md"}],
+  "providers": {"claude-main": {"driver": "claude"}},
+  "threads": [{"name": "writer", "agent": "claude-main", "prompt": "Write brief.md."}],
+  "budget": {"rounds": 2, "tokens": 600000}
+}"#;
+
+const TWO_WRITERS_GOAL: &str = r#"{
+  "goal": "write two files in the project",
+  "done": "both files exist",
+  "base": "repo",
+  "checks": [{"type": "command_exit_zero", "command": "test -f a.md -a -f b.md"}],
+  "providers": {"claude-main": {"driver": "claude"}},
+  "threads": [
+    {"name": "writer-a", "agent": "claude-main", "prompt": "Write a.md."},
+    {"name": "writer-b", "agent": "claude-main", "prompt": "Write b.md."}
+  ],
+  "budget": {"rounds": 2, "tokens": 600000}
+}"#;
+
+const IDLE_PLANNED_WRITER_GOAL: &str = r#"{
+  "goal": "write one file in the project",
+  "done": "the file exists",
+  "base": "repo",
+  "checks": [{"type": "command_exit_zero", "command": "test -f a.md"}],
+  "providers": {"claude-main": {"driver": "claude"}},
+  "threads": [
+    {"name": "writer", "agent": "claude-main", "prompt": "Write a.md."},
+    {"name": "idle", "agent": "claude-main", "prompt": "Do nothing."}
+  ],
+  "budget": {"rounds": 2, "tokens": 600000}
+}"#;
+
+const CONFLICTING_WRITERS_GOAL: &str = r#"{
+  "goal": "write the project README",
+  "done": "the README exists",
+  "base": "repo",
+  "checks": [{"type": "command_exit_zero", "command": "test -f README.md"}],
+  "providers": {"claude-main": {"driver": "claude"}},
+  "threads": [
+    {"name": "writer-a", "agent": "claude-main", "prompt": "Write the README."},
+    {"name": "writer-b", "agent": "claude-main", "prompt": "Write the README."}
+  ],
+  "budget": {"rounds": 2, "tokens": 600000}
+}"#;
+
+const RETRY_CHECK_GOAL: &str = r#"{
+  "goal": "write GOOD into brief.md",
+  "done": "brief.md contains GOOD",
+  "base": "repo",
+  "checks": [{"type": "command_exit_zero", "command": "grep -q GOOD brief.md"}],
   "providers": {"claude-main": {"driver": "claude"}},
   "threads": [{"name": "writer", "agent": "claude-main", "prompt": "Write brief.md."}],
   "budget": {"rounds": 2, "tokens": 600000}
@@ -509,6 +573,80 @@ async fn a_command_check_runs_in_the_tree_the_gate_would_merge() {
     // The project folder is untouched until a person accepts.
     assert!(!env.plan.base().join("brief.md").exists(), "the project folder keeps its own tree until the gate");
     assert_eq!(status(&env.store, &env.run_id), "reviewed");
+}
+
+#[tokio::test]
+async fn a_command_check_sees_files_from_both_thread_branches() {
+    let mut env = setup_git("check-two-branches", TWO_WRITERS_GOAL, Script::default());
+    applied(run_task(&env.home, None, "writer-a", "write a.md", &["a.md".into()]).expect("task a"));
+    applied(run_task(&env.home, None, "writer-b", "write b.md", &["b.md".into()]).expect("task b"));
+
+    assert_eq!(drive(&mut env).await, RunEnd::AtGate);
+    let result = &readiness(&env.store, 0)["checks"][0];
+    assert_eq!(result["name"].as_str(), Some("command_exit_zero test -f a.md -a -f b.md"));
+    assert_eq!(result["passed"].as_bool(), Some(true));
+    assert!(!env.plan.base().join("a.md").exists());
+    assert!(!env.plan.base().join("b.md").exists());
+    assert!(!env.home.worktree_dir(&env.run_id, "round-0").exists());
+}
+
+#[tokio::test]
+async fn an_unstarted_planned_thread_does_not_block_round_checks() {
+    let mut env = setup_git("check-idle-thread", IDLE_PLANNED_WRITER_GOAL, Script::default());
+    applied(run_task(&env.home, None, "writer", "write a.md", &["a.md".into()]).expect("writer task"));
+
+    assert_eq!(drive(&mut env).await, RunEnd::AtGate);
+    let result = &readiness(&env.store, 0)["checks"][0];
+    assert_eq!(result["name"].as_str(), Some("command_exit_zero test -f a.md"));
+    assert_eq!(result["passed"].as_bool(), Some(true));
+}
+
+#[tokio::test]
+async fn conflicting_thread_branches_block_checks_and_leave_the_project_unchanged() {
+    let script = Script::default().with_contents(&["from writer a\n", "from writer b\n"]);
+    let mut env = setup_git("check-conflict", CONFLICTING_WRITERS_GOAL, script);
+    let scope = vec!["README.md".to_string()];
+    applied(run_task(&env.home, None, "writer-a", "write README", &scope).expect("task a"));
+    applied(run_task(&env.home, None, "writer-b", "write README", &scope).expect("task b"));
+
+    let end = drive(&mut env).await;
+    assert_ne!(end, RunEnd::AtGate, "a conflict must not open the gate");
+    assert_eq!(status(&env.store, &env.run_id), "working");
+    assert_eq!(verdicts(&env.store, &env.run_id), vec![Some("block".into())]);
+    let result = &readiness(&env.store, 0)["checks"][0];
+    assert_eq!(result["name"].as_str(), Some("threads_do_not_merge"));
+    assert_eq!(result["passed"].as_bool(), Some(false));
+    assert_eq!(result["detail"].as_str(), Some("README.md"));
+    assert_eq!(
+        std::fs::read_to_string(env.plan.base().join("README.md")).expect("project README"),
+        "the project\n"
+    );
+    assert!(!env.home.worktree_dir(&env.run_id, "round-0").exists());
+}
+
+#[tokio::test]
+async fn a_failed_tree_check_can_pass_after_the_next_round_fixes_the_file() {
+    let script = Script::default().with_contents(&["BAD\n", "GOOD\n"]);
+    let mut env = setup_git("check-retry", RETRY_CHECK_GOAL, script);
+    let scope = vec!["brief.md".to_string()];
+    applied(run_task(&env.home, None, "writer", "write BAD", &scope).expect("first task"));
+
+    let first_end = drive(&mut env).await;
+    assert_ne!(first_end, RunEnd::AtGate, "BAD must fail the check");
+    let first = &readiness(&env.store, 0)["checks"][0];
+    assert_eq!(first["name"].as_str(), Some("command_exit_zero grep -q GOOD brief.md"));
+    assert_eq!(first["passed"].as_bool(), Some(false));
+
+    applied(run_task(&env.home, None, "writer", "write GOOD", &scope).expect("retry task"));
+    assert_eq!(drive(&mut env).await, RunEnd::AtGate);
+    let second = &readiness(&env.store, 1)["checks"][0];
+    assert_eq!(second["name"].as_str(), Some("command_exit_zero grep -q GOOD brief.md"));
+    assert_eq!(second["passed"].as_bool(), Some(true));
+    assert_eq!(
+        std::fs::read_to_string(env.home.worktree_dir(&env.run_id, "writer").join("brief.md")).expect("writer file"),
+        "GOOD\n"
+    );
+    assert!(!env.plan.base().join("brief.md").exists());
 }
 
 fn applied<T: std::fmt::Debug>(outcome: Outcome<T>) -> T {

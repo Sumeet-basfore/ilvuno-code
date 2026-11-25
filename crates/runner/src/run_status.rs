@@ -325,6 +325,13 @@ fn merge_targets(conn: &rusqlite::Connection, run_id: &str) -> Result<Vec<MergeT
     }).collect())
 }
 
+pub(crate) fn merge_branches(
+    conn: &rusqlite::Connection,
+    run_id: &str,
+) -> Result<Vec<(String, String)>> {
+    Ok(merge_targets(conn, run_id)?.into_iter().map(|target| (target.name, target.branch)).collect())
+}
+
 /// Human gate. Accept moves the run to `accepted`; send-back records a human block and resumes work.
 pub fn gate_decide(
     tx: &Transaction<'_>,
