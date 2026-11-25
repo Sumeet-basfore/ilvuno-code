@@ -149,4 +149,6 @@ Nothing in `crates/`, the release or the open pull requests changed.
 | Removed horizontal overflow from the inspector when long thread text or paths are shown. | [`design system screenshots`](../crates/desktop/shots/2026-11-25-design-system-thread.png) |
 | Checked the built desktop window against the saved merged run in an isolated database copy. | `crates/desktop/shots/2026-11-25-design-system-*.png` |
 
-Not checked: open-gate rendering, because the only real saved run is already merged; the 960 px minimum-width layout also needs a direct check. The implementation commit and full test result will be recorded in the task report.
+Verified with the pinned toolchain: the desktop build passed, `node --check` passed, and `cargo test --workspace` passed with 165 tests, 3 ignored, and 0 failures. The built window was read at 1920×1080 from the isolated copy of the real saved run. See [`design-system implementation report`](prompts/reports/2026-11-25-design-system-implementation.md).
+
+Not checked: open-gate rendering, because the only real saved run is already merged; the 960 px minimum-width layout also needs a direct check. Implementation commit: `fe30749` on `feat/ui-design-system`.
