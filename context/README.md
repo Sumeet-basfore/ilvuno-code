@@ -214,6 +214,32 @@ either every thread's worktree is checked, or the runner builds one integration 
 checks that. The second matches accept, which merges the threads into one tree, and it is the tree the gate
 should show.
 
+## Current state · 2026-11-25 · stage 6
+
+Prompt 08 adds a temporary integration worktree around the existing round checks. It uses the checked-out
+thread branches in the same order as gate acceptance. It skips planned branches with no checkout. A
+conflict or tree-build error blocks the round. Checks never fall back to the project folder. The workspace
+suite is pending. The implementation is on `feat/checks-see-the-work`.
+
+## Stage 6 verification · 2026-11-25
+
+The one `RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace` run passed: **172 passed, 3 ignored, 0
+failed**. The ignored tests require live provider credentials. The code commit is `9a95210`. The branch
+push is pending.
+
+The branch push completed to `origin/feat/checks-see-the-work` after verification.
+
+## Stage 6 review correction · 2026-11-25
+
+Review found that the integration tree used the run's starting commit while gate acceptance merges into the
+project's current commit. The runner now blocks checks if the project moved before round close. The gate
+also refuses acceptance if it moved after the checks passed. The run must start again so checks cover the
+new project state. The two movement cases have scripted tests.
+
+A second review found the same risk during a partial merge and retry. Each branch merge now checks the
+expected project commit from the run base or the last recorded merge. The runner refuses the remaining
+branches if the project moved. A scripted test covers this recovery path.
+
 ## Current state update · 2026-11-25 · the harness changed, the project did not
 
 The owner moved the work harness from T3 Code to Orca, and may move it again. The stated reason is a worry
@@ -241,3 +267,9 @@ State of the work on this day, so a cold start knows where it is:
 - Not started: stage 7 (`ilvuno report`, the one metric), the gate URL design note, enforcement of
   `message_policy`.
 - Still unmerged from earlier: `feat/truth-in-the-ui` (2 commits) and `audit/verify-and-harden` (4 commits).
+
+## Stage 6 follow-up · merge journal recovery (2026-11-25)
+
+Git and SQLite cannot share one transaction. If Git lands a merge and the process stops before its journal
+row is saved, acceptance now records that merge on retry only when its parents, message and tree match the
+expected branch merge. Otherwise it refuses to continue. Scripted tests cover both recovery and refusal.

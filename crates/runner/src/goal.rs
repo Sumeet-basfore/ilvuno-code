@@ -128,7 +128,11 @@ impl GoalPlan {
         validate(&file)?;
         let base = match file.base.as_deref() {
             Some(b) => {
-                let p = std::fs::canonicalize(b).with_context(|| format!("goal base {b}"))?;
+                // A relative base resolves beside the goal file, like every other path in a goal, not from
+                // wherever the process was started. An absolute base stands on its own.
+                let named = Path::new(b);
+                let full = if named.is_absolute() { named.to_path_buf() } else { base.join(named) };
+                let p = std::fs::canonicalize(&full).with_context(|| format!("goal base {b}"))?;
                 if !p.is_dir() {
                     anyhow::bail!("goal base {} is not a folder", p.display());
                 }
@@ -336,6 +340,16 @@ mod tests {
 
     fn load(raw: &str) -> Result<GoalPlan> {
         GoalPlan::from_raw(raw, Path::new("."))
+    }
+
+    #[test]
+    fn a_relative_base_resolves_beside_the_goal_file() {
+        let dir = std::env::temp_dir().join(format!("ilvuno-goal-base-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(dir.join("repo")).expect("repo dir");
+        let raw = goal_with(ONE_THREAD, r#", "base": "repo""#);
+        let plan = GoalPlan::from_raw(&raw, &dir).expect("goal with a relative base");
+        assert_eq!(plan.base(), std::fs::canonicalize(dir.join("repo")).expect("canonical repo").as_path());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     fn err(raw: &str) -> String {

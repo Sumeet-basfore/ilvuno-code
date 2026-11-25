@@ -104,6 +104,12 @@ The blank AppImage capture was caused by Xvfb without DRI3. The AppImage opened 
 and the extracted `.deb` executable opened the same run. A full `.deb` install on a Debian system remains
 untested because this machine has no `dpkg-deb`.
 
+## Stage 6 · round check limits (2026-11-25)
+
+When thread branches conflict, there is no valid combined tree. The runner records `threads_do_not_merge`
+and skips configured checks for that round. It does not report those checks as if they ran against the
+project folder or a partial tree.
+
 ## Harness change (2026-11-25)
 
 - **An unverified accusation kept in memory.** `context/README.md` and `decisions.md` record that we stopped
@@ -112,3 +118,8 @@ untested because this machine has no `dpkg-deb`.
 - **Harness churn.** The instructions a session inherits partly live outside this repo. The one thing that
   keeps a harness swap cheap is that `context/prompts/` and `docs/` name no harness and no harness-specific
   tool. Keep it that way; name the repo, not the app the work happens in.
+
+## Merge recovery (2026-11-25)
+
+- A merge commit can land before SQLite saves `merge.landed`. Retry recognizes it only if its parents,
+  message and tree match the expected Git merge. A changed project tree stays refused.

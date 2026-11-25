@@ -129,6 +129,28 @@ skipped its optional review, and no required checks are configured.
 PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) merged into `main` as `6af44e8`. The
 packaging implementation, verification report and screenshots are now in `main`.
 
+## Stage 6 · checks that see the work (2026-11-25)
+
+| Phase | What landed |
+|---|---|
+| **Round check tree** | Round checks build a temporary worktree from the run base and the checked-out thread branches, in acceptance order. Unstarted planned branches are skipped. Conflicts and tree-build failures block the round without running checks against the project folder. |
+| **Coverage** | The scripted loop suite passed 13 tests. The integration-tree unit tests passed 2 tests. The workspace suite is pending. See [`08-checks-see-the-work`](prompts/reports/2026-11-25-08-checks-see-the-work.md). |
+
+The single workspace run passed: **172 passed, 3 ignored, 0 failed**. The ignored tests use live provider
+accounts. Code commit: `9a95210`. The branch push is pending.
+
+The verified branch was pushed to `origin/feat/checks-see-the-work`.
+
+## Stage 6 review correction (2026-11-25)
+
+Code review found that the check tree started at `git_base`, while acceptance merges into the project's
+current HEAD. Round close now blocks if HEAD moved after run creation. Gate acceptance checks the same base
+again, so a project change while a person reviews the diff is refused. Two scripted tests cover these
+states. The roadmap now describes the integration-tree behavior and the remaining stage 3 and 5 work.
+
+A second review found a partial-accept retry could also land a later branch on changed project code. Each
+merge step now checks the prior commit recorded in the journal. A scripted test covers that retry.
+
 ## Harness · T3 Code to Orca (2026-11-25)
 
 The owner moved the work harness from T3 Code to Orca, and may move it again. The reason given is a worry
@@ -139,3 +161,9 @@ the reference products; no build file, config or code path depends on the harnes
 the project `AGENTS.md` name Orca workers, and the prompt briefs name no harness at all.
 
 Nothing in `crates/`, the release or the open pull requests changed.
+
+## Stage 6 follow-up · merge journal recovery (2026-11-25)
+
+Git and SQLite cannot commit atomically. Acceptance retries now recognize an unjournaled Git merge only when
+its parents, message and tree match the expected merge. It records that merge and continues. A different
+tree or project movement refuses the remaining branches. Two scripted tests cover recovery and refusal.

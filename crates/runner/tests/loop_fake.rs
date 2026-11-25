@@ -27,15 +27,22 @@ struct Script {
     plans: Arc<Mutex<VecDeque<Plan>>>,
     /// Content for each write of brief.html, in order. Once empty, GOOD_BRIEF is written.
     briefs: Arc<Mutex<VecDeque<String>>>,
+    /// Optional content for other files, consumed in write order.
+    contents: Arc<Mutex<VecDeque<String>>>,
 }
 
 impl Script {
     fn with_plans(plans: Vec<Plan>) -> Self {
-        Self { plans: Arc::new(Mutex::new(plans.into())), briefs: Arc::new(Mutex::new(VecDeque::new())) }
+        Self { plans: Arc::new(Mutex::new(plans.into())), ..Self::default() }
     }
 
     fn with_briefs(self, briefs: &[&str]) -> Self {
         *self.briefs.lock().unwrap() = briefs.iter().map(|b| b.to_string()).collect();
+        self
+    }
+
+    fn with_contents(self, contents: &[&str]) -> Self {
+        *self.contents.lock().unwrap() = contents.iter().map(|b| b.to_string()).collect();
         self
     }
 }
@@ -88,6 +95,53 @@ fn setup(name: &str, goal_json: &str, script: Script) -> Env {
     Env { dir, home, store, run_id, plan, provider }
 }
 
+fn git_in(dir: &std::path::Path, args: &[&str]) {
+    let out = std::process::Command::new("git").args(args).current_dir(dir).output().expect("run git");
+    assert!(out.status.success(), "git {args:?} failed: {}", String::from_utf8_lossy(&out.stderr));
+}
+
+/// A run whose project is a clean git repository, so every thread gets a worktree. The goal file sits
+/// beside the repository, never inside it, or the repository would be dirty and the run would fall back
+/// to folder mode.
+fn setup_git(name: &str, goal_json: &str, script: Script) -> Env {
+    let dir = std::env::temp_dir().join(format!("ilvuno-git-{name}-{}", uuid::Uuid::new_v4()));
+    let repo = dir.join("repo");
+    std::fs::create_dir_all(&repo).expect("repo dir");
+    git_in(&repo, &["init", "-q"]);
+    std::fs::write(repo.join("README.md"), "the project\n").expect("readme");
+    git_in(&repo, &["add", "-A"]);
+    git_in(&repo, &["-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit", "-qm", "first"]);
+
+    let goal_path = dir.join("goal.json");
+    std::fs::write(&goal_path, goal_json).expect("goal file");
+    let plan = GoalPlan::load(&goal_path).expect("goal");
+    assert_eq!(plan.base(), repo.as_path(), "the goal's base is the repository");
+    let home = Home::new(dir.join("home"));
+    let mut store = Store::open(&home.db_path()).expect("store");
+    let raw = goal_json.to_string();
+    let new_goal = plan.new_goal().expect("new goal");
+    let project = runner::git::project_git(plan.base());
+    assert!(matches!(project, runner::git::ProjectGit::Eligible { .. }), "the run has to be a git run");
+    let run_id = match store
+        .transact("run.create", None, |tx, p| {
+            let id = commands::create_run(tx, p, &new_goal, &home)?;
+            commands::record_run_git(tx, p, &id, &new_goal.threads, &project)?;
+            goal::snapshot(tx, &id, &raw, &repo)?;
+            Ok(Outcome::Applied(id))
+        })
+        .expect("create run")
+    {
+        Outcome::Applied(id) => id,
+        other => panic!("{other:?}"),
+    };
+    let provider = FakeProvider::new();
+    provider.set_prompt_hook(agent(home.clone(), script));
+    for _ in 0..10 {
+        provider.push_turn(vec![said("I did the task in my folder."), usage(), finished()]);
+    }
+    Env { dir, home, store, run_id, plan, provider }
+}
+
 /// The scripted agent. It reads the prompt it is given, as a real agent would, and acts on it.
 fn agent(home: Home, script: Script) -> Box<dyn FnMut(&str) + Send> {
     Box::new(move |prompt: &str| {
@@ -116,7 +170,7 @@ fn agent(home: Home, script: Script) -> Box<dyn FnMut(&str) + Send> {
             let body = if file == "brief.html" {
                 script.briefs.lock().unwrap().pop_front().unwrap_or_else(|| GOOD_BRIEF.to_string())
             } else {
-                format!("notes for {file}\n")
+                script.contents.lock().unwrap().pop_front().unwrap_or_else(|| format!("notes for {file}\n"))
             };
             std::fs::write(folder.join(file), body).expect("write");
         }
@@ -176,6 +230,14 @@ fn verdicts(store: &Store, run: &str) -> Vec<Option<String>> {
     replayed.rounds.iter().map(|r| r.verdict.clone()).collect()
 }
 
+fn readiness(store: &Store, round_index: u32) -> serde_json::Value {
+    let raw: String = store
+        .conn()
+        .query_row("SELECT readiness FROM rounds WHERE \"index\" = ?1", [round_index], |r| r.get(0))
+        .expect("readiness");
+    serde_json::from_str(&raw).expect("readiness JSON")
+}
+
 fn assert_projection_matches(env: &Env) {
     let replayed = replay::replay(env.store.conn(), &env.run_id).expect("replay");
     let problems = replay::compare_with_projection(env.store.conn(), &env.run_id, &replayed).expect("compare");
@@ -203,6 +265,67 @@ const NO_ORCHESTRATOR_GOAL: &str = r#"{
   "goal": "read a source",
   "providers": {"claude-main": {"driver": "claude"}},
   "threads": [{"name": "reader-1", "agent": "claude-main", "prompt": "Read and write notes."}],
+  "budget": {"rounds": 2, "tokens": 600000}
+}"#;
+
+/// A check that must see what the agent wrote. The project is a real git repository, so the thread works
+/// in its own worktree and the check has to run in the tree the gate would merge.
+const GIT_PROJECT_GOAL: &str = r#"{
+  "goal": "write the brief in the project",
+  "done": "brief.md is in the project",
+  "base": "repo",
+  "checks": [{"type": "command_exit_zero", "command": "test -f brief.md"}],
+  "providers": {"claude-main": {"driver": "claude"}},
+  "threads": [{"name": "writer", "agent": "claude-main", "prompt": "Write brief.md."}],
+  "budget": {"rounds": 2, "tokens": 600000}
+}"#;
+
+const TWO_WRITERS_GOAL: &str = r#"{
+  "goal": "write two files in the project",
+  "done": "both files exist",
+  "base": "repo",
+  "checks": [{"type": "command_exit_zero", "command": "test -f a.md -a -f b.md"}],
+  "providers": {"claude-main": {"driver": "claude"}},
+  "threads": [
+    {"name": "writer-a", "agent": "claude-main", "prompt": "Write a.md."},
+    {"name": "writer-b", "agent": "claude-main", "prompt": "Write b.md."}
+  ],
+  "budget": {"rounds": 2, "tokens": 600000}
+}"#;
+
+const IDLE_PLANNED_WRITER_GOAL: &str = r#"{
+  "goal": "write one file in the project",
+  "done": "the file exists",
+  "base": "repo",
+  "checks": [{"type": "command_exit_zero", "command": "test -f a.md"}],
+  "providers": {"claude-main": {"driver": "claude"}},
+  "threads": [
+    {"name": "writer", "agent": "claude-main", "prompt": "Write a.md."},
+    {"name": "idle", "agent": "claude-main", "prompt": "Do nothing."}
+  ],
+  "budget": {"rounds": 2, "tokens": 600000}
+}"#;
+
+const CONFLICTING_WRITERS_GOAL: &str = r#"{
+  "goal": "write the project README",
+  "done": "the README exists",
+  "base": "repo",
+  "checks": [{"type": "command_exit_zero", "command": "test -f README.md"}],
+  "providers": {"claude-main": {"driver": "claude"}},
+  "threads": [
+    {"name": "writer-a", "agent": "claude-main", "prompt": "Write the README."},
+    {"name": "writer-b", "agent": "claude-main", "prompt": "Write the README."}
+  ],
+  "budget": {"rounds": 2, "tokens": 600000}
+}"#;
+
+const RETRY_CHECK_GOAL: &str = r#"{
+  "goal": "write GOOD into brief.md",
+  "done": "brief.md contains GOOD",
+  "base": "repo",
+  "checks": [{"type": "command_exit_zero", "command": "grep -q GOOD brief.md"}],
+  "providers": {"claude-main": {"driver": "claude"}},
+  "threads": [{"name": "writer", "agent": "claude-main", "prompt": "Write brief.md."}],
   "budget": {"rounds": 2, "tokens": 600000}
 }"#;
 
@@ -425,6 +548,278 @@ async fn a_worker_is_refused_a_permission_outside_its_folder() {
         decisions.iter().any(|(id, d)| id == "perm-escape" && matches!(d, Decision::Deny { .. })),
         "write outside the folder must be denied: {decisions:?}"
     );
+}
+
+/// Stage 6, the failing half. A command check has to test the tree the gate would merge, not the project
+/// folder, or an agent's work can pass its checks without ever being looked at.
+#[tokio::test]
+async fn a_command_check_runs_in_the_tree_the_gate_would_merge() {
+    let mut env = setup_git("check-tree", GIT_PROJECT_GOAL, Script::default());
+    let scope = vec!["brief.md".to_string()];
+    applied(run_task(&env.home, None, "writer", "write the brief", &scope).expect("task"));
+
+    let end = drive(&mut env).await;
+    let readiness: String = env
+        .store
+        .conn()
+        .query_row("SELECT readiness FROM rounds WHERE \"index\" = 0", [], |r| r.get(0))
+        .expect("readiness");
+    assert!(readiness.contains("\"passed\":true"), "the check has to see the writer's file. readiness: {readiness}");
+    assert_eq!(end, RunEnd::AtGate, "a passing check opens the gate");
+
+    // The writer wrote it, and the turn committed it, in its own worktree.
+    let worktree = env.home.worktree_dir(&env.run_id, "writer");
+    assert!(worktree.join("brief.md").is_file(), "the agent's file is in its worktree: {}", worktree.display());
+    // The project folder is untouched until a person accepts.
+    assert!(!env.plan.base().join("brief.md").exists(), "the project folder keeps its own tree until the gate");
+    assert_eq!(status(&env.store, &env.run_id), "reviewed");
+}
+
+#[tokio::test]
+async fn a_project_head_change_blocks_round_checks() {
+    let mut env = setup_git("check-moved-head", GIT_PROJECT_GOAL, Script::default());
+    applied(run_task(&env.home, None, "writer", "write the brief", &["brief.md".into()]).expect("task"));
+    std::fs::write(env.plan.base().join("external.md"), "new project work\n").expect("external file");
+    git_in(env.plan.base(), &["add", "-A"]);
+    git_in(env.plan.base(), &["-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit", "-qm", "external change"]);
+
+    let end = drive(&mut env).await;
+    assert_ne!(end, RunEnd::AtGate, "checks on an old base must not open the gate");
+    let result = &readiness(&env.store, 0)["checks"][0];
+    assert_eq!(result["name"].as_str(), Some("project_head_changed"));
+    assert_eq!(result["passed"].as_bool(), Some(false));
+    assert!(result["detail"].as_str().unwrap_or_default().contains("differs from run base"));
+    assert!(!env.plan.base().join("brief.md").exists(), "the thread work remains outside the project");
+}
+
+#[tokio::test]
+async fn acceptance_refuses_when_the_project_moves_after_checks() {
+    let mut env = setup_git("accept-moved-head", GIT_PROJECT_GOAL, Script::default());
+    applied(run_task(&env.home, None, "writer", "write the brief", &["brief.md".into()]).expect("task"));
+    assert_eq!(drive(&mut env).await, RunEnd::AtGate);
+    std::fs::write(env.plan.base().join("external.md"), "new project work\n").expect("external file");
+    git_in(env.plan.base(), &["add", "-A"]);
+    git_in(env.plan.base(), &["-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit", "-qm", "external change"]);
+
+    let result = run_status::decide_gate_and_render(&env.home, &mut env.store, &env.run_id, &GateDecision::Accept)
+        .expect("gate acceptance");
+    assert!(matches!(result, Outcome::Refused(ref reason) if reason.contains("project changed after the checks")), "{result:?}");
+    assert_eq!(status(&env.store, &env.run_id), "reviewed");
+    assert!(!env.plan.base().join("brief.md").exists(), "acceptance does not merge onto the changed project");
+}
+
+#[tokio::test]
+async fn acceptance_retry_refuses_when_the_project_moves_after_a_partial_merge() {
+    let mut env = setup_git("retry-moved-head", TWO_WRITERS_GOAL, Script::default());
+    applied(run_task(&env.home, None, "writer-a", "write a.md", &["a.md".into()]).expect("task a"));
+    applied(run_task(&env.home, None, "writer-b", "write b.md", &["b.md".into()]).expect("task b"));
+    assert_eq!(drive(&mut env).await, RunEnd::AtGate);
+
+    let accepted = env
+        .store
+        .transact("gate.decide", None, |tx, p| run_status::gate_decide(tx, p, &env.run_id, &GateDecision::Accept))
+        .expect("accept gate");
+    assert_eq!(accepted, Outcome::Applied(()));
+    let (thread_id, branch): (String, String) = env.store.conn().query_row(
+        "SELECT t.id, t.branch FROM threads t JOIN dispatch d ON d.thread_id = t.id WHERE t.run_id = ?1 ORDER BY d.rowid LIMIT 1",
+        [&env.run_id],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    ).expect("first thread branch");
+    let sha = match runner::git::merge(env.plan.base(), &branch, "simulate first landed branch").expect("first merge") {
+        runner::git::MergeOutcome::Merged(sha) => sha,
+        other => panic!("expected first branch to merge, got {other:?}"),
+    };
+    env.store
+        .transact("merge.thread", None, |_, p| {
+            p.push(
+                &env.run_id,
+                None,
+                Some(&thread_id),
+                "merge.landed",
+                serde_json::json!({"branch": branch, "sha": sha}),
+            );
+            Ok(Outcome::Applied(()))
+        })
+        .expect("record first merge");
+    std::fs::write(env.plan.base().join("external.md"), "new project work\n").expect("external file");
+    git_in(env.plan.base(), &["add", "-A"]);
+    git_in(env.plan.base(), &["-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit", "-qm", "external change"]);
+
+    let result = run_status::decide_gate_and_render(&env.home, &mut env.store, &env.run_id, &GateDecision::Accept)
+        .expect("retry gate acceptance");
+    assert!(matches!(result, Outcome::Refused(ref reason) if reason.contains("moved during acceptance")), "{result:?}");
+    assert_eq!(status(&env.store, &env.run_id), "accepted");
+    assert!(env.plan.base().join("a.md").is_file(), "the first accepted branch remains landed");
+    assert!(!env.plan.base().join("b.md").exists(), "the next branch is not merged onto changed code");
+}
+
+#[tokio::test]
+async fn acceptance_retry_records_a_merge_that_landed_before_its_journal_row() {
+    let mut env = setup_git("retry-unrecorded-merge", TWO_WRITERS_GOAL, Script::default());
+    applied(run_task(&env.home, None, "writer-a", "write a.md", &["a.md".into()]).expect("task a"));
+    applied(run_task(&env.home, None, "writer-b", "write b.md", &["b.md".into()]).expect("task b"));
+    assert_eq!(drive(&mut env).await, RunEnd::AtGate);
+
+    let accepted = env
+        .store
+        .transact("gate.decide", None, |tx, p| run_status::gate_decide(tx, p, &env.run_id, &GateDecision::Accept))
+        .expect("accept gate");
+    assert_eq!(accepted, Outcome::Applied(()));
+    let (name, branch): (String, String) = env.store.conn().query_row(
+        "SELECT t.name, t.branch FROM threads t
+         JOIN dispatch d ON d.thread_id = t.id
+         WHERE t.run_id = ?1
+         ORDER BY d.rowid LIMIT 1",
+        [&env.run_id],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    ).expect("first thread branch");
+
+    let message = format!("Ilvuno run {}: merge {name}", env.run_id);
+    match runner::git::merge(env.plan.base(), &branch, &message).expect("first merge") {
+        runner::git::MergeOutcome::Merged(_) => {}
+        other => panic!("expected first branch to merge, got {other:?}"),
+    }
+
+    let result = run_status::decide_gate_and_render(&env.home, &mut env.store, &env.run_id, &GateDecision::Accept)
+        .expect("retry gate acceptance");
+    assert_eq!(result, Outcome::Applied(()));
+    assert_eq!(status(&env.store, &env.run_id), RunStatus::Merged.as_str());
+    assert!(env.plan.base().join("a.md").is_file(), "the first branch stays landed");
+    assert!(env.plan.base().join("b.md").is_file(), "the retry merges the remaining branch");
+    assert_eq!(count(&env.store, "SELECT COUNT(*) FROM journal WHERE kind = 'merge.landed'"), 2);
+    let first_merge: String = env.store.conn().query_row(
+        "SELECT payload FROM journal WHERE kind = 'merge.landed' ORDER BY seq LIMIT 1",
+        [],
+        |row| row.get(0),
+    ).expect("recovered merge journal row");
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&first_merge).expect("merge payload")["recovered"], true);
+}
+
+#[tokio::test]
+async fn acceptance_retry_does_not_record_a_merge_with_a_different_tree() {
+    let mut env = setup_git("retry-forged-merge", TWO_WRITERS_GOAL, Script::default());
+    applied(run_task(&env.home, None, "writer-a", "write a.md", &["a.md".into()]).expect("task a"));
+    applied(run_task(&env.home, None, "writer-b", "write b.md", &["b.md".into()]).expect("task b"));
+    assert_eq!(drive(&mut env).await, RunEnd::AtGate);
+
+    let accepted = env
+        .store
+        .transact("gate.decide", None, |tx, p| run_status::gate_decide(tx, p, &env.run_id, &GateDecision::Accept))
+        .expect("accept gate");
+    assert_eq!(accepted, Outcome::Applied(()));
+    let (name, branch): (String, String) = env.store.conn().query_row(
+        "SELECT t.name, t.branch FROM threads t
+         JOIN dispatch d ON d.thread_id = t.id
+         WHERE t.run_id = ?1
+         ORDER BY d.rowid LIMIT 1",
+        [&env.run_id],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    ).expect("first thread branch");
+
+    std::fs::write(env.plan.base().join("forged.md"), "not in the thread branch\n").expect("forged file");
+    git_in(env.plan.base(), &["add", "forged.md"]);
+    let tree = std::process::Command::new("git")
+        .args(["write-tree"])
+        .current_dir(env.plan.base())
+        .output()
+        .expect("write forged tree");
+    assert!(tree.status.success(), "write-tree failed: {}", String::from_utf8_lossy(&tree.stderr));
+    let base = runner::git::head(env.plan.base()).expect("run base");
+    let message = format!("Ilvuno run {}: merge {name}", env.run_id);
+    let forged = std::process::Command::new("git")
+        .args(["-c", "user.name=Ilvuno", "-c", "user.email=ilvuno@localhost", "commit-tree"])
+        .arg(String::from_utf8_lossy(&tree.stdout).trim())
+        .args(["-p", &base, "-p", &branch, "-m", &message])
+        .current_dir(env.plan.base())
+        .output()
+        .expect("create forged merge commit");
+    assert!(forged.status.success(), "commit-tree failed: {}", String::from_utf8_lossy(&forged.stderr));
+    let forged_sha = String::from_utf8_lossy(&forged.stdout).trim().to_string();
+    git_in(env.plan.base(), &["update-ref", "HEAD", &forged_sha]);
+
+    let result = run_status::decide_gate_and_render(&env.home, &mut env.store, &env.run_id, &GateDecision::Accept)
+        .expect("retry gate acceptance");
+    assert!(
+        matches!(result, Outcome::Refused(ref reason) if reason.contains("moved during acceptance")),
+        "{result:?}"
+    );
+    assert_eq!(status(&env.store, &env.run_id), RunStatus::Accepted.as_str());
+    assert_eq!(count(&env.store, "SELECT COUNT(*) FROM journal WHERE kind = 'merge.landed'"), 0);
+    assert!(!env.plan.base().join("b.md").exists(), "the next branch is not merged into an unverified tree");
+}
+
+#[tokio::test]
+async fn a_command_check_sees_files_from_both_thread_branches() {
+    let mut env = setup_git("check-two-branches", TWO_WRITERS_GOAL, Script::default());
+    applied(run_task(&env.home, None, "writer-a", "write a.md", &["a.md".into()]).expect("task a"));
+    applied(run_task(&env.home, None, "writer-b", "write b.md", &["b.md".into()]).expect("task b"));
+
+    assert_eq!(drive(&mut env).await, RunEnd::AtGate);
+    let result = &readiness(&env.store, 0)["checks"][0];
+    assert_eq!(result["name"].as_str(), Some("command_exit_zero test -f a.md -a -f b.md"));
+    assert_eq!(result["passed"].as_bool(), Some(true));
+    assert!(!env.plan.base().join("a.md").exists());
+    assert!(!env.plan.base().join("b.md").exists());
+    assert!(!env.home.worktree_dir(&env.run_id, "round-0").exists());
+}
+
+#[tokio::test]
+async fn an_unstarted_planned_thread_does_not_block_round_checks() {
+    let mut env = setup_git("check-idle-thread", IDLE_PLANNED_WRITER_GOAL, Script::default());
+    applied(run_task(&env.home, None, "writer", "write a.md", &["a.md".into()]).expect("writer task"));
+
+    assert_eq!(drive(&mut env).await, RunEnd::AtGate);
+    let result = &readiness(&env.store, 0)["checks"][0];
+    assert_eq!(result["name"].as_str(), Some("command_exit_zero test -f a.md"));
+    assert_eq!(result["passed"].as_bool(), Some(true));
+}
+
+#[tokio::test]
+async fn conflicting_thread_branches_block_checks_and_leave_the_project_unchanged() {
+    let script = Script::default().with_contents(&["from writer a\n", "from writer b\n"]);
+    let mut env = setup_git("check-conflict", CONFLICTING_WRITERS_GOAL, script);
+    let scope = vec!["README.md".to_string()];
+    applied(run_task(&env.home, None, "writer-a", "write README", &scope).expect("task a"));
+    applied(run_task(&env.home, None, "writer-b", "write README", &scope).expect("task b"));
+
+    let end = drive(&mut env).await;
+    assert_ne!(end, RunEnd::AtGate, "a conflict must not open the gate");
+    assert_eq!(status(&env.store, &env.run_id), "working");
+    assert_eq!(verdicts(&env.store, &env.run_id), vec![Some("block".into())]);
+    let result = &readiness(&env.store, 0)["checks"][0];
+    assert_eq!(result["name"].as_str(), Some("threads_do_not_merge"));
+    assert_eq!(result["passed"].as_bool(), Some(false));
+    assert_eq!(result["detail"].as_str(), Some("README.md"));
+    assert_eq!(
+        std::fs::read_to_string(env.plan.base().join("README.md")).expect("project README"),
+        "the project\n"
+    );
+    assert!(!env.home.worktree_dir(&env.run_id, "round-0").exists());
+}
+
+#[tokio::test]
+async fn a_failed_tree_check_can_pass_after_the_next_round_fixes_the_file() {
+    let script = Script::default().with_contents(&["BAD\n", "GOOD\n"]);
+    let mut env = setup_git("check-retry", RETRY_CHECK_GOAL, script);
+    let scope = vec!["brief.md".to_string()];
+    applied(run_task(&env.home, None, "writer", "write BAD", &scope).expect("first task"));
+
+    let first_end = drive(&mut env).await;
+    assert_ne!(first_end, RunEnd::AtGate, "BAD must fail the check");
+    let first = &readiness(&env.store, 0)["checks"][0];
+    assert_eq!(first["name"].as_str(), Some("command_exit_zero grep -q GOOD brief.md"));
+    assert_eq!(first["passed"].as_bool(), Some(false));
+
+    applied(run_task(&env.home, None, "writer", "write GOOD", &scope).expect("retry task"));
+    assert_eq!(drive(&mut env).await, RunEnd::AtGate);
+    let second = &readiness(&env.store, 1)["checks"][0];
+    assert_eq!(second["name"].as_str(), Some("command_exit_zero grep -q GOOD brief.md"));
+    assert_eq!(second["passed"].as_bool(), Some(true));
+    assert_eq!(
+        std::fs::read_to_string(env.home.worktree_dir(&env.run_id, "writer").join("brief.md")).expect("writer file"),
+        "GOOD\n"
+    );
+    assert!(!env.plan.base().join("brief.md").exists());
 }
 
 fn applied<T: std::fmt::Debug>(outcome: Outcome<T>) -> T {

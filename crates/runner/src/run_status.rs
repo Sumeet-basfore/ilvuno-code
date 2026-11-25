@@ -177,19 +177,41 @@ pub fn record_verdict(
 pub fn decide_gate_and_render(home: &Home, store: &mut Store, run_id: &str, decision: &GateDecision) -> Result<Outcome<()>> {
     let mut targets = Vec::new();
     let mut project = None;
+    let mut expected_project_head = None;
     if *decision == GateDecision::Accept {
         let status = load_run(store.conn(), run_id)?.status;
         if status == RunStatus::Merged {
             return Ok(Outcome::Applied(()));
         }
         if matches!(status, RunStatus::Reviewed | RunStatus::Accepted) {
-            let root: Option<String> = store.conn().query_row(
-                "SELECT git_root FROM runs WHERE id = ?1", params![run_id], |r| r.get(0),
+            let (root, base): (Option<String>, Option<String>) = store.conn().query_row(
+                "SELECT git_root, git_base FROM runs WHERE id = ?1", params![run_id], |r| Ok((r.get(0)?, r.get(1)?)),
             )?;
             if let Some(root) = root {
                 let root = std::path::PathBuf::from(root);
                 targets = merge_targets(store.conn(), run_id)?;
                 if !targets.is_empty() {
+                    let expected = last_landed_sha(store.conn(), run_id)?
+                        .or(base.clone())
+                        .ok_or_else(|| anyhow!("git run has no recorded base"))?;
+                    expected_project_head = Some(expected);
+                    if status == RunStatus::Reviewed {
+                        let base = base.as_deref().ok_or_else(|| anyhow!("git run has no recorded base"))?;
+                        let current_head = crate::git::head(&root)?;
+                        if current_head != base {
+                            let reason = "the project changed after the checks; start a new run so they cover the current project".to_string();
+                            return store.transact("gate.accept", None, |_tx, p| {
+                                p.push(
+                                    run_id,
+                                    None,
+                                    None,
+                                    "merge.refused",
+                                    json!({ "reason": reason, "run_base": base, "project_head": current_head }),
+                                );
+                                Ok(Outcome::Refused(reason))
+                            });
+                        }
+                    }
                     for target in &targets {
                         let dirty = crate::git::dirty_worktree_paths(&target.worktree_path)?;
                         if !dirty.is_empty() {
@@ -242,6 +264,34 @@ pub fn decide_gate_and_render(home: &Home, store: &mut Store, run_id: &str, deci
                 if recorded {
                     return Ok(Outcome::Applied(None));
                 }
+                let expected = expected_project_head
+                    .as_deref()
+                    .ok_or_else(|| anyhow!("git run has no expected project head"))?;
+                let current_head = crate::git::head(&root)?;
+                if !current_head.starts_with(expected) {
+                    if let Some(recovered_head) =
+                        crate::git::unrecorded_merge_head(&root, expected, &target.branch, &message)?
+                    {
+                        let sha: String = recovered_head.chars().take(8).collect();
+                        p.push(
+                            run_id,
+                            None,
+                            Some(&target.thread_id),
+                            "merge.landed",
+                            json!({ "branch": target.branch, "sha": sha, "by": "user", "recovered": true }),
+                        );
+                        return Ok(Outcome::Applied(Some(crate::git::MergeOutcome::Merged(sha))));
+                    }
+                    let reason = "the project moved during acceptance; no more thread branches were merged".to_string();
+                    p.push(
+                        run_id,
+                        None,
+                        Some(&target.thread_id),
+                        "merge.refused",
+                        json!({ "reason": reason, "expected_head": expected, "project_head": current_head }),
+                    );
+                    return Ok(Outcome::Refused(reason));
+                }
                 let dirty_worktree = crate::git::dirty_worktree_paths(&target.worktree_path)?;
                 if !dirty_worktree.is_empty() {
                     let reason = format!("thread {} has uncommitted worktree changes: {}", target.name, dirty_worktree.join(", "));
@@ -284,12 +334,32 @@ pub fn decide_gate_and_render(home: &Home, store: &mut Store, run_id: &str, deci
                 Outcome::Duplicate(_) => unreachable!("merge has no request id"),
             };
             let Some(merge) = merge else { continue };
+            if let crate::git::MergeOutcome::Merged(sha) = &merge {
+                expected_project_head = Some(sha.clone());
+            }
             if matches!(merge, crate::git::MergeOutcome::Conflict(_)) {
                 ledger::render_board(store.conn(), run_id, &home.board_path(run_id))?;
                 return Ok(Outcome::Applied(()));
             }
         }
         if !targets.is_empty() && load_run(store.conn(), run_id)?.status == RunStatus::Accepted {
+            let expected = expected_project_head
+                .as_deref()
+                .ok_or_else(|| anyhow!("git run has no expected project head"))?;
+            let current_head = crate::git::head(&root)?;
+            if !current_head.starts_with(expected) {
+                let reason = "the project moved during acceptance; the run was not marked merged".to_string();
+                return store.transact("run.merge.refused", None, |_, p| {
+                    p.push(
+                        run_id,
+                        None,
+                        None,
+                        "merge.refused",
+                        json!({ "reason": reason, "expected_head": expected, "project_head": current_head }),
+                    );
+                    Ok(Outcome::Refused(reason))
+                });
+            }
             store.transact("run.merged", None, |tx, p| {
                 set_run_status(tx, p, run_id, RunStatus::Merged, Some("accepted changes merged"))?;
                 Ok(Outcome::Applied(()))
@@ -299,6 +369,23 @@ pub fn decide_gate_and_render(home: &Home, store: &mut Store, run_id: &str, deci
 
     ledger::render_board(store.conn(), run_id, &home.board_path(run_id))?;
     Ok(Outcome::Applied(()))
+}
+
+fn last_landed_sha(conn: &rusqlite::Connection, run_id: &str) -> Result<Option<String>> {
+    let payload: Option<String> = conn
+        .query_row(
+            "SELECT payload FROM journal WHERE run_id = ?1 AND kind = 'merge.landed' ORDER BY seq DESC LIMIT 1",
+            params![run_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let Some(payload) = payload else { return Ok(None) };
+    let event: Value = serde_json::from_str(&payload)?;
+    event["sha"]
+        .as_str()
+        .map(str::to_string)
+        .ok_or_else(|| anyhow!("merge.landed has no commit sha"))
+        .map(Some)
 }
 
 struct MergeTarget {
@@ -323,6 +410,13 @@ fn merge_targets(conn: &rusqlite::Connection, run_id: &str) -> Result<Vec<MergeT
         let worktree_path = std::path::PathBuf::from(worktree);
         worktree_path.join(".git").exists().then_some(MergeTarget { thread_id, name, branch, worktree_path })
     }).collect())
+}
+
+pub(crate) fn merge_branches(
+    conn: &rusqlite::Connection,
+    run_id: &str,
+) -> Result<Vec<(String, String)>> {
+    Ok(merge_targets(conn, run_id)?.into_iter().map(|target| (target.name, target.branch)).collect())
 }
 
 /// Human gate. Accept moves the run to `accepted`; send-back records a human block and resumes work.

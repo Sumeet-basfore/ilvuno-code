@@ -92,6 +92,24 @@ O1 is resolved. The implementation is `6648207`; run and screenshot evidence is 
 
 The runner startup code and package layout are implemented, but prompt 06 is not complete. The AppImage started `ilvunod` and returned the real accepted run, while the captured window was blank. See the packaging continuation report before treating this decision as shipped.
 
+## Stage 6 · checks that see the work (2026-11-25)
+
+| # | Decision | Why | What would reverse it |
+|---|---|---|---|
+| **D25** | At round close, checks use one temporary integration worktree built from the run base and the checked-out thread branches, in the same order as gate acceptance. A merge conflict or tree-build error blocks the round. The temporary branch uses a distinct suffix so it cannot collide with a valid thread name. | Per-thread checks miss changes from other threads. Checking the combined tree the gate accepts makes a passing command relevant to the work that will land. A partial tree is not a valid check target. | If acceptance changes its branch selection or order, round checks must use that same logic. |
+
+The tree is removed after checks. On a merge conflict, configured checks are skipped because no valid combined tree exists. The readiness record shows the conflict and its files.
+
+### Stage 6 follow-up · keep the checked base fixed
+
+The project must still be at the run's recorded `git_base` when checks close the round and when a person
+accepts the work. If the project moved before checks, the round records `project_head_changed`. If it moved
+after checks pass, acceptance is refused. A new run is required because its branches start from the new
+project commit. This avoids accepting work that was checked against a different base.
+
+Each merge step also checks the expected project HEAD. A retry uses the latest recorded landed commit as
+its expected HEAD. If the project moved during a partial accept, the runner refuses the remaining branches.
+
 ## Harness · Orca instead of T3 Code (2026-11-25)
 
 | # | Decision | Why | What would reverse it |
@@ -103,3 +121,9 @@ reference products. No build file, no config, no code path names either as a dep
 
 Recorded honestly: the reason for leaving is the owner's and was not audited here. The durable sentence is
 "we stopped using it", not "it was proven to do X".
+
+## Gate recovery · a merge without its journal row (2026-11-25)
+
+| # | Decision | Why | What would reverse it |
+|---|---|---|---|
+| **D27** | On acceptance retry, record an unjournaled Git merge only when its first parent, second parent, message and tree match the expected merge. Otherwise refuse to merge more branches. | Git and SQLite cannot commit atomically. Retrying safely must preserve a merge Git already made without accepting unrelated or altered project state. | A single transactional store for Git refs and the journal, or evidence that Git can atomically commit both. |

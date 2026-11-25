@@ -152,3 +152,16 @@ optional CodeRabbit job that skipped automated review for this repository.
 PR [#5](https://github.com/Sumeet-basfore/ilvuno-code/pull/5) merged into `main` as `6af44e8`. The
 AppImage and extracted `.deb` opened the real accepted run. A full `.deb` installation through a Debian
 package manager remains unverified.
+
+## Stage 6 · round checks see checked-out thread work (2026-11-25)
+
+At round close, command checks run from a temporary worktree built from the run base and the checked-out
+thread branches. The runner uses the same branch order as gate acceptance. Unstarted threads have no
+checkout and are skipped. The temporary worktree and its branch are removed after checks.
+
+A conflict records a failed `threads_do_not_merge` check with the conflicting paths. A tree-build error
+records `round_tree_failed`. Neither case runs configured checks in the project folder.
+
+Review also added a base check. A round blocks if the project HEAD differs from the run's recorded base.
+Acceptance refuses if the project moves after checks pass. The loop tests cover both cases.
+Each merge retry checks the last landed commit before merging another thread branch.
