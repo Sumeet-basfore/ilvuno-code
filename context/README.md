@@ -239,3 +239,30 @@ new project state. The two movement cases have scripted tests.
 A second review found the same risk during a partial merge and retry. Each branch merge now checks the
 expected project commit from the run base or the last recorded merge. The runner refuses the remaining
 branches if the project moved. A scripted test covers this recovery path.
+## Current state update · 2026-11-25 · the harness changed, the project did not
+
+The owner moved the work harness from T3 Code to Orca, and may move it again. The stated reason is a worry
+that T3 Code collects data about the agents running inside it. **We did not verify that claim.** It is
+recorded here as the owner's reason for a decision, not as a finding about T3 Code.
+
+What this does not change:
+
+- Ilvuno runs agent CLIs. Nothing in `crates/`, the local API, the window, the packages or the prompt files
+  imports, configures or depends on any harness. A grep for T3 in this repo finds only prose: the three
+  reference products read in `research/` (t3code, orca, cloudroom), which are sources of shape, not
+  dependencies.
+- The release `v0.0.1` and the pull requests live on GitHub. They are unaffected.
+- The briefs in `context/prompts/` name no harness, so they still apply wherever the person works.
+
+What this does change: which app the work happens inside, and how work is handed to other agents. Delegation
+now goes through Orca workers, as the home `AGENTS.md` describes. Anything that named T3-specific tools in a
+working session no longer applies.
+
+State of the work on this day, so a cold start knows where it is:
+
+- Done: stage 6 (round checks run in the integration tree), on `feat/checks-see-the-work`, PR #10, waiting to
+  be merged. `v0.0.1` is published with the `.deb`, `.rpm` and `.AppImage`.
+- Open: PR #10 (stage 6), PR #11 (prompt 09, the Paseo lessons, corrected against the code).
+- Not started: stage 7 (`ilvuno report`, the one metric), the gate URL design note, enforcement of
+  `message_policy`.
+- Still unmerged from earlier: `feat/truth-in-the-ui` (2 commits) and `audit/verify-and-harden` (4 commits).

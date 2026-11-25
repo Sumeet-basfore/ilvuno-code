@@ -150,3 +150,13 @@ states. The roadmap now describes the integration-tree behavior and the remainin
 
 A second review found a partial-accept retry could also land a later branch on changed project code. Each
 merge step now checks the prior commit recorded in the journal. A scripted test covers that retry.
+## Harness · T3 Code to Orca (2026-11-25)
+
+The owner moved the work harness from T3 Code to Orca, and may move it again. The reason given is a worry
+about how T3 Code handles the data of the agents running in it. That was not verified.
+
+Checked before recording it: `rg -i "t3 ?code"` over the tree returns only research and context prose about
+the reference products; no build file, config or code path depends on the harness. The delegation lines in
+the project `AGENTS.md` name Orca workers, and the prompt briefs name no harness at all.
+
+Nothing in `crates/`, the release or the open pull requests changed.
