@@ -193,3 +193,8 @@ compiling dependencies. Retrying with the existing `/home` build target passed: 
 Migration `0007_drop_messages` removes the unused table. The data model now says a user message is a message
 dispatch, an agent handoff is a task, and `message_policy` is advisory. Decision D28 records this behavior.
 The focused fresh-database test passed: 1 passed, 0 failed, 13 filtered out.
+
+## Prompt 09 · Final verification (2026-11-25)
+
+`RUSTUP_TOOLCHAIN=1.100.0 cargo test --workspace` exited 0. The run used the existing `/home` build target
+because `/tmp` was full. The branch is pushed for human review and has not been merged.

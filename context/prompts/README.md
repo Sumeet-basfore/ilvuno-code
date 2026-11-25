@@ -14,7 +14,7 @@ report it leaves.
 | 6 | [`06-packaging.md`](06-packaging.md) | an installable Linux build | last |
 | 7 | [`07-land-and-package.md`](07-land-and-package.md) | commit in-flight work, prove the package, open a PR per branch | after 06 stops |
 | 8 | [`08-checks-see-the-work.md`](08-checks-see-the-work.md) | a check tests the tree the gate would merge, not the project folder | done 2026-11-25; pushed on `feat/checks-see-the-work` |
-| 9 | [`09-paseo-lessons.md`](09-paseo-lessons.md) | four cheap lessons from the Paseo review: the comparison page, a replay test, the credential boundary, and deleting a dead table | ready; start after PR #10 merges |
+| 9 | [`09-paseo-lessons.md`](09-paseo-lessons.md) | four cheap lessons from the Paseo review: the comparison page, a replay test, the credential boundary, and deleting a dead table | done 2026-11-25; pushed on `feat/prompt-09-paseo-lessons` |
 
 Run them **in order**. 01 and 02 together are stage 2, and 04 cannot begin before both.
 
