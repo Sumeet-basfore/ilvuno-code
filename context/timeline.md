@@ -174,3 +174,9 @@ The five Paseo reviews are now summarized in `research/15-paseo.md`, which names
 the upstream files reviewed. The summary says nine native providers, while the pinned provider docs list
 ten. The page records that difference and preserves the 25.1k star count as a dated snapshot. Its HTML
 reading copy was generated and read, but is not committed.
+
+## Prompt 09 · Claude stream replay (2026-11-25)
+
+Added hand-written stream-json fixtures for a normal tool turn and a permission request. The replay test feeds
+each frame through `provider_claude::wire::parse_frame` and checks the events, including an unknown frame as
+`Raw`. `RUSTUP_TOOLCHAIN=1.100.0 cargo test -p provider-claude --test replay` passed: 2 passed, 0 failed.

@@ -1,0 +1,2 @@
+# Claude Code CLI available during authoring: 2.1.331; 2026-11-25; command: none; hand-written from wire.rs parser shapes, not captured.
+{"type":"control_request","request_id":"scrubbed-request-id","request":{"subtype":"can_use_tool","tool_name":"Bash","input":{"command":"pwd"}}}

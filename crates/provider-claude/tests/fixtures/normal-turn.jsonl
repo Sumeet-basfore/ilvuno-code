@@ -1,0 +1,6 @@
+# Claude Code CLI available during authoring: 2.1.331; 2026-11-25; command: none; hand-written from wire.rs parser shapes, not captured.
+{"type":"system","subtype":"init","session_id":"scrubbed-session-id"}
+{"type":"assistant","message":{"content":[{"type":"text","text":"I will check the directory."},{"type":"tool_use","id":"scrubbed-tool-use-id","name":"Bash","input":{"command":"pwd"}}]}}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"scrubbed-tool-use-id","content":"/project"}]}}
+{"type":"result","subtype":"success","is_error":false,"stop_reason":"end_turn","total_cost_usd":0.0001,"usage":{"input_tokens":12,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":4}}
+{"type":"something_new","payload":"kept for forward compatibility"}
