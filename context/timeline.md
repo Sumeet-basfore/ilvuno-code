@@ -139,3 +139,14 @@ the reference products; no build file, config or code path depends on the harnes
 the project `AGENTS.md` name Orca workers, and the prompt briefs name no harness at all.
 
 Nothing in `crates/`, the release or the open pull requests changed.
+
+## UI · approved design system (2026-11-25)
+
+| What changed | Evidence |
+|---|---|
+| Added the detailed design system from the Raycast, Conductor, Linear and GitButler references. Refreshed the theme tokens, selection states, inspector navigation, and guided New run form. Kept Board chronological. | [`docs/design-system.md`](../docs/design-system.md) |
+| Fixed the guided form to preserve the saved message policy, prevent duplicate starts, and stop a pending settings request after the form closes. Board navigation now lands keyboard focus on its heading. | `crates/desktop/ui/app.js` |
+| Removed horizontal overflow from the inspector when long thread text or paths are shown. | [`design system screenshots`](../crates/desktop/shots/2026-11-25-design-system-thread.png) |
+| Checked the built desktop window against the saved merged run in an isolated database copy. | `crates/desktop/shots/2026-11-25-design-system-*.png` |
+
+Not checked: open-gate rendering, because the only real saved run is already merged; the 960 px minimum-width layout also needs a direct check. The implementation commit and full test result will be recorded in the task report.

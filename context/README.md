@@ -241,3 +241,20 @@ State of the work on this day, so a cold start knows where it is:
 - Not started: stage 7 (`ilvuno report`, the one metric), the gate URL design note, enforcement of
   `message_policy`.
 - Still unmerged from earlier: `feat/truth-in-the-ui` (2 commits) and `audit/verify-and-harden` (4 commits).
+
+## Current state update · 2026-11-25 · UI design system
+
+The owner approved a design system based on four supplied references: Raycast search, Conductor's agent
+workspace, Linear's issue list, and GitButler's worktree view. The detailed rules and exclusions are in
+[`docs/design-system.md`](../docs/design-system.md). The implementation is on `feat/ui-design-system`.
+
+The window now uses the shared charcoal and light surfaces, quiet teal actions, selected and hover rows,
+a guided New run form, and a grouped command palette. The inspector has Board, Changes, Checks, and Review
+destinations. Board remains chronological. The raw goal JSON is under Advanced. ACP guided runs use
+`workspace-write` and the saved message policy. The New run form prevents duplicate submits and ignores a
+pending settings response after it closes. The Board shortcut moves keyboard focus to the Board heading.
+
+The built window was checked against the real saved run `64239160-0caa-456a-b3cf-3011a0f64bb1` from an
+isolated database copy. Screenshots are in `crates/desktop/shots/`. The run is already merged, so an open
+gate was unavailable. The 960 px minimum-width layout still needs a direct check. No engine or API change
+was made.

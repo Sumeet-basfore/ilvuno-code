@@ -119,6 +119,7 @@
     board: '',
     boardError: '',
     view: 'thread', // thread | board
+    factsDestination: 'board',
     thread: null, // the selected thread's name
     rightOpen: false,
     settings: null,
@@ -145,6 +146,8 @@
     pollBusy: false,
     gateBusy: false,
     startBusy: false,
+    newRunEpoch: 0,
+    runDetailsOpen: false,
     es: null,
     esRunId: null,
     reloadTimer: 0,
@@ -389,10 +392,16 @@
       }
     }
     if (seq !== state.loadSeq || state.currentId !== id) return;
+    const gateOpened = detail.run?.status === 'reviewed' && (state.detail?.run?.status !== 'reviewed' || state.detail?.run?.id !== id);
+    const runChanged = state.detail?.run?.id !== id;
     state.detail = detail;
+    if (runChanged) state.factsDestination = detail.run?.status === 'reviewed' ? 'review' : 'board';
+    if (gateOpened) state.factsDestination = 'review';
+    if (gateOpened) state.rightOpen = true;
     state.board = board?.markdown || '';
     pickThread();
     renderAll();
+    if (gateOpened) $('#factsBody').scrollTop = 0;
     if (detail.run?.status === 'reviewed') {
       const missing = (detail.threads || []).filter((thread) => thread.has_checkout && !state.threadDiffs.has(`${id}/${thread.name}`));
       await Promise.all(missing.map(async (thread) => {
@@ -597,7 +606,9 @@
 
   function openDialog(name) {
     state.opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    if (name === 'settings') {
+    if (name === 'newrun') {
+      prepareNewRunForm();
+    } else if (name === 'settings') {
       // Settings come from the runner. Opening the panel is a fresh look, not a verdict on an edit the
       // person already walked away from — a stale error here reads as "settings are broken".
       state.settingsError = '';
@@ -607,7 +618,12 @@
   }
 
   function closeDialog() {
+    const wasNewRun = dialogName() === 'newrun';
     setRoute(homeRoute());
+    if (wasNewRun) {
+      state.newRunEpoch += 1;
+      clearNewRunForm();
+    }
   }
 
   function projectPath() {
@@ -903,8 +919,7 @@
       } else if (name === 'drawer') {
         modal.focus({ preventScroll: true });
       } else if (name === 'newrun') {
-        // A goal usually starts as a file on this machine, so the path is where a person types first.
-        ($('#nr-path')?.value.trim() ? $('#nr-goal') : $('#nr-path'))?.focus({ preventScroll: true });
+        $('#nr-description')?.focus({ preventScroll: true });
       } else {
         ($('.set-tab.on') || focusables(modal)[0] || modal).focus({ preventScroll: true });
       }
@@ -1370,7 +1385,7 @@
       <div class="bview-head">
         <button class="backlink" data-act="back-thread">${ic('chevron-left', 'ic sm')}Back to conversation</button>
         <div class="bview-line">
-          <h1>Board</h1>
+          <h1 tabindex="-1">Board</h1>
           <span class="cnt">${ledger.length} ${ledger.length === 1 ? 'entry' : 'entries'} · ${esc(runTitle())}</span>
         </div>
       </div>
@@ -1463,11 +1478,11 @@
         <details class="gate-diff"><summary>View patch</summary><pre>${esc(patchContent)}</pre></details>
       </article>`;
     }).join('');
+    const changeSection = `<section class="gate-changes" id="changes" tabindex="-1" aria-labelledby="sec-changes"><div class="fsec-head"><h2 id="sec-changes">Thread changes</h2></div><div class="gate-threads">${threadDiffs || '<p class="facts-empty">No thread changes to merge.</p>'}</div></section>`;
     return `
       <section class="gate-panel" aria-label="Gate">
         <div class="gate-phead"><span class="gate-k">Gate · round ${esc(round.index)}</span>${chip('open', 'warn')}</div>
-        <p class="gate-copy">${checks.length ? 'The checks passed.' : 'This round recorded no checks.'} ${checkouts.length ? 'Accept to merge these thread changes into the project.' : 'Accept to record the decision. This run has no Git checkouts.'}</p>
-        ${threadDiffs ? `<div class="gate-threads">${threadDiffs}</div>` : ''}
+        <p class="gate-copy">${checks.length ? (checks.every((c) => c.passed) ? 'The checks passed.' : 'Some checks did not pass.') : 'This round recorded no checks.'} ${checkouts.length ? 'Accept to merge these thread changes into the project.' : 'Accept to record the decision. This run has no Git checkouts.'}</p>
         <div class="gate-checks">${checks.length ? checks.map((c) => `
           <div class="gate-check">
             <svg class="${c.passed ? 'ic' : 'ic bad'}" aria-hidden="true"><use href="#i-${c.passed ? 'check' : 'x'}"></use></svg>
@@ -1475,6 +1490,7 @@
             ${chip(c.passed ? 'pass' : 'fail', c.passed ? 'ok' : 'bad')}
           </div>`).join('') : '<div class="gate-check">No checks were recorded for this round. An empty list passes.</div>'}
         </div>
+        ${changeSection}
         <label class="field-label" for="gate-note">Note to the team <span>needed only to send back</span></label>
         <textarea class="gate-note" id="gate-note" rows="2" placeholder="What should change before this is accepted?">${esc(draft)}</textarea>
         <div class="gate-actions">
@@ -1548,6 +1564,13 @@
           <span class="th-agent-sm">${esc(t.agent || 'unknown')}</span>
         </div>`;
     }).join('');
+    const changedThreads = threads.filter((thread) => thread.has_checkout);
+    const changedThreadRows = changedThreads.map((thread) => `
+      <div class="art">
+        <span class="fn">${esc(thread.name)}</span>
+        <span class="sz">${esc(thread.stat || 'Changes not available')}</span>
+        <span class="loc">${esc(thread.branch || 'branch unknown')}</span>
+      </div>`).join('');
 
     // One agent for every thread is allowed — a single subscription has to work — but it is worth saying,
     // because a second agent is the reason this app exists.
@@ -1571,20 +1594,20 @@
     }).join('');
 
     return `
-      ${runFactsHtml(state.detail.run)}
+      <nav class="facts-nav" aria-label="Run sections"><button data-act="board" data-destination="board"${state.factsDestination === 'board' ? ' aria-current="location"' : ''}>Board</button><button data-act="focus-changes" data-destination="changes"${state.factsDestination === 'changes' ? ' aria-current="location"' : ''}>Changes</button><button data-act="focus-checks" data-destination="checks"${state.factsDestination === 'checks' ? ' aria-current="location"' : ''}>Checks</button><button data-act="focus-gate" data-destination="review"${state.factsDestination === 'review' ? ' aria-current="location"' : ''}>Review</button></nav>
+      ${state.detail.run.status === 'reviewed' ? `<section class="fsec" id="gate" tabindex="-1" aria-labelledby="sec-gate"><div class="fsec-head"><h2 id="sec-gate">Review</h2><span class="n">${gateCount()}</span></div>${gateSection()}</section>` : ''}
       ${state.view === 'board' ? '' : `<section class="fsec" aria-labelledby="sec-board">
         <div class="fsec-head"><h2 id="sec-board">Board</h2><span class="n">${ledger.length}</span>
           <button class="fsec-link" data-act="board">View all</button></div>
         ${ledger.length ? ledger.slice().reverse().map((e) => ledgerHtml(e)).join('') : '<p class="facts-empty">No board entries yet.</p>'}
       </section>`}
-      <section class="fsec" aria-labelledby="sec-checks">
+      ${state.detail.run.status !== 'reviewed' ? `<section class="fsec" id="changes" tabindex="-1" aria-labelledby="sec-changes"><div class="fsec-head"><h2 id="sec-changes">Changes</h2><span class="n">${changedThreads.length}</span></div>${changedThreadRows || '<p class="facts-empty">No thread changes yet.</p>'}</section>` : ''}
+      <section class="fsec" id="checks" tabindex="-1" aria-labelledby="sec-checks">
         <div class="fsec-head"><h2 id="sec-checks">Checks</h2><span class="n">${checks.length ? `${passed} of ${checks.length}` : ''}</span></div>
         ${checksHtml()}
       </section>
-      <section class="fsec" id="gate" tabindex="-1" aria-labelledby="sec-gate">
-        <div class="fsec-head"><h2 id="sec-gate">Gate</h2><span class="n">${gateCount()}</span></div>
-        ${gateSection()}
-      </section>
+      ${state.detail.run.status !== 'reviewed' ? `<section class="fsec" id="gate" tabindex="-1" aria-labelledby="sec-gate"><div class="fsec-head"><h2 id="sec-gate">Review</h2><span class="n">${gateCount()}</span></div>${gateSection()}</section>` : ''}
+      <details class="fsec run-details"><summary>Run details</summary>${runFactsHtml(state.detail.run)}</details>
       <section class="fsec" aria-labelledby="sec-artifacts">
         <div class="fsec-head"><h2 id="sec-artifacts">Artifacts</h2><span class="n">${artifactList.length}</span></div>
         ${artifactRows || '<p class="facts-empty">Nothing collected yet.</p>'}
@@ -1634,7 +1657,11 @@
     const body = $('#factsBody');
     if (!body) return;
     const top = body.scrollTop;
+    const runDetails = $('.run-details', body);
+    if (runDetails) state.runDetailsOpen = runDetails.open;
     body.innerHTML = factsHtml();
+    const nextRunDetails = $('.run-details', body);
+    if (nextRunDetails) nextRunDetails.open = state.runDetailsOpen;
     if (state.lastRunId === state.currentId) body.scrollTop = top;
     else body.scrollTop = 0;
     $('#factsLbl').textContent = state.detail ? 'Run' : 'No run';
@@ -2210,6 +2237,37 @@
     el.hidden = !message;
   }
 
+  function clearNewRunForm() {
+    $('#nr-base').value = '';
+    $('#nr-description').value = '';
+    $('#nr-done').value = '';
+    $('#nr-driver').value = 'claude';
+    $('#nr-command').value = '';
+    $('#nr-command-field').hidden = true;
+    $('#nr-prompt').value = '';
+    $('#nr-rounds').value = state.settings?.budget_rounds ?? 3;
+    $('#nr-tokens').value = state.settings?.budget_tokens ?? 150000;
+    $('#nr-path').value = '';
+    $('#nr-goal').value = '';
+    $('#nr-advanced').open = false;
+    newRunError('');
+  }
+
+  function prepareNewRunForm() {
+    state.newRunEpoch += 1;
+    clearNewRunForm();
+    $('#nr-base').value = projectPath();
+    if (state.settings) return;
+    const initialRounds = Number($('#nr-rounds').value);
+    const initialTokens = Number($('#nr-tokens').value);
+    getJson('/settings').then((settings) => {
+      state.settings = settings;
+      if (dialogName() !== 'newrun') return;
+      if (Number($('#nr-rounds').value) === initialRounds) $('#nr-rounds').value = settings.budget_rounds ?? initialRounds;
+      if (Number($('#nr-tokens').value) === initialTokens) $('#nr-tokens').value = settings.budget_tokens ?? initialTokens;
+    }).catch(() => {});
+  }
+
   // The goal lives in a file. The picker returns a path; the window asks the shell to read it, because
   // the page itself has no file access.
   async function openGoalFrom(path) {
@@ -2219,6 +2277,7 @@
       JSON.parse(text); // a goal must be JSON; the runner says the rest when Start is pressed
       const area = $('#nr-goal');
       if (area) area.value = text;
+      $('#nr-advanced').open = true;
       const shown = $('#nr-path');
       if (shown) shown.value = path;
       newRunError('');
@@ -2247,27 +2306,80 @@
 
   async function startRun() {
     if (state.startBusy) return;
-    const raw = $('#nr-goal')?.value.trim() || '';
+    let raw = $('#nr-goal')?.value.trim() || '';
+    const formEpoch = state.newRunEpoch;
+    let busyStarted = false;
     newRunError('');
-    if (!raw) {
-      newRunError('Paste a goal JSON first.');
-      $('#nr-goal')?.focus();
-      return;
-    }
     try {
-      const parsed = JSON.parse(raw);
+      if (!raw) {
+        const form = {
+          goal: $('#nr-description').value.trim(),
+          base: $('#nr-base').value.trim(),
+          driver: $('#nr-driver').value,
+          command: $('#nr-command').value.trim(),
+          rounds: Number($('#nr-rounds').value),
+          tokens: Number($('#nr-tokens').value),
+          done: $('#nr-done').value.trim(),
+          prompt: $('#nr-prompt').value.trim(),
+        };
+        if (!form.goal || !form.base || (form.driver === 'acp' && !form.command) || !Number.isSafeInteger(form.rounds) || form.rounds < 1 || !Number.isSafeInteger(form.tokens) || form.tokens < 1) {
+          newRunError('Enter a project folder, goal, agent command when needed, and positive whole-number limits.');
+          return;
+        }
+
+        state.startBusy = true;
+        busyStarted = true;
+        const startButton = $('[data-act="start-run"]');
+        if (startButton) startButton.disabled = true;
+        let settings;
+        try {
+          settings = await getJson('/settings');
+        } catch (err) {
+          if (formEpoch === state.newRunEpoch && dialogName() === 'newrun') newRunError(`Could not load run defaults: ${err.message}`);
+          return;
+        }
+        if (formEpoch !== state.newRunEpoch || dialogName() !== 'newrun') return;
+        if (!['anytime', 'round', 'never'].includes(settings.message_policy)) {
+          newRunError('The saved message policy is not valid. Check Settings before starting a run.');
+          return;
+        }
+        state.settings = settings;
+        state.settingsError = '';
+        const provider = { driver: form.driver };
+        if (form.driver === 'acp') {
+          provider.command = form.command;
+          provider.mode = 'workspace-write';
+        }
+        const goalFile = {
+          base: form.base,
+          goal: form.goal,
+          message_policy: settings.message_policy,
+          providers: { agent: provider },
+          threads: [{ name: 'orchestrator', agent: 'agent', prompt: form.prompt }],
+          budget: { rounds: form.rounds, tokens: form.tokens },
+        };
+        if (form.done) goalFile.done = form.done;
+        raw = JSON.stringify(goalFile);
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (err) {
+        newRunError(`The goal is not valid JSON: ${err.message}`);
+        return;
+      }
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
         newRunError('The goal must be a JSON object, the same shape as a goal file.');
         return;
       }
-    } catch (err) {
-      newRunError(`The goal is not valid JSON: ${err.message}`);
-      return;
-    }
-    state.startBusy = true;
-    const button = $('[data-act="start-run"]');
-    if (button) button.disabled = true;
-    try {
+
+      if (!busyStarted) {
+        state.startBusy = true;
+        busyStarted = true;
+        const startButton = $('[data-act="start-run"]');
+        if (startButton) startButton.disabled = true;
+      }
       const res = await postJson('/runs', raw);
       const id = res?.run_id;
       if (!id) throw new Error('the runner accepted the goal but returned no run id');
@@ -2284,16 +2396,22 @@
       setRoute('thread');
       connectEvents(id);
       await loadRun(id);
-      $('#nr-goal').value = '';
+      clearNewRunForm();
       showToast(`Run started (${res.status || 'working'}).`);
     } catch (err) {
-      newRunError(err.message);
+      if (formEpoch === state.newRunEpoch && dialogName() === 'newrun') newRunError(err.message);
     } finally {
-      state.startBusy = false;
-      const btn = $('[data-act="start-run"]');
-      if (btn) btn.disabled = false;
+      if (busyStarted) {
+        state.startBusy = false;
+        const startButton = $('[data-act="start-run"]');
+        if (startButton) startButton.disabled = false;
+      }
     }
   }
+
+  $('#nr-driver').addEventListener('change', (event) => {
+    $('#nr-command-field').hidden = event.target.value !== 'acp';
+  });
 
   // ---- actions that talk to the run ------------------------------------------------------------
 
@@ -2359,17 +2477,27 @@
     setRoute('t/' + name);
   }
 
-  function focusGate() {
+  function selectFactsDestination(destination) {
+    state.factsDestination = destination;
+    renderFacts();
+  }
+
+  function focusFactsSection(id, destination) {
+    selectFactsDestination(destination);
     if (!state.rightOpen) {
       state.rightOpen = true;
       renderChrome();
     }
-    const el = $('#gate');
+    const el = $(`#${id}`);
     if (!el) return;
     el.scrollIntoView({ block: 'center' });
     el.classList.add('flash');
     setTimeout(() => el.classList.remove('flash'), 1400);
     el.focus({ preventScroll: true });
+  }
+
+  function focusGate() {
+    focusFactsSection('gate', 'review');
   }
 
   // ---- render all ------------------------------------------------------------------------------
@@ -2396,6 +2524,7 @@
       id: state.currentId, detail: state.detail, board: state.board, boardError: state.boardError,
       runs: state.runs, runsError: state.runsError, health: state.health, version: state.version,
       conn: state.conn, view: state.view, thread: state.thread, right: state.rightOpen,
+      factsDestination: state.factsDestination,
       drawer: state.drawerIndex, settings: state.settings, settingsError: state.settingsError,
       settingsTab: state.settingsTab, agents: state.agents, agentsError: state.agentsError,
       agentsLoading: state.agentsLoading, gateBusy: state.gateBusy, sending: state.sending,
@@ -2489,7 +2618,6 @@
         break;
       case 'new-run':
         state.opener = target;
-        newRunError('');
         openDialog('newrun');
         break;
       case 'close-newrun':
@@ -2519,8 +2647,10 @@
         break;
       case 'board':
         if (dialogName() === 'palette') state.lastDialog = 'palette';
+        selectFactsDestination('board');
         state.view = 'board';
         setRoute('board');
+        setTimeout(() => $('#view .bview-head h1')?.focus({ preventScroll: true }), 0);
         break;
       case 'back-thread':
         if (dialogName() === 'palette') state.lastDialog = 'palette';
@@ -2549,6 +2679,12 @@
         break;
       case 'agent-set':
         setThreadAgent(target.dataset.thread, target.dataset.agent);
+        break;
+      case 'focus-checks':
+        focusFactsSection('checks', 'checks');
+        break;
+      case 'focus-changes':
+        focusFactsSection('changes', 'changes');
         break;
       case 'focus-gate':
         focusGate();
@@ -2673,7 +2809,6 @@
       if (input.value === '__new') {
         renderRunSelect();
         state.opener = input;
-        newRunError('');
         openDialog('newrun');
         return;
       }

@@ -103,3 +103,11 @@ reference products. No build file, no config, no code path names either as a dep
 
 Recorded honestly: the reason for leaving is the owner's and was not audited here. The durable sentence is
 "we stopped using it", not "it was proven to do X".
+
+## UI design system · 2026-11-25
+
+| # | Decision | Why | What would reverse it |
+|---|---|---|---|
+| **D27** | The desktop window uses the shared Ilvuno design system in [`docs/design-system.md`](../docs/design-system.md): conversation first, compact run and thread lists, a right inspector for Board/Changes/Checks/Review, a chronological board, and a guided New run path with raw JSON kept under Advanced. Dark charcoal is the default; light uses the same semantic roles. | The owner approved the four supplied references and asked to remove the generic AI dashboard look. The rules keep the useful patterns while preserving Ilvuno's one-person review gate and recorded-round model. | If the owner changes direction, or real use shows that the three-pane reading layout or guided form hides work people need. |
+
+The implementation is on `feat/ui-design-system`. The real saved run is merged, so an open Review gate could not be checked from the window. The 960 px minimum-width layout remains to be checked.

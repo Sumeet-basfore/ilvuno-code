@@ -173,25 +173,24 @@
       </button>
     </div>
     <div class="nr-body">
-      <div class="nr-field">
-        <label class="nr-label" for="nr-path">Goal file <span>or paste the JSON below</span></label>
-        <div class="nr-file">
-          <input class="nr-input" id="nr-path" type="text" spellcheck="false"
-                 placeholder="/path/to/goal.json" aria-describedby="nr-hint">
-          <button class="btn" type="button" data-act="browse-goal">Browse…</button>
-          <button class="btn" type="button" data-act="open-goal">Open</button>
-        </div>
-      </div>
-      <div class="nr-field">
-        <label class="nr-label" for="nr-goal">Goal JSON</label>
-        <textarea class="nr-textarea nr-goal-json" id="nr-goal" spellcheck="false" placeholder='{ "goal": "…", "done": "…", "threads": [] }'></textarea>
-      </div>
-      <p class="nr-hint">The runner reads this as a goal. Relative paths resolve from the run folder; add <code>"base": "/abs/folder"</code> to resolve them from a project.</p>
+      <div class="nr-field"><label class="nr-label" for="nr-base">Project folder</label><input class="nr-input" id="nr-base" placeholder="/path/to/project" spellcheck="false"></div>
+      <div class="nr-field"><label class="nr-label" for="nr-description">What should the agents do?</label><textarea class="nr-textarea" id="nr-description" placeholder="Describe the work"></textarea></div>
+      <div class="nr-field"><label class="nr-label" for="nr-done">What does done look like?</label><textarea class="nr-textarea" id="nr-done" placeholder="Describe the result you will review"></textarea></div>
+      <div class="nr-field"><label class="nr-label" for="nr-driver">Agent</label><select class="nr-input" id="nr-driver"><option value="claude">Claude</option><option value="acp">ACP adapter</option></select></div>
+      <div class="nr-field" id="nr-command-field" hidden><label class="nr-label" for="nr-command">ACP adapter command</label><input class="nr-input" id="nr-command" placeholder="Adapter command" spellcheck="false"><p class="nr-hint">Ilvuno passes <code>workspace-write</code>. Codex ACP uses it to send permission requests here.</p></div>
+      <div class="nr-field"><label class="nr-label" for="nr-prompt">Thread instructions</label><textarea class="nr-textarea" id="nr-prompt" placeholder="Describe this thread’s job"></textarea></div>
+        <div class="nr-grid"><div class="nr-field"><label class="nr-label" for="nr-rounds">Maximum rounds</label><input class="nr-input" id="nr-rounds" type="number" min="1" value="3"></div><div class="nr-field"><label class="nr-label" for="nr-tokens">Maximum tokens</label><input class="nr-input" id="nr-tokens" type="number" min="1" value="150000"></div></div>
+      <details class="nr-advanced" id="nr-advanced"><summary>Import a goal or edit JSON</summary>
+        <p class="nr-hint">Use a goal file or JSON for multiple threads, checks, and other options. When JSON is present, it is used instead of the fields above.</p>
+        <div class="nr-field"><label class="nr-label" for="nr-path">Goal file</label><div class="nr-file"><input class="nr-input" id="nr-path" type="text" spellcheck="false" placeholder="/path/to/goal.json"><button class="btn" type="button" data-act="browse-goal">Browse…</button><button class="btn" type="button" data-act="open-goal">Open</button></div></div>
+        <div class="nr-field"><label class="nr-label" for="nr-goal">Goal JSON</label><textarea class="nr-textarea nr-goal-json" id="nr-goal" spellcheck="false" placeholder='{ "goal": "…", "done": "…", "threads": [] }'></textarea></div>
+        <p class="nr-hint">Relative paths resolve from the run folder. Set <code>base</code> to an absolute project folder to resolve paths there.</p>
+      </details>
       <p class="nr-error" id="nr-error" role="alert" hidden></p>
     </div>
     <div class="nr-foot">
       <button class="btn primary" data-act="start-run">Start</button>
-      <span class="hint" id="nr-hint">POST /runs on 127.0.0.1:4737</span>
+      <span class="hint" id="nr-hint">Review the result before accepting it.</span>
     </div>
   </section>
 </div>
