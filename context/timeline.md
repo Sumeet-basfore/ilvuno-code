@@ -140,3 +140,30 @@ The single workspace run passed: **172 passed, 3 ignored, 0 failed**. The ignore
 accounts. Code commit: `9a95210`. The branch push is pending.
 
 The verified branch was pushed to `origin/feat/checks-see-the-work`.
+
+## Stage 6 review correction (2026-11-25)
+
+Code review found that the check tree started at `git_base`, while acceptance merges into the project's
+current HEAD. Round close now blocks if HEAD moved after run creation. Gate acceptance checks the same base
+again, so a project change while a person reviews the diff is refused. Two scripted tests cover these
+states. The roadmap now describes the integration-tree behavior and the remaining stage 3 and 5 work.
+
+A second review found a partial-accept retry could also land a later branch on changed project code. Each
+merge step now checks the prior commit recorded in the journal. A scripted test covers that retry.
+
+## Harness · T3 Code to Orca (2026-11-25)
+
+The owner moved the work harness from T3 Code to Orca, and may move it again. The reason given is a worry
+about how T3 Code handles the data of the agents running in it. That was not verified.
+
+Checked before recording it: `rg -i "t3 ?code"` over the tree returns only research and context prose about
+the reference products; no build file, config or code path depends on the harness. The delegation lines in
+the project `AGENTS.md` name Orca workers, and the prompt briefs name no harness at all.
+
+Nothing in `crates/`, the release or the open pull requests changed.
+
+## Stage 6 follow-up · merge journal recovery (2026-11-25)
+
+Git and SQLite cannot commit atomically. Acceptance retries now recognize an unjournaled Git merge only when
+its parents, message and tree match the expected merge. It records that merge and continues. A different
+tree or project movement refuses the remaining branches. Two scripted tests cover recovery and refusal.

@@ -109,3 +109,17 @@ untested because this machine has no `dpkg-deb`.
 When thread branches conflict, there is no valid combined tree. The runner records `threads_do_not_merge`
 and skips configured checks for that round. It does not report those checks as if they ran against the
 project folder or a partial tree.
+
+## Harness change (2026-11-25)
+
+- **An unverified accusation kept in memory.** `context/README.md` and `decisions.md` record that we stopped
+  using T3 Code, and that the reason is the owner's and unaudited. If it is ever repeated as fact, the
+  reputational risk is the owner's. The honest sentence stays "we stopped using it".
+- **Harness churn.** The instructions a session inherits partly live outside this repo. The one thing that
+  keeps a harness swap cheap is that `context/prompts/` and `docs/` name no harness and no harness-specific
+  tool. Keep it that way; name the repo, not the app the work happens in.
+
+## Merge recovery (2026-11-25)
+
+- A merge commit can land before SQLite saves `merge.landed`. Retry recognizes it only if its parents,
+  message and tree match the expected Git merge. A changed project tree stays refused.

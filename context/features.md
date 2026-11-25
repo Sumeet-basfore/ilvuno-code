@@ -161,3 +161,7 @@ checkout and are skipped. The temporary worktree and its branch are removed afte
 
 A conflict records a failed `threads_do_not_merge` check with the conflicting paths. A tree-build error
 records `round_tree_failed`. Neither case runs configured checks in the project folder.
+
+Review also added a base check. A round blocks if the project HEAD differs from the run's recorded base.
+Acceptance refuses if the project moves after checks pass. The loop tests cover both cases.
+Each merge retry checks the last landed commit before merging another thread branch.

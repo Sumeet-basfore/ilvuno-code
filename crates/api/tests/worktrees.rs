@@ -198,7 +198,7 @@ async fn a_dirty_thread_worktree_refuses_accept_before_any_merge() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_conflict_aborts_and_blocks_with_the_file_name() {
+async fn a_project_change_after_checks_refuses_acceptance_before_any_merge() {
     let h = harness();
     let repo = make_repo(&h.dir.join("conflict-repo"));
     let id = start_run(&h.app, &goal(&repo)).await;
@@ -211,11 +211,11 @@ async fn a_conflict_aborts_and_blocks_with_the_file_name() {
     let body_before = std::fs::read_to_string(repo.join("notes.md")).expect("project notes");
 
     let reply = post(&h.app, &format!("/runs/{id}/gate"), r#"{"decision":"accept"}"#).await;
-    assert_eq!(reply.status, axum::http::StatusCode::OK, "{}", reply.json);
-    assert_eq!(reply.json["status"], "blocked");
+    assert_eq!(reply.status, axum::http::StatusCode::CONFLICT, "{}", reply.json);
+    assert!(reply.json["error"].as_str().unwrap_or_default().contains("project changed after the checks"));
     let detail = get(&h.app, &format!("/runs/{id}")).await.json;
-    assert!(detail["run"]["blocked_reason"].as_str().unwrap_or_default().contains("notes.md"));
-    assert_eq!(git::head(&repo).expect("head after abort"), head_before);
+    assert_eq!(detail["run"]["status"], "reviewed");
+    assert_eq!(git::head(&repo).expect("head after refusal"), head_before);
     assert_eq!(std::fs::read_to_string(repo.join("notes.md")).expect("project notes"), body_before);
     assert!(git::is_clean(&repo).expect("clean after abort"));
 }

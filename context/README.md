@@ -228,3 +228,48 @@ failed**. The ignored tests require live provider credentials. The code commit i
 push is pending.
 
 The branch push completed to `origin/feat/checks-see-the-work` after verification.
+
+## Stage 6 review correction · 2026-11-25
+
+Review found that the integration tree used the run's starting commit while gate acceptance merges into the
+project's current commit. The runner now blocks checks if the project moved before round close. The gate
+also refuses acceptance if it moved after the checks passed. The run must start again so checks cover the
+new project state. The two movement cases have scripted tests.
+
+A second review found the same risk during a partial merge and retry. Each branch merge now checks the
+expected project commit from the run base or the last recorded merge. The runner refuses the remaining
+branches if the project moved. A scripted test covers this recovery path.
+
+## Current state update · 2026-11-25 · the harness changed, the project did not
+
+The owner moved the work harness from T3 Code to Orca, and may move it again. The stated reason is a worry
+that T3 Code collects data about the agents running inside it. **We did not verify that claim.** It is
+recorded here as the owner's reason for a decision, not as a finding about T3 Code.
+
+What this does not change:
+
+- Ilvuno runs agent CLIs. Nothing in `crates/`, the local API, the window, the packages or the prompt files
+  imports, configures or depends on any harness. A grep for T3 in this repo finds only prose: the three
+  reference products read in `research/` (t3code, orca, cloudroom), which are sources of shape, not
+  dependencies.
+- The release `v0.0.1` and the pull requests live on GitHub. They are unaffected.
+- The briefs in `context/prompts/` name no harness, so they still apply wherever the person works.
+
+What this does change: which app the work happens inside, and how work is handed to other agents. Delegation
+now goes through Orca workers, as the home `AGENTS.md` describes. Anything that named T3-specific tools in a
+working session no longer applies.
+
+State of the work on this day, so a cold start knows where it is:
+
+- Done: stage 6 (round checks run in the integration tree), on `feat/checks-see-the-work`, PR #10, waiting to
+  be merged. `v0.0.1` is published with the `.deb`, `.rpm` and `.AppImage`.
+- Open: PR #10 (stage 6), PR #11 (prompt 09, the Paseo lessons, corrected against the code).
+- Not started: stage 7 (`ilvuno report`, the one metric), the gate URL design note, enforcement of
+  `message_policy`.
+- Still unmerged from earlier: `feat/truth-in-the-ui` (2 commits) and `audit/verify-and-harden` (4 commits).
+
+## Stage 6 follow-up · merge journal recovery (2026-11-25)
+
+Git and SQLite cannot share one transaction. If Git lands a merge and the process stops before its journal
+row is saved, acceptance now records that merge on retry only when its parents, message and tree match the
+expected branch merge. Otherwise it refuses to continue. Scripted tests cover both recovery and refusal.
