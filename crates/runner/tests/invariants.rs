@@ -210,7 +210,12 @@ fn journal_kinds(store: &Store, run_id: &str) -> Vec<String> {
 #[test]
 fn schema_and_journal_are_created_on_open() {
     let f = fixture("schema");
-    assert_eq!(count(&f.store, "SELECT COUNT(*) FROM schema_migrations"), 6, "0001_init, 0002_providers, 0003_tasks, 0004_messages, 0005_messages, 0006_git");
+    assert_eq!(
+        count(&f.store, "SELECT COUNT(*) FROM schema_migrations"),
+        7,
+        "0001_init through 0007_drop_messages"
+    );
+    assert_eq!(count(&f.store, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='messages'"), 0);
     assert_eq!(count(&f.store, "SELECT COUNT(*) FROM journal WHERE kind = 'run.created'"), 1);
     assert_eq!(count(&f.store, "SELECT COUNT(*) FROM receipts"), 0, "no request_id, so no receipt");
 }

@@ -23,11 +23,14 @@ Use `PRAGMA journal_mode=WAL`, `foreign_keys=ON`, `synchronous=NORMAL`.
 | `title` | TEXT | first line of the goal |
 | `goal_text` | TEXT | the full statement |
 | `done_spec` | TEXT | JSON: `{done, checks}`; `done` is free text or null, `checks` as written in the goal file |
-| `message_policy` | TEXT | `anytime` \| `round` \| `never`, default `round` |
+| `message_policy` | TEXT | `anytime` \| `round` \| `never`, default `round`; advisory only |
 | `budget_rounds` | INTEGER | default 3 (research) / 5 (feature) |
 | `budget_tokens` | INTEGER | default 150000 |
 | `budget_usd` | REAL | nullable; CLI-level cap where supported |
 | `providers` | TEXT | JSON: agent id → `{driver, command, model, mode}`; `mode` is passed to the adapter (`INITIAL_AGENT_MODE` for codex-acp) |
+
+The runner validates, stores and exports `message_policy`. It also writes the value into the worker prompt.
+The runner does not enforce it.
 
 ### `runs`
 
@@ -83,6 +86,7 @@ One task inside a round: a prompt, the thread it runs on, and the scope it may t
 | `id` | TEXT PK | uuid |
 | `round_id` | TEXT FK | |
 | `thread_id` | TEXT FK | |
+| `kind` | TEXT | `task` by default; `message` for a user message |
 | `task` | TEXT | the prompt the task was written with |
 | `scope` | TEXT | JSON array of paths or sources it may touch |
 | `created_by` | TEXT | `user` \| `orchestrator` \| `runner` (the runner, when a failed round wakes the orchestrator) |
@@ -109,21 +113,8 @@ Append-only. The board the humans read and the agents query.
 
 Indexes: `(run_id, id)`, `(kind)`, and an FTS5 virtual table over `body` for search.
 
-### `messages`
-
-Agent-to-agent and runner-to-agent delivery. Separate from `ledger` because delivery has state.
-
-| column | type | notes |
-|---|---|---|
-| `id` | TEXT PK | uuid |
-| `run_id`, `round_id` | TEXT | |
-| `from_thread`, `to_thread` | TEXT | `to_thread` null = broadcast (only if policy allows) |
-| `body` | TEXT | |
-| `delivery` | TEXT | `queued` \| `delivered` \| `read` \| `unknown` \| `failed` |
-| `created_at`, `delivered_at` | INTEGER | |
-
-`unknown` is a real state (cloudroom's lesson): a message whose delivery we cannot confirm is never
-silently re-sent, and it is visible in the UI.
+A user's message to an agent is a `dispatch` row with `kind='message'`. An agent-to-agent handoff is a task
+dispatch, not a message. The runner records no delivery outcome because it has no delivery step.
 
 ### `artifacts`
 

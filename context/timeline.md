@@ -187,3 +187,9 @@ Added an ACP test for `env -i`, an API test that binds through the production lo
 three plain-English lines in the security model. The first test attempt hit a full `/tmp` filesystem while
 compiling dependencies. Retrying with the existing `/home` build target passed: API 56 passed, ACP 19 passed,
 1 ignored, 0 failed.
+
+## Prompt 09 · Remove the dead messages table (2026-11-25)
+
+Migration `0007_drop_messages` removes the unused table. The data model now says a user message is a message
+dispatch, an agent handoff is a task, and `message_policy` is advisory. Decision D28 records this behavior.
+The focused fresh-database test passed: 1 passed, 0 failed, 13 filtered out.

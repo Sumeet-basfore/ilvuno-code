@@ -127,3 +127,9 @@ Recorded honestly: the reason for leaving is the owner's and was not audited her
 | # | Decision | Why | What would reverse it |
 |---|---|---|---|
 | **D27** | On acceptance retry, record an unjournaled Git merge only when its first parent, second parent, message and tree match the expected merge. Otherwise refuse to merge more branches. | Git and SQLite cannot commit atomically. Retrying safely must preserve a merge Git already made without accepting unrelated or altered project state. | A single transactional store for Git refs and the journal, or evidence that Git can atomically commit both. |
+
+## Prompt 09 · Messages and policy (2026-11-25)
+
+| # | Decision | Why | What would reverse it |
+|---|---|---|---|
+| **D28** | Drop the unused `messages` table. A user message is a `dispatch` row with `kind='message'`; an agent handoff is a task dispatch. Keep `message_policy` validated, stored, exported and in the worker prompt, but advisory. The runner does not enforce it or record delivery outcomes. | The runner has no delivery step. Keeping an empty table or implying the policy is enforced would describe behavior the product does not have. | Add a real delivery step and approve a separate design for policy enforcement and delivery outcomes. |
